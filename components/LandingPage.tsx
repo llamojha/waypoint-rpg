@@ -52,7 +52,7 @@ export const LandingPage: React.FC<Props> = ({ onStart, lang, setLang }) => {
       id="landing-container"
       className="h-full w-full overflow-y-auto overflow-x-hidden bg-parchment-300 text-ink font-sans selection:bg-gold selection:text-ink relative scroll-smooth"
     >
-      <main className="space-y-24 pb-20">
+      <main className="space-y-24">
         <Hero onStart={handleStartClick} />
         {/* CoreSystems removed as requested */}
         <AvatarGrid />
@@ -78,62 +78,76 @@ export const LandingPage: React.FC<Props> = ({ onStart, lang, setLang }) => {
    3. Hero Block
 ------------------------------------------------------------------------- */
 const Hero = ({ onStart }: { onStart: () => void }) => (
-  <section className="relative pt-20 px-4 text-center max-w-5xl mx-auto animate-fade-in">
-    <h1 className="text-6xl md:text-8xl font-display text-ink mb-6 text-shadow">
-      Your World. <span className="text-burgundy">Your Rules.</span>
-    </h1>
-
-    <h2 className="text-2xl md:text-3xl font-serif text-ink-light mb-6">
-      A persistent sandbox RPG where skills replace classes, and the world
-      remembers.
-    </h2>
-
-    <div className="flex flex-wrap justify-center gap-3 mb-8">
-      <PromiseChip text="No Classes. Just Skills." />
-      <PromiseChip text="Your Choices Become Lore" />
-      <PromiseChip text="Magic is a Myth (until you find it)" />
+  <section className="relative pt-20 pb-32 px-4 text-center max-w-full mx-auto animate-fade-in overflow-hidden">
+    {/* Background Image */}
+    <div className="absolute inset-0 z-0">
+      <img
+        src="/hero_waypoint_bg_watercolour.png"
+        alt="Ancient Waypoint"
+        className="absolute inset-0 w-full h-full object-cover opacity-30 scale-105"
+      />
     </div>
+    <div
+      className="absolute inset-0 z-10 bg-gradient-to-t from-parchment-300 via-parchment-300/60 to-transparent pointer-events-none"
+      aria-hidden="true"
+    ></div>
+    <div className="relative z-20 max-w-5xl mx-auto">
+      <h1 className="text-6xl md:text-8xl font-display text-ink mb-6 text-shadow">
+        Your World. <span className="text-burgundy">Your Rules.</span>
+      </h1>
 
-    <p className="text-lg text-ink-faint max-w-2xl mx-auto mb-10 font-serif italic">
-      No DM required. Take any action you can imagine. The game resolves the
-      outcome, records what changed, and carries the consequences forward.
-    </p>
+      <h2 className="text-2xl md:text-3xl font-serif text-ink-light mb-6">
+        A persistent sandbox RPG where skills replace classes, and the world
+        remembers.
+      </h2>
 
-    <div className="flex flex-col items-center gap-4">
-      <button
-        onClick={onStart}
-        className="group relative px-10 py-5 bg-burgundy text-parchment-100 font-display text-2xl rounded-sm shadow-xl hover:bg-burgundy-dim border-2 border-parchment-900 transition-all active:translate-y-1 overflow-hidden"
-      >
-        <div className="flex items-center gap-3 relative z-10">
-          <Sword className="fill-current" size={24} />
-          <span>Start Your Saga</span>
-          <ChevronRight
-            className="group-hover:translate-x-1 transition-transform"
-            size={24}
-          />
+      <div className="flex flex-wrap justify-center gap-3 mb-8">
+        <PromiseChip text="No Classes. Just Skills." />
+        <PromiseChip text="Your Choices Become Lore" />
+        <PromiseChip text="Magic is a Myth (until you find it)" />
+      </div>
+
+      <p className="text-lg text-ink-faint max-w-2xl mx-auto mb-10 font-serif italic">
+        No DM required. Take any action you can imagine. The game resolves the
+        outcome, records what changed, and carries the consequences forward.
+      </p>
+
+      <div className="flex flex-col items-center gap-4">
+        <button
+          onClick={onStart}
+          className="group relative px-10 py-5 bg-burgundy text-parchment-100 font-display text-2xl rounded-sm shadow-xl hover:bg-burgundy-dim border-2 border-parchment-900 transition-all active:translate-y-1 overflow-hidden"
+        >
+          <div className="flex items-center gap-3 relative z-10">
+            <Sword className="fill-current" size={24} />
+            <span>Start Your Saga</span>
+            <ChevronRight
+              className="group-hover:translate-x-1 transition-transform"
+              size={24}
+            />
+          </div>
+          {/* Shine effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+        </button>
+
+        <button
+          onClick={() =>
+            document
+              .getElementById("how-it-works")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+          className="text-sm font-bold text-burgundy hover:underline opacity-80 mb-2"
+        >
+          See how the Codex works
+        </button>
+
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-parchment-400 bg-parchment-100 shadow-sm text-sm font-bold text-ink-light font-small-caps uppercase tracking-wide">
+          <span className="flex -space-x-2">
+            <div className="w-5 h-5 rounded-full bg-burgundy border border-parchment-100"></div>
+            <div className="w-5 h-5 rounded-full bg-gold border border-parchment-100"></div>
+            <div className="w-5 h-5 rounded-full bg-forest border border-parchment-100"></div>
+          </span>
+          <span>123,360 Adventurers Playing</span>
         </div>
-        {/* Shine effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-      </button>
-
-      <button
-        onClick={() =>
-          document
-            .getElementById("how-it-works")
-            ?.scrollIntoView({ behavior: "smooth" })
-        }
-        className="text-sm font-bold text-burgundy hover:underline opacity-80 mb-2"
-      >
-        See how the Codex works
-      </button>
-
-      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-parchment-400 bg-parchment-100 shadow-sm text-sm font-bold text-ink-light font-small-caps uppercase tracking-wide">
-        <span className="flex -space-x-2">
-          <div className="w-5 h-5 rounded-full bg-burgundy border border-parchment-100"></div>
-          <div className="w-5 h-5 rounded-full bg-gold border border-parchment-100"></div>
-          <div className="w-5 h-5 rounded-full bg-forest border border-parchment-100"></div>
-        </span>
-        <span>123,360 Adventurers Playing</span>
       </div>
     </div>
   </section>
@@ -151,14 +165,14 @@ const PromiseChip = ({ text }: { text: string }) => (
 const AvatarGrid = () => {
   // Using CSS filters to make the same SVG look different for the mock
   const avatars = [
-    { name: "Tracker", filter: "hue-rotate(90deg) sepia(0.5)" },
-    { name: "Duelist", filter: "hue-rotate(180deg) sepia(0.2)" },
-    { name: "Diplomat", filter: "sepia(0.8)" },
-    { name: "Smuggler", filter: "hue-rotate(45deg) contrast(1.2)" },
-    { name: "Apothecary", filter: "hue-rotate(290deg) saturate(1.5)" },
-    { name: "Beast-Tamer", filter: "hue-rotate(200deg) brightness(0.9)" },
-    { name: "Relic-Hunter", filter: "grayscale(0.5) sepia(0.4)" },
-    { name: "Warden", filter: "invert(0.1) sepia(0.5)" },
+    { name: "Tracker", src: "/avatar_tracker.png" },
+    { name: "Duelist", src: "/avatar_duelist.png" },
+    { name: "Diplomat", src: "/avatar_diplomat.png" },
+    { name: "Smuggler", src: "/avatar_smuggler.png" },
+    { name: "Apothecary", src: "/avatar_apothecary.png" },
+    { name: "Beast-Tamer", src: "/avatar_beast_tamer.png" },
+    { name: "Relic-Hunter", src: "/avatar_relic_hunter.png" },
+    { name: "Warden", src: "/avatar_warden.png" },
   ];
 
   return (
@@ -170,10 +184,9 @@ const AvatarGrid = () => {
             className="group relative aspect-square rounded-sm overflow-hidden border-2 border-parchment-800 bg-parchment-900 shadow-md transition-all duration-300 hover:scale-110 hover:z-10 hover:border-gold cursor-pointer"
           >
             <img
-              src={UNKNOWN_IMG}
+              src={av.src}
               alt={av.name}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-              style={{ filter: av.filter }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-2">
               <span className="text-[10px] text-parchment-100 font-bold uppercase tracking-widest text-center px-1">
@@ -204,46 +217,55 @@ const Testimonials = () => {
       text: "We started as nobodies. Three sessions later we founded a trade route and the prices changed.",
       author: "Sarah J.",
       color: "border-burgundy",
+      img: "/reviewer_1_v2.png",
     },
     {
       text: "The world actually remembered my bad reputation. I got denied at the gate. Brutal. Perfect.",
       author: "Mike R.",
       color: "border-forest",
+      img: "/reviewer_2_v2.png",
     },
     {
       text: "We chased a rumor for two nights… and it became a real Codex entry when we proved it.",
       author: "Sam W.",
       color: "border-gold",
+      img: "/reviewer_3_v2.png",
     },
     {
       text: "Magic showed up once. It was terrifying. Everyone cared. It felt legendary.",
       author: "Lina P.",
       color: "border-ink",
+      img: "/reviewer_4_v2.png",
     },
     {
       text: "The system handled my attempt to forge a treaty with goblins flawlessly.",
       author: "Casey B.",
       color: "border-burgundy-dim",
+      img: "/reviewer_5_v2.png",
     },
     {
       text: "No prep needed. I just logged in and the world was there, waiting.",
       author: "Jordan P.",
       color: "border-forest-dim",
+      img: "/reviewer_6_v2.png",
     },
     {
       text: "I've never seen an RPG track relationships this deeply before.",
       author: "Devin K.",
       color: "border-gold-dim",
+      img: "/reviewer_7_v2.png",
     },
     {
       text: "My character isn't a Fighter, she's a Duelist-Poet. The skills reflect that perfectly.",
       author: "Riley M.",
       color: "border-ink",
+      img: "/reviewer_8_v2.png",
     },
     {
       text: "Finally, consequences that stick. I'm still paying for that mistake in the tavern.",
       author: "Alex T.",
       color: "border-forest",
+      img: "/reviewer_9_v2.png",
     },
   ];
 
@@ -306,13 +328,15 @@ const Testimonials = () => {
   );
 };
 
-const ReviewCard = ({ text, author, color }: any) => (
+const ReviewCard = ({ text, author, color, img }: any) => (
   <div
     className={`p-6 bg-parchment-100 rounded-sm border-l-4 ${color} shadow-sm transition-shadow`}
   >
     <p className="font-serif text-lg text-ink mb-4 leading-relaxed">"{text}"</p>
     <div className="flex items-center gap-2">
-      <div className="w-6 h-6 rounded-full bg-parchment-300 border border-parchment-400"></div>
+      <div className="w-10 h-10 rounded-full overflow-hidden border border-parchment-400 bg-parchment-300 shadow-inner">
+        <img src={img} alt={author} className="w-full h-full object-cover" />
+      </div>
       <span className="text-xs font-bold font-small-caps text-ink-light uppercase tracking-wide">
         {author}
       </span>
@@ -327,7 +351,7 @@ const VideoEmbed = () => (
   <section className="px-4 max-w-4xl mx-auto">
     <div className="rounded-sm p-2 bg-parchment-200 border border-parchment-400 shadow-xl relative panel-texture">
       <div className="aspect-video bg-black/90 relative rounded-sm overflow-hidden flex items-center justify-center group cursor-pointer">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=2574&auto=format&fit=crop')] bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity duration-500"></div>
+        <div className="absolute inset-0 bg-[url('/video_watchtower_bg_watercolour.png')] bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity duration-500"></div>
         <div className="w-20 h-20 rounded-full bg-parchment-100/10 backdrop-blur-sm border-2 border-parchment-100 flex items-center justify-center z-10 group-hover:scale-110 transition-transform">
           <Play
             className="fill-parchment-100 text-parchment-100 ml-1"
@@ -620,13 +644,23 @@ const FAQList = () => {
    9. Final CTA
 ------------------------------------------------------------------------- */
 const FinalCTA = ({ onStart }: { onStart: () => void }) => (
-  <section className="px-4 text-center py-20 bg-parchment-200 border-y-2 border-parchment-800 panel-texture">
-    <div className="max-w-3xl mx-auto">
+  <section className="relative px-4 text-center py-24 bg-parchment-200 border-y-2 border-parchment-800 overflow-hidden">
+    {/* Background Image */}
+    <div className="absolute inset-0 z-0">
+      <img
+        src="/cta_camp_party_bg_watercolour.png"
+        alt="Adventurer's Camp"
+        className="w-full h-full object-cover opacity-20 scale-105"
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-parchment-200 via-transparent to-parchment-200"></div>
+    </div>
+
+    <div className="relative z-10 max-w-3xl mx-auto">
       <h2 className="text-4xl md:text-5xl font-display text-ink mb-4">
         Done Waiting Two Weeks Between Sessions?
       </h2>
       <p className="text-xl text-ink-light font-serif italic mb-10">
-        The tavern is open. The map is waiting. Bring friends — or go alone —
+        The campfire is lit. The map is waiting. Bring friends — or go alone —
         and leave a mark on a world that remembers.
       </p>
 
