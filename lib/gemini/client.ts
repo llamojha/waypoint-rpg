@@ -1,13 +1,13 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import type { ProposedEvent } from "@/lib/turn/validate";
 
 /**
  * Gemini API client for turn generation
- * Uses gemini-2.5-flash-lite model with JSON response format (configurable via GEMINI_MODEL env var)
+ * Uses @google/genai SDK with JSON response format
  */
 
 // Initialize the Gemini client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 export interface GeminiTurnResponse {
   narration: string;
@@ -38,21 +38,21 @@ export async function generateTurn(
 ): Promise<GeminiTurnResponse> {
   const modelName = process.env.GEMINI_MODEL || DEFAULT_MODEL;
 
-  const model = genAI.getGenerativeModel({
-    model: modelName,
-    generationConfig: {
-      temperature,
-      responseMimeType: "application/json",
-    },
-  });
-
   let lastError: Error | null = null;
 
   // Try up to 2 times (initial + 1 retry)
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          temperature,
+          responseMimeType: "application/json",
+        },
+      });
+
+      const text = response.text || "";
 
       // Parse and validate the response
       const parsed = parseGeminiResponse(text);

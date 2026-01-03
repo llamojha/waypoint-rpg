@@ -88,20 +88,22 @@ Character portraits, NPC portraits, location art via Replicate API.
 
 ---
 
-## Priority 4: Full Agent Pipeline
+## Priority 4: Full Agent Pipeline (Tool Calling)
 
 **Status:** Deferred (using simplified single-LLM approach for MVP)
 
-Implement complete 6-agent architecture:
+Implement complete 6-agent architecture using tool calling throughout:
 
-- Lorekeeper (codex queries)
-- Rune Marshal (mechanics detection)
-- Orchestrator (event proposal)
-- World Arbiter (validation)
-- Chronicler (narration)
-- Content Sentinel (safety)
+- Lorekeeper (codex queries via `query_codex` tool)
+- Rune Marshal (intent detection via `detect_intent` tool) — **Foundation built in 2.2**
+- Orchestrator (event proposals via `propose_*` tools)
+- World Arbiter (validation via `validate_event` tool)
+- Chronicler (narration via JSON mode — prose doesn't need tools)
+- Content Sentinel (safety via deterministic filtering)
 
 See `agent-system.md` for full spec.
+
+**Note:** Tool calling foundation is established in Phase 2 (specs 2.1 and 2.2). The deferred agents (2.5-2.7) will follow the same pattern.
 
 ---
 

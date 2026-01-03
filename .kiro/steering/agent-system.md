@@ -1,8 +1,19 @@
-# Agent System (A2A Architecture)
+# Agent System (A2A Architecture with Tool Calling)
 
 ## Overview
 
-Waypoint uses a multi-agent pipeline where each agent has a single responsibility. Agents communicate via structured I/O — no agent can directly mutate game state.
+Waypoint uses a multi-agent pipeline where each agent has a single responsibility. Agents communicate via Gemini tool calling (function calling) for typed, schema-enforced I/O — no agent can directly mutate game state.
+
+## Tool Calling Strategy
+
+| Agent            | Uses Tool Calling? | Reason                        |
+| ---------------- | ------------------ | ----------------------------- |
+| Lorekeeper       | ✅ Yes             | Typed codex queries           |
+| Rune Marshal     | ✅ Yes             | Typed intent detection        |
+| Orchestrator     | ✅ Yes             | Multiple event proposal tools |
+| World Arbiter    | ✅ Yes             | Typed validation decisions    |
+| Chronicler       | ❌ No (JSON mode)  | Free-form prose output        |
+| Content Sentinel | ❌ No              | Deterministic filtering       |
 
 ## Agent Pipeline Flow
 
@@ -82,9 +93,33 @@ User Input
 
 ---
 
-### 2. Rune Marshal (Mechanics & Intent)
+### 2. Rune Marshal (Mechanics & Intent) — Tool Calling
 
 **Purpose**: Parse player intent, detect power words, determine skill checks
+
+**Tool Declaration**:
+
+```typescript
+import { FunctionDeclaration, Type } from "@google/genai";
+
+export const detectIntentTool: FunctionDeclaration = {
+  name: "detect_intent",
+  description: "Analyze player action to determine skill check requirements",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      primary_skill: { type: Type.STRING, enum: SKILL_NAMES },
+      power_words: { type: Type.ARRAY, items: { type: Type.STRING } },
+      tier: { type: Type.NUMBER, enum: [1, 2, 3] },
+      bonus: { type: Type.NUMBER },
+      requires_roll: { type: Type.BOOLEAN },
+      dc: { type: Type.NUMBER },
+      denial_reason: { type: Type.STRING },
+    },
+    required: ["primary_skill", "requires_roll"],
+  },
+};
+```
 
 **Input**:
 
@@ -100,22 +135,17 @@ User Input
 }
 ```
 
-**Output**:
+**Output** (via tool call):
 
 ```typescript
 {
-  detected_intent: {
-    primary_skill: string,
-    power_words: string[],
-    tier: 1 | 2 | 3,
-    bonus: number
-  },
+  primary_skill: string,
+  power_words: string[],
+  tier: 1 | 2 | 3,
+  bonus: number,
   requires_roll: boolean,
-  roll_type: string,       // e.g., "Perception", "Melee"
-  difficulty: number,      // DC
-  modifiers: Array<{ source: string, value: number }>,
-  allowed: boolean,
-  denial_reason?: string   // If action impossible
+  dc?: number,
+  denial_reason?: string
 }
 ```
 
@@ -126,14 +156,56 @@ User Input
 - Only determines mechanics
 - Resolves alias → skill mapping
 - Handles ambiguous multi-skill actions
+- Schema-enforced output (no JSON parsing)
 
 **Temperature**: 0.1 (consistent mechanics)
 
 ---
 
-### 3. Orchestrator (Director)
+### 3. Orchestrator (Director) — Tool Calling
 
 **Purpose**: Propose state changes based on action + mechanics outcome
+
+**Tool Declarations** (one per event type):
+
+```typescript
+export const proposeStatChangeTool: FunctionDeclaration = {
+  name: "propose_stat_change",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      stat: { type: Type.STRING, enum: ["hp", "gold"] },
+      delta: { type: Type.NUMBER },
+      reason: { type: Type.STRING },
+    },
+    required: ["stat", "delta", "reason"],
+  },
+};
+
+export const proposeInventoryAddTool: FunctionDeclaration = {
+  name: "propose_inventory_add",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      item_name: { type: Type.STRING },
+      item_type: {
+        type: Type.STRING,
+        enum: ["weapon", "armor", "consumable", "quest", "trinket", "misc"],
+      },
+      rarity: {
+        type: Type.STRING,
+        enum: ["common", "uncommon", "rare", "legendary"],
+      },
+      description: { type: Type.STRING },
+      reason: { type: Type.STRING },
+    },
+    required: ["item_name", "item_type", "reason"],
+  },
+};
+
+// Additional tools: propose_inventory_remove, propose_relationship_change,
+// propose_quest_progress, propose_world_update, propose_npc_discovered
+```
 
 **Input**:
 
@@ -142,24 +214,22 @@ User Input
   user_action: string,
   current_state: GameState,
   canon_snippets: CanonSnippet[],
-  mechanics_result: RuneMarshalOutput,
+  mechanics_result: DetectIntentResult,
   roll_outcome?: { rolled: number, success: boolean },
-  recent_events: TurnDiff[] // Last 3-5 turns
+  recent_events: TurnDiff[]
 }
 ```
 
-**Output**:
+**Output** (via multiple tool calls):
 
 ```typescript
-{
-  proposed_events: Array<{
-    type: 'inventory_add' | 'inventory_remove' | 'relationship_change' |
-          'quest_progress' | 'stat_change' | 'world_update' | 'npc_discovered',
-    payload: Record<string, any>,
-    reason: string         // Why this change
-  }>,
-  scene_direction: string  // Brief guidance for Chronicler
-}
+// Gemini calls multiple tools as needed:
+// - propose_stat_change({ stat: 'hp', delta: -5, reason: '...' })
+// - propose_inventory_add({ item_name: '...', ... })
+// - propose_relationship_change({ npc: '...', delta: 1, reason: '...' })
+
+// Plus scene direction in final response
+scene_direction: string;
 ```
 
 **Rules**:
@@ -167,39 +237,57 @@ User Input
 - No prose generation
 - No committing to state
 - Only proposes — Arbiter validates
-- Must provide reason for each event
+- Each tool call includes reason
+- Multiple tools can be called per turn
 
 **Temperature**: 0.4 (some creativity in proposals)
 
 ---
 
-### 4. World Arbiter (Reality Guardrail)
+### 4. World Arbiter (Reality Guardrail) — Tool Calling
 
 **Purpose**: Validate proposed events against canon and game rules
+
+**Tool Declaration**:
+
+```typescript
+export const validateEventTool: FunctionDeclaration = {
+  name: "validate_event",
+  description: "Validate a proposed event against game rules and canon",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      event_id: { type: Type.STRING },
+      approved: { type: Type.BOOLEAN },
+      reason: { type: Type.STRING },
+      modified_payload: { type: Type.OBJECT }, // Optional corrections
+    },
+    required: ["event_id", "approved", "reason"],
+  },
+};
+```
 
 **Input**:
 
 ```typescript
 {
   user_action: string,
-  proposed_events: ProposedEvent[],
+  proposed_events: ProposedEvent[],  // From Orchestrator tool calls
   canon_snippets: CanonSnippet[],
   current_state: GameState,
-  rules: GameRules          // Item bounds, relationship caps, etc.
+  rules: GameRules
 }
 ```
 
-**Output**:
+**Output** (via tool calls, one per event):
 
 ```typescript
+// For each proposed event:
 {
-  approved_events: ValidatedEvent[],
-  rejected_events: Array<{
-    event: ProposedEvent,
-    reason: string,
-    suggestion?: string    // How to fix
-  }>,
-  warnings: string[]       // Non-blocking concerns
+  event_id: string,
+  approved: boolean,
+  reason: string,
+  modified_payload?: Record<string, any>  // Corrections if needed
 }
 ```
 
@@ -210,14 +298,17 @@ User Input
 - Validates NPC existence or registers new ones
 - Caps relationship changes (±2 per turn)
 - Ensures quest progression is valid
+- Can modify events (e.g., cap damage) rather than reject
 
 **Temperature**: 0.1 (strict validation)
 
 ---
 
-### 5. Chronicler (Storyteller)
+### 5. Chronicler (Storyteller) — JSON Mode
 
 **Purpose**: Generate final narration from validated events
+
+**Note**: Chronicler uses JSON mode, NOT tool calling, because narration is free-form prose.
 
 **Input**:
 
@@ -231,7 +322,7 @@ User Input
 }
 ```
 
-**Output**:
+**Output** (JSON mode):
 
 ```typescript
 {
@@ -366,15 +457,21 @@ const finalOutput = await contentSentinel.filter({
 
 ### Latency Budget (Target: <3s total)
 
-| Agent            | Target    | Notes                                 |
-| ---------------- | --------- | ------------------------------------- |
-| Lorekeeper       | 300ms     | DB query + light LLM                  |
-| Rune Marshal     | 400ms     | Low-temp, structured output           |
-| Orchestrator     | 600ms     | Medium complexity                     |
-| World Arbiter    | 400ms     | Mostly rule checks                    |
-| Chronicler       | 1000ms    | Streaming, can start displaying early |
-| Content Sentinel | 200ms     | Fast classifier                       |
-| **Total**        | **~2.5s** | With Phase 1 parallel                 |
+| Agent            | Target    | Notes                                  |
+| ---------------- | --------- | -------------------------------------- |
+| Lorekeeper       | 300ms     | DB query + tool call                   |
+| Rune Marshal     | 400ms     | Low-temp, tool call (schema-enforced)  |
+| Orchestrator     | 600ms     | Medium complexity, multiple tool calls |
+| World Arbiter    | 400ms     | Mostly rule checks + tool calls        |
+| Chronicler       | 1000ms    | Streaming JSON mode, display early     |
+| Content Sentinel | 200ms     | Fast classifier (no LLM)               |
+| **Total**        | **~2.5s** | With Phase 1 parallel                  |
+
+### Tool Calling Benefits for Latency
+
+- **Structured output** — No retry on JSON parse failures
+- **Parallel tool calls** — Orchestrator can propose multiple events in one call
+- **Schema validation** — Gemini validates before returning, fewer round trips
 
 ### Streaming Optimization
 

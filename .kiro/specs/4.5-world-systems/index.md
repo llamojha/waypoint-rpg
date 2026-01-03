@@ -4,7 +4,7 @@
 
 ## Overview
 
-Implement map, travel, news feed, and codex systems.
+Implement map, travel, news feed, and codex systems. Uses tool calling for world state change proposals.
 
 ## Roadmap Reference
 
@@ -24,6 +24,7 @@ See #[[file:.kiro/steering/mvp-scope.md]]
 - 4.2 combat-system (complete)
 - 4.3 inventory-equipment (complete)
 - 4.4 quest-npc-system (complete)
+- 2.1 gemini-integration (tool calling infrastructure)
 
 ## Scope Summary
 
@@ -34,10 +35,36 @@ See #[[file:.kiro/steering/mvp-scope.md]]
 - Codex entries display
 - Time/weather in header
 
+## Tool Calling Integration
+
+World state changes flow through tool calling:
+
+```typescript
+// World update via tool (location change, weather, time)
+const worldUpdateEvent = {
+  name: "propose_world_update",
+  args: {
+    field: "poi",
+    value: "Ash Coast Outpost",
+    reason: "Player traveled to new location",
+  },
+};
+
+// Location discovery triggers news
+const locationDiscoveredEvent = {
+  name: "propose_location_discovered",
+  args: {
+    name: "Hidden Cave",
+    region: "Ash Coast",
+    description: "A dark cave entrance behind the waterfall",
+  },
+};
+```
+
 ## Deliverables
 
 - [ ] Map shows discovered locations
-- [ ] Travel works correctly
+- [ ] Travel works correctly (via tool-proposed events)
 - [ ] News shows other players' discoveries
 - [ ] News read status tracks
 - [ ] Codex searchable

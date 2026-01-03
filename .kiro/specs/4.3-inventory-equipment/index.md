@@ -4,7 +4,7 @@
 
 ## Overview
 
-Implement item management, equipment slots, and consumable usage.
+Implement item management, equipment slots, and consumable usage. Uses tool calling for inventory change proposals.
 
 ## Roadmap Reference
 
@@ -21,6 +21,7 @@ See #[[file:.kiro/steering/game-mechanics.md]]
 ## Dependencies
 
 - 3.1 demo-experience (complete)
+- 2.1 gemini-integration (tool calling infrastructure)
 
 ## Scope Summary
 
@@ -31,11 +32,38 @@ See #[[file:.kiro/steering/game-mechanics.md]]
 - Consumable usage (potions)
 - Item tooltips
 
+## Tool Calling Integration
+
+Inventory changes flow through tool calling:
+
+```typescript
+// Item pickup via tool
+const addItemEvent = {
+  name: "propose_inventory_add",
+  args: {
+    item_name: "Healing Potion",
+    item_type: "consumable",
+    rarity: "common",
+    description: "Restores 2d4+2 HP",
+    reason: "Found in chest",
+  },
+};
+
+// Item removal via tool
+const removeItemEvent = {
+  name: "propose_inventory_remove",
+  args: {
+    item_name: "Healing Potion",
+    reason: "Consumed to restore health",
+  },
+};
+```
+
 ## Deliverables
 
 - [ ] Inventory displays correctly
 - [ ] Equipment slots show equipped items
-- [ ] Equip/unequip works
+- [ ] Equip/unequip works (via tool-proposed events)
 - [ ] Stats update when equipment changes
 - [ ] Consumables can be used
 - [ ] Narration reflects equipment

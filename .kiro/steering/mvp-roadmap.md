@@ -67,18 +67,19 @@ MVP COMPLETE                           [Total: ~76-109 hours]
 | --- | ---------------- | -------- | ------- |
 | 1.2 | `authentication` | 4-6h     | 📋 TODO |
 
-### Phase 2A: Mechanics
+### Phase 2A: Mechanics (with Tool Calling)
 
 | ID  | Spec Name                | Estimate | Status  |
 | --- | ------------------------ | -------- | ------- |
-| 2.1 | `gemini-integration`     | 3-4h     | 📋 TODO |
-| 2.2 | `skill-checks-mechanics` | 4-6h     | 📋 TODO |
+| 2.1 | `gemini-integration`     | 4-5h     | 📋 TODO |
+| 2.2 | `skill-checks-mechanics` | 5-7h     | 📋 TODO |
 
 **🎮 CHECKPOINT 2** after 2.2:
 
 - Skill checks with roll button
-- Power word detection
+- Power word detection via tool calling
 - DC and modifiers working
+- Tool calling foundation for future agents
 
 ### Phase 2B: Streaming & Safety
 
@@ -92,13 +93,15 @@ MVP COMPLETE                           [Total: ~76-109 hours]
 - Streaming narration (text appears as it generates)
 - Content safety filtering in place
 
-### Phase 2C: Full Agent Pipeline (Post-Demo)
+### Phase 2C: Full Agent Pipeline (Post-Demo, Tool Calling)
 
 | ID  | Spec Name              | Estimate | Status      |
 | --- | ---------------------- | -------- | ----------- |
 | 2.5 | `lorekeeper`           | 4-6h     | ⏸️ DEFERRED |
 | 2.6 | `orchestrator-arbiter` | 6-8h     | ⏸️ DEFERRED |
 | 2.7 | `agent-pipeline`       | 4-6h     | ⏸️ DEFERRED |
+
+All deferred agents will use tool calling, building on the foundation from 2.1/2.2.
 
 ### Phase 3: Demo Polish
 
@@ -292,23 +295,24 @@ Implement turn processing with a single Gemini call.
 
 ### 2.1 `gemini-integration`
 
-Refactor Gemini client for reuse.
+Add tool calling support to Gemini client.
 
-- Extract client setup from 1.6
+- Add `generateWithTools()` function for tool calling
+- Add tool declaration types and helpers
 - Add retry logic with exponential backoff
 - Add token counting utilities
-- Create prompt template system
 - Add temperature configuration
 
 ### 2.2 `skill-checks-mechanics`
 
-Extract mechanics detection from LLM.
+Extract mechanics detection using tool calling.
 
+- Define `detect_intent` tool declaration
 - Dedicated low-temp call for intent parsing
 - Power word detection against SKILL_TREE
 - Skill check determination (when to roll)
 - DC calculation based on context
-- Modifier calculation (stat + skill level + power word)
+- Modifier calculation (skill level + power word bonus)
 - Wire roll button to resolve checks
 
 ### 2.3 `chronicler-streaming`
@@ -368,9 +372,10 @@ Add safety filtering.
 
 ## Risk Mitigation
 
-| Risk              | Mitigation                                |
-| ----------------- | ----------------------------------------- |
-| Gemini latency    | Start without streaming, add later        |
-| Auth complexity   | Skip until Checkpoint 1 works             |
-| Scope creep       | Each checkpoint is testable, stop anytime |
-| LLM inconsistency | Basic validation catches obvious errors   |
+| Risk                | Mitigation                                    |
+| ------------------- | --------------------------------------------- |
+| Gemini latency      | Start without streaming, add later            |
+| Auth complexity     | Skip until Checkpoint 1 works                 |
+| Scope creep         | Each checkpoint is testable, stop anytime     |
+| LLM inconsistency   | Tool calling provides schema-enforced outputs |
+| Tool calling issues | Fallback to JSON mode if needed               |

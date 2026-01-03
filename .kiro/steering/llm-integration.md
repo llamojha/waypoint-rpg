@@ -4,6 +4,67 @@
 
 Google Gemini (`gemini-2.5-flash-lite` primary, `gemini-3-flash-preview` optional)
 
+**SDK**: `@google/genai`
+
+## Tool Calling Architecture
+
+Waypoint uses Gemini's tool calling (function calling) for structured outputs instead of JSON mode. This provides schema-enforced responses and eliminates JSON parsing failures.
+
+### When to Use Tool Calling vs JSON Mode
+
+| Use Case             | Approach      | Reason                              |
+| -------------------- | ------------- | ----------------------------------- |
+| Intent detection     | Tool calling  | Typed schema, enum constraints      |
+| Event proposals      | Tool calling  | Multiple typed tools per event type |
+| Validation decisions | Tool calling  | Boolean approve/reject with reason  |
+| Narration generation | JSON mode     | Free-form prose, not structured     |
+| Safety filtering     | Deterministic | No LLM needed                       |
+
+### Tool Declaration Pattern
+
+```typescript
+import { FunctionDeclaration, Type } from "@google/genai";
+
+export const exampleTool: FunctionDeclaration = {
+  name: "tool_name",
+  description: "What this tool does",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      field: { type: Type.STRING, enum: ["option1", "option2"] },
+      value: { type: Type.NUMBER },
+    },
+    required: ["field"],
+  },
+};
+```
+
+### Handling Tool Call Responses
+
+```typescript
+import { GoogleGenAI, FunctionCallingConfigMode } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: prompt,
+  config: {
+    tools: [{ functionDeclarations: [detectIntentTool] }],
+    toolConfig: {
+      functionCallingConfig: { mode: FunctionCallingConfigMode.ANY },
+    },
+  },
+});
+
+if (response.functionCalls) {
+  for (const call of response.functionCalls) {
+    // call.name = "detect_intent"
+    // call.args = { primary_skill: "Sneaking", ... }
+  }
+}
+```
+
 ## Two-Pass Generation Pattern
 
 ### Pass A: Narration + Intent (LLM, temp ~0.8)
@@ -47,17 +108,41 @@ Output:
 
 ## Power Word & Intent Detection
 
-Use dedicated low-temp (~0.1) LLM call for intent parsing:
+Use Gemini tool calling with dedicated low-temp (~0.1) call for intent parsing:
+
+```typescript
+import { FunctionDeclaration, Type } from "@google/genai";
+
+export const detectIntentTool: FunctionDeclaration = {
+  name: "detect_intent",
+  description: "Analyze player action to determine skill check requirements",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      primary_skill: { type: Type.STRING, enum: SKILL_NAMES },
+      power_words: { type: Type.ARRAY, items: { type: Type.STRING } },
+      tier: { type: Type.NUMBER, enum: [1, 2, 3] },
+      bonus: { type: Type.NUMBER },
+      requires_roll: { type: Type.BOOLEAN },
+      dc: { type: Type.NUMBER },
+    },
+    required: ["primary_skill", "requires_roll"],
+  },
+};
+```
+
+Example tool call response:
 
 ```json
 {
-  "input": "I try to sneak past the guard quietly",
-  "detected": {
+  "name": "detect_intent",
+  "args": {
     "primary_skill": "Sneaking",
     "power_words": ["sneak", "quietly"],
     "tier": 1,
     "bonus": 1,
-    "confidence": 0.92
+    "requires_roll": true,
+    "dc": 12
   }
 }
 ```
@@ -65,6 +150,7 @@ Use dedicated low-temp (~0.1) LLM call for intent parsing:
 - Aliases resolve to parent skill (e.g., "tiptoe" → Sneaking)
 - Ambiguous words: LLM picks best fit from context
 - Multi-skill actions: pick dominant intent, note secondary
+- Schema-enforced: no JSON parsing failures
 
 ## Item Generation Rules
 
@@ -282,33 +368,48 @@ CREATE INDEX idx_location_summaries_location
 
 ### Proposed Events Format
 
+Events are proposed via tool calls, not JSON in narration. Each event type has its own tool:
+
+**Tool: `propose_stat_change`**
+
+```json
+{ "stat": "gold", "delta": -5, "reason": "Bought a drink" }
+```
+
+**Tool: `propose_inventory_add`**
+
 ```json
 {
-  "proposed_events": [
-    {
-      "type": "inventory_add",
-      "item": "Rusty Key",
-      "rarity": "common",
-      "source": "found in chest"
-    },
-    {
-      "type": "relationship_change",
-      "npc": "Glimmer",
-      "delta": -1,
-      "reason": "startled"
-    },
-    { "type": "quest_progress", "quest_id": "q1", "new_progress": 2 },
-    {
-      "type": "npc_discovered",
-      "npc": {
-        "name": "Old Fisherman",
-        "role": "Hermit",
-        "location": "Ash Coast"
-      }
-    }
-  ]
+  "item_name": "Rusty Key",
+  "item_type": "quest",
+  "rarity": "common",
+  "reason": "found in chest"
 }
 ```
+
+**Tool: `propose_relationship_change`**
+
+```json
+{ "npc": "Glimmer", "delta": -1, "reason": "startled" }
+```
+
+**Tool: `propose_quest_progress`**
+
+```json
+{ "quest_id": "q1", "new_progress": 2, "reason": "Found the hidden entrance" }
+```
+
+**Tool: `propose_npc_discovered`**
+
+```json
+{ "name": "Old Fisherman", "role": "Hermit", "location": "Ash Coast" }
+```
+
+Benefits over JSON-in-prompt:
+
+- Schema-enforced (no malformed events)
+- Enum-constrained values (rarity, item types)
+- Each event is a separate tool call (easier to validate individually)
 
 ## Safety Guardrails
 

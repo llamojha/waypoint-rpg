@@ -4,7 +4,7 @@
 
 ## Overview
 
-Implement quest tracking, progression, and NPC relationship management.
+Implement quest tracking, progression, and NPC relationship management. Uses tool calling for quest/relationship change proposals.
 
 ## Roadmap Reference
 
@@ -21,6 +21,7 @@ See #[[file:.kiro/steering/game-mechanics.md]]
 ## Dependencies
 
 - 3.1 demo-experience (complete)
+- 2.1 gemini-integration (tool calling infrastructure)
 
 ## Scope Summary
 
@@ -31,10 +32,47 @@ See #[[file:.kiro/steering/game-mechanics.md]]
 - Relationship change tracking
 - NPC history logging
 
+## Tool Calling Integration
+
+Quest and NPC changes flow through tool calling:
+
+```typescript
+// Quest progress via tool
+const questProgressEvent = {
+  name: "propose_quest_progress",
+  args: {
+    quest_id: "q1",
+    new_progress: 2,
+    reason: "Found the hidden entrance",
+  },
+};
+
+// Relationship change via tool
+const relationshipEvent = {
+  name: "propose_relationship_change",
+  args: {
+    npc: "Mira the Fence",
+    delta: 1,
+    reason: "Completed her request",
+  },
+};
+
+// NPC discovery via tool
+const npcDiscoveredEvent = {
+  name: "propose_npc_discovered",
+  args: {
+    name: "Old Fisherman",
+    role: "Hermit",
+    location: "Ash Coast",
+    personality: ["gruff", "wise"],
+  },
+};
+```
+
 ## Deliverables
 
 - [ ] Active quests display
-- [ ] Progress updates correctly
+- [ ] Progress updates correctly (via tool-proposed events)
 - [ ] Quest completion triggers rewards
 - [ ] NPC relationships display
 - [ ] Relationship changes persist
