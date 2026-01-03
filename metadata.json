@@ -1,0 +1,5 @@
+{
+  "name": "Waypoint",
+  "description": "A text-based RPG interface featuring a 3-column layout: Character Sheet (Truth), The Chronicle (Narration), and World Context (Environment).",
+  "requestFramePermissions": []
+}

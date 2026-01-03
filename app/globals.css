@@ -1,0 +1,247 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light Mode (Parchment Ledger) */
+  --p-100: #fdfbf7; /* Highlight/Input */
+  --p-200: #f2e8c9; /* Panel BG */
+  --p-300: #e3d5b8; /* App BG */
+  --p-400: #d1c0a0; /* Inactive/Interaction */
+  --p-800: #5c4033; /* Borders/Wood */
+  --p-900: #3e2b22; /* Deep Wood */
+
+  --ink: #2b2118; /* Main Text */
+  --ink-light: #4a3b32; /* Secondary Text */
+  --ink-faint: #8c7b70; /* Placeholder */
+
+  --gold: #c5a059;
+  --gold-dim: #8a6d3b;
+
+  --burgundy: #701c1c;
+  --burgundy-dim: #4a1212;
+
+  --forest: #2d4f1e;
+  --forest-dim: #1a3312;
+
+  --btn-text: var(--p-100); /* Light text on dark buttons */
+
+  --shadow-color: 42, 26, 16;
+  --texture-opacity: 0.15;
+  --texture-blend: multiply;
+  --bg-gradient: radial-gradient(
+    circle at 30% 20%,
+    #fff6e6 0%,
+    #e3d5b8 55%,
+    #e6d3ad 100%
+  );
+
+  /* Typography */
+  --font-display: "Pirata One", cursive;
+  --font-serif: "Crimson Text", serif;
+  --font-sans: "Inter", sans-serif;
+}
+
+[data-theme="dark"] {
+  /* Dark Mode (Candlelit Tavern) */
+  --p-100: #2d2620; /* Input BG / Highlight (Light Brown) */
+  --p-200: #1f1b16; /* Panel BG (Dark Walnut) */
+  --p-300: #0c0a09; /* App BG (Deep Soot) */
+  --p-400: #4a3a2f; /* Inactive/Border (Lighter Leather) */
+  --p-800: #78634e; /* Borders (Aged Brass/Wood) */
+  --p-900: #000000; /* Deepest Shadow */
+
+  --ink: #e6dccf; /* Bone White */
+  --ink-light: #a89f91; /* Muted Bone */
+  --ink-faint: #6e645a; /* Faint Stone */
+
+  --gold: #d4b05e; /* Brighter Brass for contrast */
+  --gold-dim: #8a703b;
+
+  --burgundy: #bd4a4a; /* Wax Red */
+  --burgundy-dim: #5e2222;
+
+  --forest: #63a36d; /* Moss Green */
+  --forest-dim: #253d29;
+
+  --btn-text: var(--ink); /* Light text on dark buttons */
+
+  --shadow-color: 0, 0, 0;
+  --texture-opacity: 0.08;
+  --texture-blend: overlay;
+  --bg-gradient: radial-gradient(
+    circle at 35% 15%,
+    #2a1c12 0%,
+    #140f0a 55%,
+    #0e0a07 100%
+  );
+}
+
+/* Base Layout & Texture */
+body {
+  background-color: var(--p-300);
+  background-image: var(--bg-gradient);
+  color: var(--ink);
+  transition: color 0.3s ease, background-color 0.3s ease;
+  position: relative;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  font-size: 16px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings use Serif */
+h1,
+h2,
+h3,
+h4,
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+/* Logo uses Display */
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Noise Overlay */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: var(--texture-opacity);
+  mix-blend-mode: var(--texture-blend);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
+}
+
+/* Panel specific texture (lighter noise for cards) */
+.panel-texture {
+  position: relative;
+}
+.panel-texture::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: var(--texture-blend);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
+  z-index: 1;
+}
+.panel-texture > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--p-800);
+  border-radius: 4px;
+  opacity: 0.5;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-dim);
+}
+
+/* Base animations (mirrors legacy inline CSS) */
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scroll-up {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+@keyframes scroll-down {
+  0% {
+    transform: translateY(-50%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-scroll-up {
+  animation: scroll-up 60s linear infinite;
+  will-change: transform;
+}
+.animate-scroll-down {
+  animation: scroll-down 60s linear infinite;
+  will-change: transform;
+}
+
+/* Drop Cap for First Letter of Narration */
+.drop-cap::first-letter {
+  float: left;
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  line-height: 0.8;
+  padding-right: 0.5rem;
+  padding-top: 0.1rem;
+  color: var(--gold-dim);
+}
+
+/* Mask Gradient for Smooth Fade In/Out */
+.mask-gradient {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
+}
+
+/* Utility classes */
+.font-small-caps {
+  font-variant: small-caps;
+}
+.text-shadow {
+  text-shadow: 1px 1px 0px rgba(var(--shadow-color), 0.2);
+}
+
+/* Improved readability for narration */
+.narration-text {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  line-height: 1.8;
+  color: var(--ink);
+}
+
+/* Pausing scroll animations on hover for better UX */
+.animate-scroll-up:hover,
+.animate-scroll-down:hover {
+  animation-play-state: paused;
+}
