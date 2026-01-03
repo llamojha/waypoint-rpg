@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { ProposedEvent } from "@/lib/turn/validate";
 
 /**
  * Gemini API client for turn generation
@@ -7,28 +8,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Initialize the Gemini client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-
-// Response types from Gemini
-export interface ProposedEvent {
-  type:
-    | "stat_change"
-    | "inventory_add"
-    | "inventory_remove"
-    | "world_update"
-    | "relationship_change";
-  stat?: string;
-  delta?: number;
-  item?: {
-    name: string;
-    type: "weapon" | "armor" | "consumable" | "quest" | "trinket" | "misc";
-    description?: string;
-  };
-  itemName?: string;
-  field?: string;
-  value?: unknown;
-  npc?: string;
-  reason?: string;
-}
 
 export interface GeminiTurnResponse {
   narration: string;

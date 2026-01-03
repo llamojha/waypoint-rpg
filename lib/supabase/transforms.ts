@@ -4,6 +4,7 @@
  */
 
 import type { Database } from "./database.types";
+import type { Json } from "./types/json";
 import type {
   Character,
   WorldContext,
@@ -36,6 +37,22 @@ const DEFAULT_EQUIPMENT: Equipment = {
   trinket: null,
 };
 
+function coerceArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function coerceObject<T extends object>(value: unknown, fallback: T): T {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return fallback;
+  }
+
+  return value as T;
+}
+
+function toJson(value: unknown): Json {
+  return value as Json;
+}
+
 /**
  * Transform a database character row to the frontend Character type
  */
@@ -48,12 +65,13 @@ export function dbToCharacter(row: DbCharacter): Character {
     hp: row.hp ?? 20,
     maxHp: row.max_hp ?? 20,
     gold: row.gold ?? 10,
-    inventory: (row.inventory as Item[]) || [],
-    equipment: (row.equipment as Equipment) || DEFAULT_EQUIPMENT,
-    skills: (row.skills as Record<string, SkillProgression>) || {
-      ...INITIAL_SKILLS,
-    },
-    conditions: (row.conditions as Condition[]) || [],
+    inventory: coerceArray<Item>(row.inventory),
+    equipment: coerceObject<Equipment>(row.equipment, DEFAULT_EQUIPMENT),
+    skills: coerceObject<Record<string, SkillProgression>>(
+      row.skills,
+      INITIAL_SKILLS
+    ),
+    conditions: coerceArray<Condition>(row.conditions),
     isMagicUnlocked: row.is_magic_unlocked ?? false,
   };
 }
@@ -73,10 +91,10 @@ export function characterToDb(
     hp: char.hp ?? 20,
     max_hp: char.maxHp ?? 20,
     gold: char.gold ?? 10,
-    inventory: char.inventory || [],
-    equipment: char.equipment || DEFAULT_EQUIPMENT,
-    skills: char.skills || INITIAL_SKILLS,
-    conditions: char.conditions || [],
+    inventory: toJson(char.inventory || []),
+    equipment: toJson(char.equipment || DEFAULT_EQUIPMENT),
+    skills: toJson(char.skills || INITIAL_SKILLS),
+    conditions: toJson(char.conditions || []),
     is_magic_unlocked: char.isMagicUnlocked ?? false,
   };
 }
@@ -97,10 +115,10 @@ export function dbToWorld(row: DbWorldState): WorldContext {
     description:
       row.description ||
       "A well-worn tavern at the intersection of trade routes.",
-    tags: (row.tags as WorldTag[]) || [],
-    nearbyPoi: (row.nearby_poi as string[]) || [],
-    entities: (row.entities as string[]) || [],
-    memory: (row.memories as WorldMemory[]) || [],
+    tags: coerceArray<WorldTag>(row.tags),
+    nearbyPoi: coerceArray<string>(row.nearby_poi),
+    entities: coerceArray<string>(row.entities),
+    memory: coerceArray<WorldMemory>(row.memories),
   };
 }
 
@@ -121,13 +139,15 @@ export function worldToDb(
     description:
       world.description ||
       "A well-worn tavern at the intersection of trade routes.",
-    tags: world.tags || [],
-    nearby_poi: world.nearbyPoi || [
-      "Market Square",
-      "City Gates",
-      "Temple District",
-    ],
-    entities: world.entities || [],
-    memories: world.memory || [],
+    tags: toJson(world.tags || []),
+    nearby_poi: toJson(
+      world.nearbyPoi || [
+        "Market Square",
+        "City Gates",
+        "Temple District",
+      ]
+    ),
+    entities: toJson(world.entities || []),
+    memories: toJson(world.memory || []),
   };
 }
