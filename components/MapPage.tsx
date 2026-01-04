@@ -66,7 +66,7 @@ export const MapPage: React.FC<Props> = ({
         {/* Map Image */}
         <div className="absolute inset-0 z-0">
           <img
-            src="/world_map_felt_tip.png"
+            src="/map01.png"
             alt="World Map"
             className="w-full h-full object-cover opacity-90 transition-transform duration-1000 group-hover:scale-[1.02]"
           />
