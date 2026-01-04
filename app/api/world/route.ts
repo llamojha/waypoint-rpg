@@ -45,6 +45,20 @@ export async function GET(request: NextRequest) {
     }
 
     const world = dbToWorld(data);
+
+    // Fetch location art_url if we have a POI
+    if (world.poi) {
+      const { data: locationData } = await supabase
+        .from("waypoint_locations")
+        .select("art_url")
+        .eq("name", world.poi)
+        .maybeSingle();
+
+      if (locationData?.art_url) {
+        world.imageUrl = locationData.art_url;
+      }
+    }
+
     return NextResponse.json({ world });
   } catch (err) {
     console.error("Unexpected error in GET /api/world:", err);

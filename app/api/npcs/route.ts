@@ -12,6 +12,7 @@ interface CharacterNpcRow {
     name: string;
     role: string | null;
     location: string | null;
+    portrait_url: string | null;
   } | null;
 }
 
@@ -45,7 +46,8 @@ export async function GET(request: NextRequest) {
           id,
           name,
           role,
-          location
+          location,
+          portrait_url
         )
       `)
       .eq("character_id", characterId);
@@ -69,6 +71,7 @@ export async function GET(request: NextRequest) {
         location: cn.npc!.location || "",
         notes: cn.notes || [],
         history: cn.history || [],
+        portraitUrl: cn.npc!.portrait_url || undefined,
       }));
 
     return NextResponse.json({ npcs });

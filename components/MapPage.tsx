@@ -61,8 +61,8 @@ export const MapPage: React.FC<Props> = ({
 
   return (
     <div className="h-full w-full bg-parchment-300 relative overflow-hidden flex flex-col items-center justify-center panel-texture select-none">
-      {/* Map Container */}
-      <div className="relative w-full max-w-5xl aspect-square bg-[#d6cbb1] border-[12px] border-parchment-800 rounded-sm shadow-2xl overflow-hidden m-4 group">
+      {/* Map Container - 2026:1360 aspect ratio */}
+      <div className="relative w-full h-full max-h-full bg-[#d6cbb1] border-[12px] border-parchment-800 rounded-sm shadow-2xl overflow-hidden group" style={{ aspectRatio: '2026 / 1360' }}>
         {/* Map Image */}
         <div className="absolute inset-0 z-0">
           <img

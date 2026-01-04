@@ -19,7 +19,6 @@ import {
   DEMO_WORLD,
   MOCK_INITIAL_TURN,
   MOCK_SESSIONS,
-  MOCK_MAP_LOCATIONS,
   USE_MOCK_DATA,
 } from "@/constants";
 import { User, BookOpen, Map as MapIcon, Book, Loader2 } from "lucide-react";
@@ -71,6 +70,9 @@ export default function App() {
   // Ref for cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Locations state (separate from gameState for now)
+  const [locations, setLocations] = useState<MapLocation[]>([]);
+
   // Apply Theme
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -107,6 +109,7 @@ export default function App() {
         await loadTurns(data.character.id);
         await loadQuests(data.character.id);
         await loadNpcs(data.character.id);
+        await loadLocations(data.character.id);
       } else {
         // No character - show creation
         setView("creation");
@@ -200,6 +203,25 @@ export default function App() {
       }
     } catch (err) {
       console.error("Failed to load NPCs:", err);
+    }
+  };
+
+  // Load locations for a character
+  const loadLocations = async (characterId: string) => {
+    try {
+      const res = await fetch(`/api/locations?character_id=${characterId}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.warn("Locations fetch failed:", data.error);
+        return;
+      }
+
+      if (data.locations) {
+        setLocations(data.locations);
+      }
+    } catch (err) {
+      console.error("Failed to load locations:", err);
     }
   };
 
@@ -669,7 +691,7 @@ export default function App() {
             quests={gameState.quests}
             npcs={gameState.npcs}
             sessions={gameState.sessions}
-            locations={USE_MOCK_DATA ? MOCK_MAP_LOCATIONS : []}
+            locations={locations}
             world={gameState.world}
           />
         )}
