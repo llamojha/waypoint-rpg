@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { MapLocation } from "@/types";
 import {
   MapPin,
-  Navigation,
   Castle,
   Trees,
   Mountain,
@@ -27,7 +26,6 @@ export const MapPage: React.FC<Props> = ({
     null
   );
 
-  // Use provided locations, or mock data if enabled, or empty array
   const displayLocations =
     locations ?? (USE_MOCK_DATA ? MOCK_MAP_LOCATIONS : []);
 
@@ -60,58 +58,13 @@ export const MapPage: React.FC<Props> = ({
   };
 
   return (
-    <div className="h-full w-full bg-parchment-300 relative overflow-hidden flex flex-col items-center justify-center panel-texture select-none">
-      {/* Map Container - 2026:1360 aspect ratio */}
-      <div className="relative w-full h-full max-h-full bg-[#d6cbb1] border-[12px] border-parchment-800 rounded-sm shadow-2xl overflow-hidden group" style={{ aspectRatio: '2026 / 1360' }}>
-        {/* Map Image */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src="/map01.png"
-            alt="World Map"
-            className="w-full h-full object-cover opacity-90 transition-transform duration-1000 group-hover:scale-[1.02]"
-          />
-        </div>
-
-        {/* Subtle Paper Texture Overlay */}
-        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] pointer-events-none z-1"></div>
-
-        {/* Locations */}
-        {displayLocations.map((loc) => (
-          <button
-            key={loc.id}
-            onClick={() => setSelectedLocation(loc)}
-            className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 group/pin transition-all hover:scale-110 z-10`}
-            style={{
-              top: `${loc.coordinates.y}%`,
-              left: `${loc.coordinates.x}%`,
-            }}
-          >
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center border-2 shadow-md ${getStatusColor(
-                loc.status
-              )}`}
-            >
-              {getIcon(loc.type)}
-            </div>
-            <span
-              className={`text-[10px] font-bold font-small-caps uppercase tracking-wide px-2 py-0.5 bg-parchment-100/80 border border-parchment-400 rounded-sm shadow-sm whitespace-nowrap ${
-                loc.status === "locked" ? "opacity-50" : ""
-              }`}
-            >
-              {loc.name}
-            </span>
-          </button>
-        ))}
-
-        {/* Current Location Marker (Animated) */}
-        <div
-          className="absolute w-12 h-12 border-2 border-burgundy rounded-full animate-ping opacity-30 pointer-events-none z-5"
-          style={{ top: '25%', left: '35%' }}
-        ></div>
-
-        {/* Fog of War Overlay */}
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-transparent via-transparent to-parchment-900/20 z-10"></div>
-      </div>
+    <div className="h-full w-full bg-parchment-300 relative overflow-hidden flex items-center justify-center panel-texture select-none p-4">
+      {/* Map Image - responsive, always shows full image */}
+      <img
+        src="/map01.png"
+        alt="World Map"
+        className="max-w-full max-h-full object-contain border-[12px] border-parchment-800 rounded-sm shadow-2xl"
+      />
 
       {/* Legend / Info Panel */}
       {selectedLocation && (
