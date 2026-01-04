@@ -172,7 +172,7 @@ export const CenterColumn: React.FC<Props> = ({
                 : "Write your next action..."
             }
             rows={2}
-            className={`flex-1 bg-parchment-50 border border-parchment-400 rounded-sm p-3 text-ink font-serif text-base leading-relaxed focus:ring-1 focus:ring-gold focus:border-gold focus:outline-none resize-none placeholder-ink-faint transition-all ${
+            className={`flex-1 bg-parchment-100 border border-parchment-400 rounded-sm p-3 text-ink font-serif text-base leading-relaxed focus:ring-1 focus:ring-gold focus:border-gold focus:outline-none resize-none placeholder-ink-faint transition-all ${
               turnStatus === "processing" ? "opacity-50 cursor-not-allowed" : ""
             }`}
           />

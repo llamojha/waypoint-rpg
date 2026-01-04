@@ -16,7 +16,7 @@ import {
   INITIAL_CHARACTER,
   INITIAL_QUESTS,
   INITIAL_NPCS,
-  INITIAL_WORLD,
+  DEMO_WORLD,
   MOCK_INITIAL_TURN,
   MOCK_SESSIONS,
   MOCK_MAP_LOCATIONS,
@@ -57,7 +57,7 @@ export default function App() {
     quests: USE_MOCK_DATA ? INITIAL_QUESTS : [],
     npcs: USE_MOCK_DATA ? INITIAL_NPCS : [],
     turns: USE_MOCK_DATA ? [MOCK_INITIAL_TURN] : [],
-    world: INITIAL_WORLD,
+    world: DEMO_WORLD,
     sessions: USE_MOCK_DATA ? MOCK_SESSIONS : [],
   });
 

@@ -166,23 +166,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create opening turn with narration
-    const { error: turnError } = await supabase
-      .from("waypoint_turns")
-      .insert({
-        character_id: newChar.id,
-        player_action: "Awaken",
-        narration: OPENING_NARRATION,
-        diffs: [{ type: "world", text: "Arrived at The Waystone", value: "Windhollow Vale" }],
-        suggested_actions: OPENING_SUGGESTED_ACTIONS,
-        mechanics: null,
-      });
-
-    if (turnError) {
-      console.error("Error creating opening turn:", turnError);
-      // Non-fatal - character and world were created
-    }
-
     // Unlock Lenna NPC (she's in the opening narration)
     const { data: lennaNpc } = await supabase
       .from("waypoint_npcs")
@@ -203,6 +186,28 @@ export async function POST(request: NextRequest) {
         console.error("Error unlocking Lenna NPC:", npcError);
         // Non-fatal
       }
+    }
+
+    // Create opening turn with narration (includes Lenna discovery diff)
+    const openingDiffs = [
+      { type: "world", text: "Arrived at The Waystone", value: "Windhollow Vale" },
+      { type: "relationship", text: "Met Lenna", value: "Lenna" },
+    ];
+
+    const { error: turnError } = await supabase
+      .from("waypoint_turns")
+      .insert({
+        character_id: newChar.id,
+        player_action: "Awaken",
+        narration: OPENING_NARRATION,
+        diffs: openingDiffs,
+        suggested_actions: OPENING_SUGGESTED_ACTIONS,
+        mechanics: null,
+      });
+
+    if (turnError) {
+      console.error("Error creating opening turn:", turnError);
+      // Non-fatal - character and world were created
     }
 
     return NextResponse.json({

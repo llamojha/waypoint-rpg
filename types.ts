@@ -97,6 +97,7 @@ export interface NPC {
   id: string;
   name: string;
   role: string;
+  portraitUrl?: string;
   relationship: number; // -5 to +5
   location: string;
   notes: string[];

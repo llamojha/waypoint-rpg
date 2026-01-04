@@ -794,16 +794,28 @@ const SocialTab = ({ npcs }: { npcs: NPC[] }) => (
         key={npc.id}
         className="bg-parchment-100 p-3 rounded-sm border border-parchment-400 shadow-sm"
       >
-        <div className="flex justify-between">
-          <span className="font-bold text-sm text-ink">{npc.name}</span>
-          <span
-            className={`text-xs font-bold ${
-              npc.relationship > 0 ? "text-forest" : "text-burgundy"
-            }`}
-          >
-            {npc.relationship > 0 ? "+" : ""}
-            {npc.relationship}
-          </span>
+        <div className="flex gap-3">
+          {npc.portraitUrl && (
+            <img
+              src={npc.portraitUrl}
+              alt={npc.name}
+              className="w-10 h-10 rounded-full object-cover border border-parchment-400 shrink-0"
+            />
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-sm text-ink">{npc.name}</span>
+              <span
+                className={`text-xs font-bold ${
+                  npc.relationship > 0 ? "text-forest" : "text-burgundy"
+                }`}
+              >
+                {npc.relationship > 0 ? "+" : ""}
+                {npc.relationship}
+              </span>
+            </div>
+            <div className="text-[10px] text-ink-light">{npc.role}</div>
+          </div>
         </div>
         {npc.history.length > 0 && (
           <div className="mt-2 pt-2 border-t border-parchment-300">
