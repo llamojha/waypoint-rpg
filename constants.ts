@@ -858,3 +858,279 @@ export const MOCK_CODEX_ENTRIES: CodexEntry[] = [
     tags: ["treaty", "ancient"],
   },
 ];
+
+
+// ============================================
+// DEMO EXPERIENCE - Windhollow Vale
+// ============================================
+
+// Demo Starting World State
+export const DEMO_WORLD: WorldContext = {
+  name: "Eldoria",
+  region: "Windhollow Vale",
+  poi: "The Waystone",
+  time: { day: 1, phase: "Morning" },
+  weather: "Clear",
+  description:
+    "An ancient waystone rises from the prairie grass, its weathered surface etched with faded runes. The air around it shimmers faintly, carrying whispers of distant places.",
+  imageUrl: "/location_waypoint.png",
+  tags: [{ name: "Safe Zone", type: "canon" }],
+  nearbyPoi: ["Nomante Outpost", "Windhollow Wilderness"],
+  entities: ["lenna"],
+  memory: [],
+};
+
+// Demo Starting Character (cloth armor only, no gold, empty inventory)
+export const DEMO_CHARACTER: Partial<Character> = {
+  hp: 20,
+  maxHp: 20,
+  gold: 0,
+  skills: generateInitialSkills(),
+  conditions: [],
+  isMagicUnlocked: false,
+  inventory: [],
+  equipment: {
+    mainHand: null,
+    offHand: null,
+    head: null,
+    chest: {
+      id: "cloth-armor",
+      name: "Cloth Tunic",
+      type: "armor",
+      slot: "chest",
+      tags: ["cloth", "basic"],
+      description: "Simple cloth garments. Better than nothing.",
+      stats: { ac: 0, value: 1 },
+    },
+    arms: null,
+    legs: null,
+    cloak: null,
+    trinket: null,
+  },
+};
+
+// Opening narration for new players
+export const OPENING_NARRATION = `You open your eyes to golden sunlight and the rustle of prairie grass.
+
+The last thing you remember is... nothing. A void where memory should be. You're lying at the base of an ancient stone monolith, its surface covered in faded runes that seem to shimmer in the morning light.
+
+A young woman in scholar's robes notices you stirring. She gasps, nearly dropping her notebook, then hurries over with wide eyes.
+
+"You're awake! I— I can't believe it actually worked. Well, not worked exactly, I didn't do anything, but— oh!" She catches herself, cheeks flushing. "I'm Lenna. I've been studying this waystone for months and you just... appeared. In a flash of light. Are you alright?"
+
+She gestures toward a distant cluster of buildings visible across the prairie. "There's an outpost not far from here. Nomante Outpost. Captain Aran can help you get equipped if you're... new to these lands."`;
+
+export const OPENING_SUGGESTED_ACTIONS = [
+  "Talk to Lenna",
+  "Examine the waystone",
+  "Look around",
+  "Check yourself",
+];
+
+// Demo NPC Data (for prompt context)
+export const DEMO_NPCS: Record<string, {
+  name: string;
+  role: string;
+  personality: string[];
+  dialogueHints: string[];
+  location: string;
+}> = {
+  lenna: {
+    name: "Lenna",
+    role: "Scholar",
+    personality: ["shy", "enthusiastic", "curious", "kind", "slightly awkward"],
+    dialogueHints: [
+      "Researching the waystone for months with no results",
+      "Sent by an academy but feels undervalued",
+      "Excited by new discoveries",
+      "Speaks quickly when passionate",
+      "Blushes easily",
+      "Has a handmade token she gives to friends (relationship >= 2)",
+      "Knows the way to Nomante Outpost",
+    ],
+    location: "The Waystone",
+  },
+  aran: {
+    name: "Aran Nomante",
+    role: "Outpost Captain",
+    personality: ["grizzled", "practical", "honorable", "stern but fair", "protective"],
+    dialogueHints: [
+      "His family has run this outpost for three generations",
+      "Takes duty seriously",
+      "Respects those who prove themselves",
+      "Provides equipment to travelers in need",
+      "Speaks in short direct sentences",
+    ],
+    location: "Nomante Outpost",
+  },
+  adrian: {
+    name: "Adrian",
+    role: "Ranger",
+    personality: ["eager", "young", "enthusiastic", "wants to prove himself", "friendly"],
+    dialogueHints: [
+      "Aran's right hand and protégé",
+      "Assigned to the outpost recently",
+      "Knows the wilderness well",
+      "Hunts boar for the outpost's food supply",
+      "Offers hunting quests",
+      "Rewards helpers with his spare hunting bow",
+    ],
+    location: "Nomante Outpost",
+  },
+  helga: {
+    name: "Helga",
+    role: "Caravan Trader",
+    personality: ["strong", "seasoned", "practical", "warm underneath gruffness", "loves blueberries"],
+    dialogueHints: [
+      "Runs a trading caravan that stops at the outpost",
+      "Has traveled many roads",
+      "Secretly loves blueberry pie",
+      "Calls rare berries 'mysterious' but they're just blueberries",
+      "Rewards helpers with her famous pie",
+    ],
+    location: "Nomante Outpost",
+  },
+  wanderer: {
+    name: "The Wanderer",
+    role: "Mystery",
+    personality: ["enigmatic", "cryptic", "friendly but distant", "all-knowing", "vanishes when pressed"],
+    dialogueHints: [
+      "Appears randomly on the prairie",
+      "Wears a hooded cloak that obscures their face",
+      "Speaks in riddles and hints",
+      "Knows things they shouldn't",
+      "Leaves abruptly if questioned too directly",
+      "Never gives straight answers",
+    ],
+    location: "Windhollow Wilderness",
+  },
+};
+
+// Demo Location Data
+export const DEMO_LOCATIONS: Record<string, {
+  name: string;
+  type: string;
+  region: string;
+  description: string;
+  entities: string[];
+  nearbyPoi: string[];
+}> = {
+  waystone: {
+    name: "The Waystone",
+    type: "landmark",
+    region: "Windhollow Vale",
+    description: "An ancient waystone rises from the prairie grass, its weathered surface etched with faded runes. The air around it shimmers faintly.",
+    entities: ["lenna"],
+    nearbyPoi: ["Nomante Outpost", "Windhollow Wilderness"],
+  },
+  outpost: {
+    name: "Nomante Outpost",
+    type: "outpost",
+    region: "Windhollow Vale",
+    description: "A sturdy frontier post built from timber and stone. The Nomante family banner flies above the gate - three crossed spears on a field of green.",
+    entities: ["aran", "adrian", "helga"],
+    nearbyPoi: ["The Waystone", "Windhollow Wilderness"],
+  },
+  wilderness: {
+    name: "Windhollow Wilderness",
+    type: "wilderness",
+    region: "Windhollow Vale",
+    description: "Rolling prairie stretches in every direction, tall grass swaying in the gentle breeze. Wildflowers dot the landscape.",
+    entities: [], // Wanderer appears randomly
+    nearbyPoi: ["The Waystone", "Nomante Outpost"],
+  },
+};
+
+// Demo Items
+export const DEMO_ITEMS: Record<string, Item> = {
+  simpleSword: {
+    id: "simple-sword",
+    name: "Simple Sword",
+    type: "weapon",
+    slot: "mainHand",
+    tags: ["iron", "standard"],
+    description: "A well-maintained iron sword. Nothing fancy, but reliable.",
+    stats: { damage: "1d6", value: 15 },
+    provenance: "Nomante Outpost",
+  },
+  usedLeatherArmor: {
+    id: "used-leather-armor",
+    name: "Used Leather Armor",
+    type: "armor",
+    slot: "chest",
+    tags: ["leather", "used"],
+    description: "Worn but serviceable leather armor. Shows signs of previous owners.",
+    stats: { ac: 2, value: 20 },
+    provenance: "Nomante Outpost",
+  },
+  rations: {
+    id: "rations",
+    name: "Rations",
+    type: "consumable",
+    tags: ["food"],
+    description: "Dried meat and hardtack. Enough for a few days.",
+    stats: { value: 5 },
+    provenance: "Nomante Outpost",
+  },
+  huntingBow: {
+    id: "hunting-bow",
+    name: "Hunting Bow",
+    type: "weapon",
+    slot: "mainHand",
+    tags: ["wood", "ranged"],
+    description: "A simple but effective hunting bow.",
+    stats: { damage: "1d6", value: 25 },
+    provenance: "Adrian's spare",
+  },
+  rawMeat: {
+    id: "raw-meat",
+    name: "Raw Boar Meat",
+    type: "misc",
+    tags: ["food", "raw"],
+    description: "Fresh meat from a wild boar. Should be cooked.",
+    stats: { value: 10 },
+  },
+  blueberries: {
+    id: "blueberries",
+    name: "Blueberries",
+    type: "misc",
+    tags: ["food", "berries"],
+    description: "A handful of ripe blueberries. Helga's favorite.",
+    stats: { value: 5 },
+  },
+  blueberryPie: {
+    id: "blueberry-pie",
+    name: "Blueberry Pie",
+    type: "consumable",
+    tags: ["food", "healing"],
+    description: "Helga's famous blueberry pie. Restores 2d4 HP.",
+    stats: { value: 15, healing: "2d4" },
+    provenance: "Helga's recipe",
+  },
+  lennasToken: {
+    id: "lennas-token",
+    name: "Lenna's Token",
+    type: "trinket",
+    slot: "trinket",
+    tags: ["handmade", "mysterious"],
+    description: "A small handmade charm given by Lenna. It has a strange warmth to it, and something about it feels... significant.",
+    stats: { value: 0 },
+    provenance: "Gift from Lenna",
+  },
+};
+
+// Wild Boar enemy template
+export const WILD_BOAR = {
+  name: "Wild Boar",
+  tier: "easy",
+  hp: 8,
+  maxHp: 8,
+  defense: 10,
+  damage: "1d4",
+  xp: 15,
+  behavior: "Aggressive when threatened, charges at attackers",
+  loot: { gold: "0", items: ["Raw Boar Meat"] },
+};
+
+// Wanderer encounter chance (15%)
+export const WANDERER_ENCOUNTER_CHANCE = 0.15;

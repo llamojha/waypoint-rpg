@@ -8,7 +8,12 @@ export type ProposedEventType =
   | "inventory_add"
   | "inventory_remove"
   | "world_update"
-  | "relationship_change";
+  | "relationship_change"
+  | "quest_start"
+  | "quest_progress"
+  | "location_change"
+  | "combat_damage"
+  | "combat_end";
 
 /**
  * Base interface for all proposed events
@@ -74,6 +79,52 @@ export interface RelationshipChangeEvent extends BaseProposedEvent {
 }
 
 /**
+ * Quest start event
+ */
+export interface QuestStartEvent extends BaseProposedEvent {
+  type: "quest_start";
+  questId: string;
+  questTitle: string;
+}
+
+/**
+ * Quest progress event
+ */
+export interface QuestProgressEvent extends BaseProposedEvent {
+  type: "quest_progress";
+  questId: string;
+  progress: number;
+}
+
+/**
+ * Location change event
+ */
+export interface LocationChangeEvent extends BaseProposedEvent {
+  type: "location_change";
+  location: string;
+  entities?: string[];
+}
+
+/**
+ * Combat damage event - damage dealt to an enemy
+ */
+export interface CombatDamageEvent extends BaseProposedEvent {
+  type: "combat_damage";
+  target: string; // Enemy name
+  damage: number;
+}
+
+/**
+ * Combat end event - enemy defeated or fled
+ */
+export interface CombatEndEvent extends BaseProposedEvent {
+  type: "combat_end";
+  target: string;
+  outcome: "defeated" | "fled" | "escaped";
+  loot?: { gold?: number; items?: string[] };
+}
+
+/**
  * Union type for all proposed events from LLM
  */
 export type ProposedEvent =
@@ -81,7 +132,12 @@ export type ProposedEvent =
   | InventoryAddEvent
   | InventoryRemoveEvent
   | WorldUpdateEvent
-  | RelationshipChangeEvent;
+  | RelationshipChangeEvent
+  | QuestStartEvent
+  | QuestProgressEvent
+  | LocationChangeEvent
+  | CombatDamageEvent
+  | CombatEndEvent;
 
 /**
  * Validated event - same structure as ProposedEvent but guaranteed to be valid
@@ -192,6 +248,68 @@ function validateRelationshipChange(event: RelationshipChangeEvent): boolean {
 }
 
 /**
+ * Validates a quest_start event
+ */
+function validateQuestStart(event: QuestStartEvent): boolean {
+  if (typeof event.questId !== "string" || event.questId.trim() === "") {
+    return false;
+  }
+  if (typeof event.questTitle !== "string" || event.questTitle.trim() === "") {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Validates a quest_progress event
+ */
+function validateQuestProgress(event: QuestProgressEvent): boolean {
+  if (typeof event.questId !== "string" || event.questId.trim() === "") {
+    return false;
+  }
+  if (typeof event.progress !== "number" || event.progress < 0) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Validates a location_change event
+ */
+function validateLocationChange(event: LocationChangeEvent): boolean {
+  if (typeof event.location !== "string" || event.location.trim() === "") {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Validates a combat_damage event
+ */
+function validateCombatDamage(event: CombatDamageEvent): boolean {
+  if (typeof event.target !== "string" || event.target.trim() === "") {
+    return false;
+  }
+  if (typeof event.damage !== "number" || event.damage < 0) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Validates a combat_end event
+ */
+function validateCombatEnd(event: CombatEndEvent): boolean {
+  if (typeof event.target !== "string" || event.target.trim() === "") {
+    return false;
+  }
+  if (!["defeated", "fled", "escaped"].includes(event.outcome)) {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Validates a single proposed event
  */
 function validateEvent(event: ProposedEvent, character: Character): boolean {
@@ -215,6 +333,21 @@ function validateEvent(event: ProposedEvent, character: Character): boolean {
 
     case "relationship_change":
       return validateRelationshipChange(event as RelationshipChangeEvent);
+
+    case "quest_start":
+      return validateQuestStart(event as QuestStartEvent);
+
+    case "quest_progress":
+      return validateQuestProgress(event as QuestProgressEvent);
+
+    case "location_change":
+      return validateLocationChange(event as LocationChangeEvent);
+
+    case "combat_damage":
+      return validateCombatDamage(event as CombatDamageEvent);
+
+    case "combat_end":
+      return validateCombatEnd(event as CombatEndEvent);
 
     default:
       // Unknown event type - allow it through (future-proofing)

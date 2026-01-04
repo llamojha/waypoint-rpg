@@ -207,7 +207,7 @@ export async function POST(request: Request) {
             metadata.proposed_events,
             character
           );
-          const { characterUpdates, worldUpdates, diffs } = applyEvents(
+          const { characterUpdates, worldUpdates, diffs, questChanges, relationshipChanges } = applyEvents(
             character,
             world,
             validatedEvents
@@ -255,6 +255,12 @@ export async function POST(request: Request) {
                 updated_at: new Date().toISOString(),
               })
               .eq("character_id", characterId);
+          }
+
+          // Update quest state
+          if (outputFilter.status === "allow") {
+            await updateQuestState(supabase, characterId, questChanges);
+            await updateRelationshipState(supabase, characterId, relationshipChanges);
           }
 
           // Send complete event
@@ -391,7 +397,7 @@ async function handleRollStream(
           metadata.proposed_events,
           character
         );
-        const { characterUpdates, worldUpdates, diffs } = applyEvents(
+        const { characterUpdates, worldUpdates, diffs, questChanges, relationshipChanges } = applyEvents(
           character,
           world,
           validatedEvents
@@ -436,6 +442,12 @@ async function handleRollStream(
               updated_at: new Date().toISOString(),
             })
             .eq("character_id", character.id);
+        }
+
+        // Update quest and relationship state (only if not filtered)
+        if (outputFilter.status === "allow") {
+          await updateQuestState(supabase, character.id!, questChanges);
+          await updateRelationshipState(supabase, character.id!, relationshipChanges);
         }
 
         controller.enqueue(
@@ -517,4 +529,118 @@ function transformWorldUpdates(
   if (updates.entities !== undefined) db.entities = updates.entities;
   if (updates.memory !== undefined) db.memories = updates.memory;
   return db;
+}
+
+
+/**
+ * Update quest state in database
+ */
+async function updateQuestState(
+  supabase: ReturnType<typeof createEdgeClient>,
+  characterId: string,
+  questChanges: Array<{ type: "start" | "progress"; questId: string; questTitle?: string; progress?: number; reason: string }>
+) {
+  if (questChanges.length === 0) return;
+
+  for (const change of questChanges) {
+    if (change.type === "start") {
+      // Look up quest by title (case-insensitive)
+      const { data: quest } = await supabase
+        .from("waypoint_quests")
+        .select("id")
+        .ilike("title", change.questTitle || change.questId)
+        .maybeSingle();
+
+      if (quest) {
+        // Check if already started
+        const { data: existing } = await supabase
+          .from("waypoint_character_quests")
+          .select("id")
+          .eq("character_id", characterId)
+          .eq("quest_id", quest.id)
+          .maybeSingle();
+
+        if (!existing) {
+          await supabase
+            .from("waypoint_character_quests")
+            .insert({
+              character_id: characterId,
+              quest_id: quest.id,
+              status: "active",
+              progress: 0,
+            });
+        }
+      }
+    } else if (change.type === "progress") {
+      // Look up quest by title
+      const { data: quest } = await supabase
+        .from("waypoint_quests")
+        .select("id, total_progress")
+        .ilike("title", change.questId)
+        .maybeSingle();
+
+      if (quest) {
+        const newProgress = change.progress ?? 0;
+        const isComplete = newProgress >= quest.total_progress;
+
+        await supabase
+          .from("waypoint_character_quests")
+          .update({
+            progress: newProgress,
+            status: isComplete ? "completed" : "active",
+          })
+          .eq("character_id", characterId)
+          .eq("quest_id", quest.id);
+      }
+    }
+  }
+}
+
+/**
+ * Update NPC relationship state in database
+ */
+async function updateRelationshipState(
+  supabase: ReturnType<typeof createEdgeClient>,
+  characterId: string,
+  relationshipChanges: Array<{ npc: string; delta: number; reason: string }>
+) {
+  if (relationshipChanges.length === 0) return;
+
+  for (const change of relationshipChanges) {
+    // Look up NPC by name
+    const { data: npc } = await supabase
+      .from("waypoint_npcs")
+      .select("id")
+      .ilike("name", change.npc)
+      .maybeSingle();
+
+    if (npc) {
+      // Check if relationship exists
+      const { data: existing } = await supabase
+        .from("waypoint_character_npcs")
+        .select("id, relationship")
+        .eq("character_id", characterId)
+        .eq("npc_id", npc.id)
+        .maybeSingle();
+
+      if (existing) {
+        // Update existing relationship (clamped to -5 to +5)
+        const newRelationship = Math.max(-5, Math.min(5, existing.relationship + change.delta));
+        await supabase
+          .from("waypoint_character_npcs")
+          .update({ relationship: newRelationship })
+          .eq("id", existing.id);
+      } else {
+        // Create new relationship
+        const newRelationship = Math.max(-5, Math.min(5, change.delta));
+        await supabase
+          .from("waypoint_character_npcs")
+          .insert({
+            character_id: characterId,
+            npc_id: npc.id,
+            relationship: newRelationship,
+          });
+      }
+    }
+  }
 }

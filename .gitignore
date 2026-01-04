@@ -43,6 +43,7 @@ Thumbs.db
 
 # Supabase
 supabase/.temp
+supabase/migrations/*.sql
 
 # Testing
 coverage

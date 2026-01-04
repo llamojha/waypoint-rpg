@@ -6,7 +6,7 @@ import {
   worldToDb,
   dbToWorld,
 } from "@/lib/supabase/transforms";
-import { TEST_USER_ID, USE_MOCK_USER } from "@/constants";
+import { TEST_USER_ID, USE_MOCK_USER, OPENING_NARRATION, OPENING_SUGGESTED_ACTIONS } from "@/constants";
 import type { Character } from "@/types";
 
 /**
@@ -164,6 +164,23 @@ export async function POST(request: NextRequest) {
         world: null,
         warning: "World state creation failed",
       });
+    }
+
+    // Create opening turn with narration
+    const { error: turnError } = await supabase
+      .from("waypoint_turns")
+      .insert({
+        character_id: newChar.id,
+        player_action: "Awaken",
+        narration: OPENING_NARRATION,
+        diffs: [{ type: "world", text: "Arrived at The Waystone", value: "Windhollow Vale" }],
+        suggested_actions: OPENING_SUGGESTED_ACTIONS,
+        mechanics: null,
+      });
+
+    if (turnError) {
+      console.error("Error creating opening turn:", turnError);
+      // Non-fatal - character and world were created
     }
 
     return NextResponse.json({

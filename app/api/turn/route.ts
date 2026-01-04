@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { dbToCharacter, dbToWorld } from "@/lib/supabase/transforms";
 import { buildTurnPrompt, RollOutcome } from "@/lib/gemini/prompts";
 import { generateTurn } from "@/lib/gemini/client";
@@ -65,6 +65,52 @@ function dbToTurn(row: {
     suggestedActions: (row.suggested_actions as string[]) || [],
     diffs: (row.diffs as TurnDiff[]) || [],
   };
+}
+
+/**
+ * GET /api/turn?character_id=xxx
+ * Load turns for a character
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const characterId = searchParams.get("character_id");
+
+    if (!characterId) {
+      return NextResponse.json(
+        { error: "character_id is required" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = await createClient();
+
+    // Load turns for character (most recent first, then reverse for chronological order)
+    const { data: turnRows, error } = await supabase
+      .from("waypoint_turns")
+      .select("*")
+      .eq("character_id", characterId)
+      .order("created_at", { ascending: true })
+      .limit(50);
+
+    if (error) {
+      console.error("Error loading turns:", error);
+      return NextResponse.json(
+        { error: "Failed to load turns" },
+        { status: 500 }
+      );
+    }
+
+    const turns = (turnRows || []).map(dbToTurn);
+
+    return NextResponse.json({ turns });
+  } catch (error) {
+    console.error("Turn loading error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
 
 /**
@@ -225,8 +271,8 @@ export async function POST(request: NextRequest) {
     const validatedEvents = outputFilter.status === "block" 
       ? [] 
       : validateEvents(geminiResponse.proposed_events, character);
-    const { characterUpdates, worldUpdates, diffs } = outputFilter.status === "block"
-      ? { characterUpdates: {}, worldUpdates: {}, diffs: [] as TurnDiff[] }
+    const { characterUpdates, worldUpdates, diffs, questChanges, relationshipChanges } = outputFilter.status === "block"
+      ? { characterUpdates: {}, worldUpdates: {}, diffs: [] as TurnDiff[], questChanges: [], relationshipChanges: [] }
       : applyEvents(character, world, validatedEvents);
 
     // Insert turn
@@ -256,6 +302,8 @@ export async function POST(request: NextRequest) {
     if (outputFilter.status === "allow") {
       await updateCharacterState(supabase, characterId, characterUpdates);
       await updateWorldState(supabase, characterId, worldUpdates);
+      await updateQuestState(supabase, characterId, questChanges);
+      await updateRelationshipState(supabase, characterId, relationshipChanges);
     }
 
     const response: TurnResponse = {
@@ -348,7 +396,7 @@ async function handleRollResolution(
     geminiResponse.proposed_events,
     character
   );
-  const { characterUpdates, worldUpdates, diffs } = applyEvents(
+  const { characterUpdates, worldUpdates, diffs, questChanges, relationshipChanges } = applyEvents(
     character,
     world,
     validatedEvents
@@ -375,6 +423,8 @@ async function handleRollResolution(
   // Update character and world state
   await updateCharacterState(supabase, character.id!, characterUpdates);
   await updateWorldState(supabase, character.id!, worldUpdates);
+  await updateQuestState(supabase, character.id!, questChanges);
+  await updateRelationshipState(supabase, character.id!, relationshipChanges);
 
   const response: TurnResponse = {
     turn: {
@@ -455,4 +505,118 @@ async function updateWorldState(
     .from("waypoint_world_state")
     .update(dbUpdates)
     .eq("character_id", characterId);
+}
+
+
+/**
+ * Update quest state in database
+ */
+async function updateQuestState(
+  supabase: ReturnType<typeof createAdminClient>,
+  characterId: string,
+  questChanges: Array<{ type: "start" | "progress"; questId: string; questTitle?: string; progress?: number; reason: string }>
+) {
+  if (questChanges.length === 0) return;
+
+  for (const change of questChanges) {
+    if (change.type === "start") {
+      // Look up quest by title (case-insensitive) to get the actual quest ID
+      const { data: quest } = await supabase
+        .from("waypoint_quests")
+        .select("id")
+        .ilike("title", change.questTitle || change.questId)
+        .maybeSingle();
+
+      if (quest) {
+        // Check if already started
+        const { data: existing } = await supabase
+          .from("waypoint_character_quests")
+          .select("id")
+          .eq("character_id", characterId)
+          .eq("quest_id", quest.id)
+          .maybeSingle();
+
+        if (!existing) {
+          await supabase
+            .from("waypoint_character_quests")
+            .insert({
+              character_id: characterId,
+              quest_id: quest.id,
+              status: "active",
+              progress: 0,
+            });
+        }
+      }
+    } else if (change.type === "progress") {
+      // Look up quest by title to get the actual quest ID
+      const { data: quest } = await supabase
+        .from("waypoint_quests")
+        .select("id, total_progress")
+        .ilike("title", change.questId)
+        .maybeSingle();
+
+      if (quest) {
+        const newProgress = change.progress ?? 0;
+        const isComplete = newProgress >= quest.total_progress;
+
+        await supabase
+          .from("waypoint_character_quests")
+          .update({
+            progress: newProgress,
+            status: isComplete ? "completed" : "active",
+          })
+          .eq("character_id", characterId)
+          .eq("quest_id", quest.id);
+      }
+    }
+  }
+}
+
+/**
+ * Update NPC relationship state in database
+ */
+async function updateRelationshipState(
+  supabase: ReturnType<typeof createAdminClient>,
+  characterId: string,
+  relationshipChanges: Array<{ npc: string; delta: number; reason: string }>
+) {
+  if (relationshipChanges.length === 0) return;
+
+  for (const change of relationshipChanges) {
+    // Look up NPC by name
+    const { data: npc } = await supabase
+      .from("waypoint_npcs")
+      .select("id")
+      .ilike("name", change.npc)
+      .maybeSingle();
+
+    if (npc) {
+      // Check if relationship exists
+      const { data: existing } = await supabase
+        .from("waypoint_character_npcs")
+        .select("id, relationship")
+        .eq("character_id", characterId)
+        .eq("npc_id", npc.id)
+        .maybeSingle();
+
+      if (existing) {
+        // Update existing relationship (clamped to -5 to +5)
+        const newRelationship = Math.max(-5, Math.min(5, existing.relationship + change.delta));
+        await supabase
+          .from("waypoint_character_npcs")
+          .update({ relationship: newRelationship })
+          .eq("id", existing.id);
+      } else {
+        // Create new relationship
+        const newRelationship = Math.max(-5, Math.min(5, change.delta));
+        await supabase
+          .from("waypoint_character_npcs")
+          .insert({
+            character_id: characterId,
+            npc_id: npc.id,
+            relationship: newRelationship,
+          });
+      }
+    }
+  }
 }

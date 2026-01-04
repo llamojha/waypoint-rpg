@@ -6,7 +6,13 @@ import type {
   InventoryRemoveEvent,
   WorldUpdateEvent,
   RelationshipChangeEvent,
+  QuestStartEvent,
+  QuestProgressEvent,
+  LocationChangeEvent,
+  CombatDamageEvent,
+  CombatEndEvent,
 } from "./validate";
+import { DEMO_LOCATIONS, WANDERER_ENCOUNTER_CHANCE } from "@/constants";
 
 /**
  * Result of applying events to game state
@@ -16,6 +22,8 @@ export interface ApplyEventsResult {
   worldUpdates: Partial<WorldContext>;
   diffs: TurnDiff[];
   relationshipChanges: Array<{ npc: string; delta: number; reason: string }>;
+  questChanges: Array<{ type: "start" | "progress"; questId: string; questTitle?: string; progress?: number; reason: string }>;
+  combatEvents: Array<{ type: "damage" | "end"; target: string; damage?: number; outcome?: string; loot?: { gold?: number; items?: string[] }; reason: string }>;
 }
 
 /**
@@ -192,6 +200,135 @@ function applyRelationshipChange(
 }
 
 /**
+ * Handles quest_start events
+ */
+function applyQuestStart(
+  event: QuestStartEvent,
+  questChanges: ApplyEventsResult["questChanges"],
+  diffs: TurnDiff[]
+): void {
+  questChanges.push({
+    type: "start",
+    questId: event.questId,
+    questTitle: event.questTitle,
+    reason: event.reason,
+  });
+
+  diffs.push({
+    type: "quest",
+    text: `New Quest: ${event.questTitle}`,
+  });
+}
+
+/**
+ * Handles quest_progress events
+ */
+function applyQuestProgress(
+  event: QuestProgressEvent,
+  questChanges: ApplyEventsResult["questChanges"],
+  diffs: TurnDiff[]
+): void {
+  questChanges.push({
+    type: "progress",
+    questId: event.questId,
+    progress: event.progress,
+    reason: event.reason,
+  });
+
+  diffs.push({
+    type: "quest",
+    text: `Quest Progress`,
+    value: `Step ${event.progress}`,
+  });
+}
+
+/**
+ * Handles location_change events
+ */
+function applyLocationChange(
+  event: LocationChangeEvent,
+  world: WorldContext,
+  worldUpdates: Partial<WorldContext>,
+  diffs: TurnDiff[]
+): void {
+  // Look up location data from constants
+  const locationKey = Object.keys(DEMO_LOCATIONS).find(
+    (key) => DEMO_LOCATIONS[key].name.toLowerCase() === event.location.toLowerCase()
+  );
+  
+  const locationData = locationKey ? DEMO_LOCATIONS[locationKey] : null;
+
+  worldUpdates.poi = event.location;
+  
+  if (locationData) {
+    worldUpdates.description = locationData.description;
+    let entities = event.entities ?? [...locationData.entities];
+    
+    // Random chance to encounter The Wanderer in wilderness
+    if (locationData.type === "wilderness" && Math.random() < WANDERER_ENCOUNTER_CHANCE) {
+      if (!entities.includes("wanderer")) {
+        entities = [...entities, "wanderer"];
+      }
+    }
+    
+    worldUpdates.entities = entities;
+    worldUpdates.nearbyPoi = locationData.nearbyPoi;
+  } else if (event.entities) {
+    worldUpdates.entities = event.entities;
+  }
+
+  diffs.push({
+    type: "world",
+    text: "Location",
+    value: event.location,
+  });
+}
+
+/**
+ * Handles combat_damage events
+ */
+function applyCombatDamage(
+  event: CombatDamageEvent,
+  combatEvents: ApplyEventsResult["combatEvents"],
+  diffs: TurnDiff[]
+): void {
+  combatEvents.push({
+    type: "damage",
+    target: event.target,
+    damage: event.damage,
+    reason: event.reason,
+  });
+
+  diffs.push({
+    type: "world",
+    text: `${event.target}`,
+    value: `-${event.damage} HP`,
+  });
+}
+
+/**
+ * Handles combat_end events
+ */
+function applyCombatEnd(
+  event: CombatEndEvent,
+  combatEvents: ApplyEventsResult["combatEvents"],
+  diffs: TurnDiff[]
+): void {
+  combatEvents.push({
+    type: "end",
+    target: event.target,
+    outcome: event.outcome,
+    loot: event.loot,
+    reason: event.reason,
+  });
+
+  diffs.push({
+    type: "world",
+    text: `${event.target} ${event.outcome}`,
+  });
+}
+
+/**
  * Applies validated events to character and world state.
  * Returns the updates to be applied and diffs for the UI.
  *
@@ -215,6 +352,8 @@ export function applyEvents(
   const worldUpdates: Partial<WorldContext> = {};
   const diffs: TurnDiff[] = [];
   const relationshipChanges: ApplyEventsResult["relationshipChanges"] = [];
+  const questChanges: ApplyEventsResult["questChanges"] = [];
+  const combatEvents: ApplyEventsResult["combatEvents"] = [];
 
   for (const event of events) {
     switch (event.type) {
@@ -256,6 +395,26 @@ export function applyEvents(
           diffs
         );
         break;
+
+      case "quest_start":
+        applyQuestStart(event as QuestStartEvent, questChanges, diffs);
+        break;
+
+      case "quest_progress":
+        applyQuestProgress(event as QuestProgressEvent, questChanges, diffs);
+        break;
+
+      case "location_change":
+        applyLocationChange(event as LocationChangeEvent, world, worldUpdates, diffs);
+        break;
+
+      case "combat_damage":
+        applyCombatDamage(event as CombatDamageEvent, combatEvents, diffs);
+        break;
+
+      case "combat_end":
+        applyCombatEnd(event as CombatEndEvent, combatEvents, diffs);
+        break;
     }
   }
 
@@ -264,5 +423,7 @@ export function applyEvents(
     worldUpdates,
     diffs,
     relationshipChanges,
+    questChanges,
+    combatEvents,
   };
 }

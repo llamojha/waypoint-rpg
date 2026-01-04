@@ -102,8 +102,11 @@ export default function App() {
         setGameState((prev) => ({ ...prev, character: data.character }));
         setView("game");
 
-        // Also fetch world state
+        // Also fetch world state, turns, quests, and NPCs
         await loadWorldState(data.character.id);
+        await loadTurns(data.character.id);
+        await loadQuests(data.character.id);
+        await loadNpcs(data.character.id);
       } else {
         // No character - show creation
         setView("creation");
@@ -137,6 +140,66 @@ export default function App() {
     } catch (err) {
       console.error("Failed to load world state:", err);
       // Don't set error - world state is secondary, game can still work with defaults
+    }
+  };
+
+  // Load turns for a character
+  const loadTurns = async (characterId: string) => {
+    try {
+      const res = await fetch(`/api/turn?character_id=${characterId}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.warn("Turns fetch failed:", data.error);
+        return;
+      }
+
+      if (data.turns && data.turns.length > 0) {
+        setGameState((prev) => ({ ...prev, turns: data.turns }));
+        // Update diff log with diffs from all turns
+        const allDiffs = data.turns.flatMap((t: Turn) => t.diffs || []);
+        setDiffLog(allDiffs);
+      }
+    } catch (err) {
+      console.error("Failed to load turns:", err);
+    }
+  };
+
+  // Load quests for a character
+  const loadQuests = async (characterId: string) => {
+    try {
+      const res = await fetch(`/api/quests?character_id=${characterId}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.warn("Quests fetch failed:", data.error);
+        return;
+      }
+
+      if (data.quests) {
+        setGameState((prev) => ({ ...prev, quests: data.quests }));
+      }
+    } catch (err) {
+      console.error("Failed to load quests:", err);
+    }
+  };
+
+  // Load NPCs with relationships for a character
+  const loadNpcs = async (characterId: string) => {
+    try {
+      const res = await fetch(`/api/npcs?character_id=${characterId}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.warn("NPCs fetch failed:", data.error);
+        return;
+      }
+
+      if (data.npcs) {
+        setGameState((prev) => ({ ...prev, npcs: data.npcs }));
+      }
+    } catch (err) {
+      console.error("Failed to load NPCs:", err);
     }
   };
 

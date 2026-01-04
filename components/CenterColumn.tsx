@@ -84,7 +84,7 @@ export const CenterColumn: React.FC<Props> = ({
       </div>
 
       {/* The Story Stream */}
-      <div className="flex-1 overflow-y-auto px-8 lg:px-12 py-8 space-y-10 custom-scrollbar pb-80 scroll-smooth">
+      <div className="flex-1 overflow-y-auto px-8 lg:px-12 py-8 space-y-10 custom-scrollbar pb-4 scroll-smooth">
         <div className="flex items-center justify-center gap-4 text-parchment-400 py-4 opacity-50">
           <div className="h-px bg-current w-20"></div>
           <div className="text-xs font-serif italic text-ink-light">
@@ -149,97 +149,55 @@ export const CenterColumn: React.FC<Props> = ({
         <div ref={bottomRef} />
       </div>
 
-      {/* Input Deck */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-parchment-200 via-parchment-200 to-transparent pt-12 pb-6 px-6 lg:px-12">
-        <div className="relative max-w-3xl mx-auto">
-          {/* Contextual/Unlocked Suggestions (Only when idle) */}
-          {turnStatus === "idle" && (
-            <div className="flex flex-wrap justify-center gap-2 mb-4 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300">
-              <QuickAction
-                icon={<Eye size={14} />}
-                label="Scan (Perception)"
-                onClick={() => setInput("I scan the area for threats ")}
-              />
-              <QuickAction
-                icon={<MapPin size={14} />}
-                label="Track (Survival)"
-                onClick={() => setInput("I look for tracks ")}
-              />
-              <QuickAction
-                icon={<MessageSquare size={14} />}
-                label="Negotiate"
-                onClick={() => setInput("I attempt to parley ")}
-              />
-            </div>
-          )}
-
-          <form
-            onSubmit={handleSubmit}
-            className="relative group shadow-2xl rounded-sm bg-parchment-100 border-2 border-parchment-400 overflow-hidden focus-within:border-gold"
-          >
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit();
-                }
-              }}
-              disabled={turnStatus === "processing"}
-              placeholder={
-                turnStatus === "processing"
-                  ? "Wait for the ink to dry..."
-                  : "Write your next action..."
+      {/* Input Deck - Fixed at bottom */}
+      <div className="border-t border-parchment-400 bg-parchment-100 px-4 py-3">
+        <form
+          onSubmit={handleSubmit}
+          className="relative flex gap-2 max-w-4xl mx-auto"
+        >
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
               }
-              className={`w-full bg-transparent p-5 pb-14 text-ink font-serif text-lg leading-relaxed focus:ring-0 focus:outline-none resize-none h-32 shadow-inner placeholder-ink-faint transition-all ${
-                turnStatus === "processing"
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
-            />
-
-            <div className="absolute bottom-3 right-3 flex items-center gap-2">
-              {turnStatus === "processing" ? (
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="px-6 py-1.5 bg-parchment-200 text-burgundy border-2 border-burgundy rounded-full hover:bg-burgundy hover:text-parchment-100 transition-all shadow-md active:translate-y-0.5 flex items-center gap-2 text-sm font-bold uppercase tracking-widest"
-                >
-                  <XCircle size={14} /> <span>Cancel</span>
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={!input.trim()}
-                  className="px-6 py-1.5 bg-ink text-parchment-100 rounded-full hover:bg-gold hover:text-ink disabled:opacity-30 disabled:hover:bg-ink disabled:hover:text-parchment-100 transition-all shadow-md active:translate-y-0.5 flex items-center gap-2 text-sm font-bold uppercase tracking-widest border border-parchment-400"
-                >
-                  <Feather size={14} /> <span>Write</span>
-                </button>
-              )}
-            </div>
-          </form>
-        </div>
+            }}
+            disabled={turnStatus === "processing"}
+            placeholder={
+              turnStatus === "processing"
+                ? "Wait for the ink to dry..."
+                : "Write your next action..."
+            }
+            rows={2}
+            className={`flex-1 bg-parchment-50 border border-parchment-400 rounded-sm p-3 text-ink font-serif text-base leading-relaxed focus:ring-1 focus:ring-gold focus:border-gold focus:outline-none resize-none placeholder-ink-faint transition-all ${
+              turnStatus === "processing" ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          />
+          {turnStatus === "processing" ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="self-stretch w-12 bg-parchment-200 text-burgundy border border-burgundy rounded-sm hover:bg-burgundy hover:text-parchment-100 transition-all flex items-center justify-center"
+            >
+              <XCircle size={20} />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              className="self-stretch w-12 bg-ink text-parchment-100 rounded-sm hover:bg-gold hover:text-ink disabled:opacity-30 disabled:hover:bg-ink disabled:hover:text-parchment-100 transition-all flex items-center justify-center border border-parchment-400"
+            >
+              <Send size={20} />
+            </button>
+          )}
+        </form>
       </div>
     </div>
   );
 };
-
-const QuickAction: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}> = ({ icon, label, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-parchment-100 border border-parchment-400 text-[10px] font-bold font-small-caps text-ink-light hover:border-gold hover:text-gold-dim hover:shadow-md transition-all"
-  >
-    {icon}
-    <span>{label}</span>
-  </button>
-);
 
 const TurnEntry: React.FC<{
   turn: Turn;

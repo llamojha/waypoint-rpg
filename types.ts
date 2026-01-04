@@ -79,6 +79,7 @@ export interface Item {
     ac?: number;
     damage?: string;
     value?: number;
+    healing?: string; // e.g., "2d4" for consumables
   };
 }
 
