@@ -1,5 +1,4 @@
 import type { Character, WorldContext, Turn, Equipment, Item } from "@/types";
-import { DEMO_NPCS } from "@/constants";
 
 /**
  * Prompt templates for Gemini turn generation
@@ -128,34 +127,39 @@ function formatRecentTurns(turns: Turn[]): string {
       const turnNum = turns.length - index;
       return `Turn ${turnNum}:
 Action: ${turn.playerAction}
-Result: ${turn.narration.slice(0, 200)}${
-        turn.narration.length > 200 ? "..." : ""
+Result: ${turn.narration.slice(0, 500)}${
+        turn.narration.length > 500 ? "..." : ""
       }`;
     })
     .join("\n\n");
 }
 
 /**
+ * NPC data for prompt building
+ */
+export interface NPCForPrompt {
+  name: string;
+  role: string;
+  personality: string[];
+  dialogueHints: string[];
+  relationship: number;
+}
+
+/**
  * Format NPCs present in the current location
  */
-function formatNPCs(entities: string[], npcRelationships?: Record<string, number>): string {
-  if (entities.length === 0) return "None";
+function formatNPCs(npcs: NPCForPrompt[]): string {
+  if (npcs.length === 0) return "None";
 
-  const npcInfo = entities
-    .map((entityId) => {
-      const npc = DEMO_NPCS[entityId];
-      if (!npc) return null;
-      
-      const relationship = npcRelationships?.[npc.name] ?? 0;
-      const relationshipLabel = relationship > 0 ? `+${relationship}` : relationship < 0 ? `${relationship}` : "neutral";
-      
-      return `- ${npc.name} (${npc.role}, relationship: ${relationshipLabel})
+  const npcInfo = npcs.map((npc) => {
+    const relationshipLabel = npc.relationship > 0 ? `+${npc.relationship}` : npc.relationship < 0 ? `${npc.relationship}` : "neutral";
+    
+    return `- ${npc.name} (${npc.role}, relationship: ${relationshipLabel})
   Personality: ${npc.personality.join(", ")}
   Notes: ${npc.dialogueHints.slice(0, 3).join("; ")}`;
-    })
-    .filter(Boolean);
+  });
 
-  return npcInfo.length > 0 ? npcInfo.join("\n") : "None";
+  return npcInfo.join("\n");
 }
 
 /**
@@ -179,7 +183,7 @@ export interface RollOutcome {
  * @param recentTurns - Last 3 turns for context
  * @param playerAction - The player's current action
  * @param rollOutcome - Optional skill check result to incorporate
- * @param npcRelationships - Optional map of NPC name to relationship value
+ * @param npcsPresent - NPCs present at the current location with their data
  * @returns Complete prompt string for Gemini
  */
 export function buildTurnPrompt(
@@ -188,10 +192,10 @@ export function buildTurnPrompt(
   recentTurns: Turn[],
   playerAction: string,
   rollOutcome?: RollOutcome,
-  npcRelationships?: Record<string, number>
+  npcsPresent?: NPCForPrompt[]
 ): string {
-  // Take only the last 3 turns
-  const lastThreeTurns = recentTurns.slice(-3);
+  // Take only the last 10 turns
+  const lastTurns = recentTurns.slice(-100);
 
   let rollContext = "";
   if (rollOutcome) {
@@ -217,7 +221,7 @@ Time: Day ${world.time.day}, ${world.time.phase}
 Weather: ${world.weather}
 
 NPCS PRESENT:
-${formatNPCs(world.entities, npcRelationships)}
+${formatNPCs(npcsPresent || [])}
 
 CHARACTER:
 ${character.name}${character.gender ? ` (${character.gender})` : ""}
@@ -228,7 +232,7 @@ Inventory: ${formatInventory(character.inventory)}
 Conditions: ${formatConditions(character.conditions)}
 
 RECENT EVENTS:
-${formatRecentTurns(lastThreeTurns)}
+${formatRecentTurns(lastTurns)}
 
 PLAYER ACTION:
 ${playerAction}

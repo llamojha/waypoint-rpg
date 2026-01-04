@@ -95,11 +95,12 @@ MVP COMPLETE                           [Total: ~76-109 hours]
 
 ### Phase 2C: Full Agent Pipeline (Post-Demo, Tool Calling)
 
-| ID  | Spec Name              | Estimate | Status      |
-| --- | ---------------------- | -------- | ----------- |
-| 2.5 | `lorekeeper`           | 4-6h     | ⏸️ DEFERRED |
-| 2.6 | `orchestrator-arbiter` | 6-8h     | ⏸️ DEFERRED |
-| 2.7 | `agent-pipeline`       | 4-6h     | ⏸️ DEFERRED |
+| ID  | Spec Name                  | Estimate | Status      |
+| --- | -------------------------- | -------- | ----------- |
+| 2.5 | `lorekeeper`               | 4-6h     | ⏸️ DEFERRED |
+| 2.6 | `orchestrator-arbiter`     | 6-8h     | ⏸️ DEFERRED |
+| 2.7 | `agent-pipeline`           | 4-6h     | ⏸️ DEFERRED |
+| 2.8 | `conversation-compression` | 6-8h     | 📋 TODO     |
 
 All deferred agents will use tool calling, building on the foundation from 2.1/2.2.
 

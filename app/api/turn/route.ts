@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       .select("*")
       .eq("character_id", characterId)
       .order("created_at", { ascending: false })
-      .limit(3);
+      .limit(100);
 
     const recentTurns = (turnRows || []).map(dbToTurn).reverse();
 

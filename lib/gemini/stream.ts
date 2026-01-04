@@ -80,6 +80,7 @@ export async function* generateTurnStream(
     });
 
     let fullText = "";
+    let yieldedAny = false;
 
     for await (const chunk of response) {
       const text = chunk.text;
@@ -87,9 +88,15 @@ export async function* generateTurnStream(
         fullText += text;
         const narrationChunk = extractNarrationChunk(fullText);
         if (narrationChunk) {
+          yieldedAny = true;
           yield narrationChunk;
         }
       }
+    }
+
+    // If nothing was yielded, provide fallback narration
+    if (!yieldedAny) {
+      yield "The moment passes without incident. Perhaps a different approach would serve you better.";
     }
 
     // Parse final response for metadata

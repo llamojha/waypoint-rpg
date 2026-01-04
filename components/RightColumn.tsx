@@ -118,7 +118,9 @@ export const RightColumn: React.FC<Props> = ({ world, diffs, npcs }) => {
                   <div
                     className={`mt-0.5 rounded-full p-0.5 ${
                       diff.type === "relationship"
-                        ? "bg-burgundy text-parchment-100"
+                        ? diff.value && String(diff.value).startsWith("-")
+                          ? "bg-burgundy text-parchment-100"
+                          : "bg-forest text-parchment-100"
                         : diff.type === "inventory"
                         ? "bg-gold text-ink"
                         : "bg-parchment-400 text-ink"

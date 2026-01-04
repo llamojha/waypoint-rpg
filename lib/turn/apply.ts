@@ -12,7 +12,6 @@ import type {
   CombatDamageEvent,
   CombatEndEvent,
 } from "./validate";
-import { DEMO_LOCATIONS, WANDERER_ENCOUNTER_CHANCE } from "@/constants";
 
 /**
  * Result of applying events to game state
@@ -244,6 +243,8 @@ function applyQuestProgress(
 
 /**
  * Handles location_change events
+ * Note: Full location data (description, imageUrl, entities, nearbyPoi) is looked up
+ * from the database in the API route after applyEvents returns.
  */
 function applyLocationChange(
   event: LocationChangeEvent,
@@ -251,31 +252,7 @@ function applyLocationChange(
   worldUpdates: Partial<WorldContext>,
   diffs: TurnDiff[]
 ): void {
-  // Look up location data from constants
-  const locationKey = Object.keys(DEMO_LOCATIONS).find(
-    (key) => DEMO_LOCATIONS[key].name.toLowerCase() === event.location.toLowerCase()
-  );
-  
-  const locationData = locationKey ? DEMO_LOCATIONS[locationKey] : null;
-
   worldUpdates.poi = event.location;
-  
-  if (locationData) {
-    worldUpdates.description = locationData.description;
-    let entities = event.entities ?? [...locationData.entities];
-    
-    // Random chance to encounter The Wanderer in wilderness
-    if (locationData.type === "wilderness" && Math.random() < WANDERER_ENCOUNTER_CHANCE) {
-      if (!entities.includes("wanderer")) {
-        entities = [...entities, "wanderer"];
-      }
-    }
-    
-    worldUpdates.entities = entities;
-    worldUpdates.nearbyPoi = locationData.nearbyPoi;
-  } else if (event.entities) {
-    worldUpdates.entities = event.entities;
-  }
 
   diffs.push({
     type: "world",

@@ -43,6 +43,7 @@ interface Props {
   quests: Quest[];
   npcs: NPC[];
   onCharacterUpdate: (char: Character) => void;
+  onReset?: () => void;
 }
 
 export const LeftColumn: React.FC<Props> = ({
@@ -50,6 +51,7 @@ export const LeftColumn: React.FC<Props> = ({
   quests,
   npcs,
   onCharacterUpdate,
+  onReset,
 }) => {
   const [activeTab, setActiveTab] = useState<
     "char" | "stash" | "skills" | "quests" | "folk" | "magic"
@@ -111,7 +113,7 @@ export const LeftColumn: React.FC<Props> = ({
         <div className="absolute left-1 top-0 bottom-0 w-px bg-parchment-400/30 pointer-events-none"></div>
         <div className="absolute right-1 top-0 bottom-0 w-px bg-parchment-400/30 pointer-events-none"></div>
 
-        {activeTab === "char" && <CharacterTab character={character} />}
+        {activeTab === "char" && <CharacterTab character={character} onReset={onReset} />}
         {activeTab === "stash" && (
           <InventoryTab character={character} onUpdate={onCharacterUpdate} />
         )}
@@ -670,79 +672,115 @@ const StatCard = ({ label, value, icon }: any) => (
    Character Tab
 -------------------------------------------------------------------------------- */
 
-const CharacterTab = ({ character }: { character: Character }) => (
-  <div className="space-y-6 animate-fade-in">
-    {/* Header */}
-    <div className="flex items-center gap-4 border-b-2 border-parchment-800 pb-4 border-double">
-      <div className="w-16 h-16 rounded-sm bg-parchment-800 border-2 border-gold flex items-center justify-center overflow-hidden shadow-md shrink-0">
-        {character.portraitUrl ? (
-          <img
-            src={character.portraitUrl}
-            alt="Portrait"
-            className="w-full h-full object-cover sepia-[.4]"
-          />
-        ) : (
-          <User className="text-parchment-100" size={32} />
-        )}
-      </div>
-      <div>
-        <h2 className="text-2xl font-serif font-bold text-ink leading-tight">
-          {character.name || "Traveler"}
-        </h2>
-        {character.gender && (
-          <div className="text-xs font-sans text-ink-light italic">
-            {character.gender}
-          </div>
-        )}
-      </div>
-    </div>
+const CharacterTab = ({ character, onReset }: { character: Character; onReset?: () => void }) => {
+  const [showConfirm, setShowConfirm] = useState(false);
 
-    {/* Vitals */}
-    <div className="space-y-3">
-      <div className="flex justify-between items-center bg-parchment-100 p-2 rounded-sm border border-parchment-400 shadow-sm">
-        <span className="text-xs font-bold font-small-caps uppercase tracking-wide">
-          Vitality
-        </span>
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-24 bg-parchment-300 rounded-full overflow-hidden">
-            <div className="h-full bg-burgundy w-full"></div>
-          </div>
-          <span className="font-bold text-ink text-sm">
-            {character.hp}/{character.maxHp}
-          </span>
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center gap-4 border-b-2 border-parchment-800 pb-4 border-double">
+        <div className="w-16 h-16 rounded-sm bg-parchment-800 border-2 border-gold flex items-center justify-center overflow-hidden shadow-md shrink-0">
+          {character.portraitUrl ? (
+            <img
+              src={character.portraitUrl}
+              alt="Portrait"
+              className="w-full h-full object-cover sepia-[.4]"
+            />
+          ) : (
+            <User className="text-parchment-100" size={32} />
+          )}
+        </div>
+        <div>
+          <h2 className="text-2xl font-serif font-bold text-ink leading-tight">
+            {character.name || "Traveler"}
+          </h2>
+          {character.gender && (
+            <div className="text-xs font-sans text-ink-light italic">
+              {character.gender}
+            </div>
+          )}
         </div>
       </div>
-    </div>
 
-    {/* Conditions & Consequences */}
-    <div>
-      <h3 className="text-xs font-bold font-small-caps text-ink uppercase tracking-widest border-b border-parchment-400 mb-3 pb-1 flex justify-between">
-        <span>Conditions</span>
-        <span className="text-ink-faint">Active</span>
-      </h3>
+      {/* Vitals */}
+      <div className="space-y-3">
+        <div className="flex justify-between items-center bg-parchment-100 p-2 rounded-sm border border-parchment-400 shadow-sm">
+          <span className="text-xs font-bold font-small-caps uppercase tracking-wide">
+            Vitality
+          </span>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-24 bg-parchment-300 rounded-full overflow-hidden">
+              <div className="h-full bg-burgundy w-full"></div>
+            </div>
+            <span className="font-bold text-ink text-sm">
+              {character.hp}/{character.maxHp}
+            </span>
+          </div>
+        </div>
+      </div>
 
-      {character.conditions.length > 0 ? (
-        <div className="space-y-2">
-          {character.conditions.map((cond) => (
-            <div
-              key={cond.id}
-              className="bg-parchment-100 p-2 rounded-sm border-l-4 border-burgundy shadow-sm"
+      {/* Conditions & Consequences */}
+      <div>
+        <h3 className="text-xs font-bold font-small-caps text-ink uppercase tracking-widest border-b border-parchment-400 mb-3 pb-1 flex justify-between">
+          <span>Conditions</span>
+          <span className="text-ink-faint">Active</span>
+        </h3>
+
+        {character.conditions.length > 0 ? (
+          <div className="space-y-2">
+            {character.conditions.map((cond) => (
+              <div
+                key={cond.id}
+                className="bg-parchment-100 p-2 rounded-sm border-l-4 border-burgundy shadow-sm"
+              >
+                <div className="font-bold text-ink text-xs">{cond.name}</div>
+                <div className="text-[10px] text-ink-light">
+                  {cond.description}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-4 border-2 border-dashed border-parchment-400 rounded-sm opacity-50">
+            <span className="text-xs italic">Healthy & Unburdened</span>
+          </div>
+        )}
+      </div>
+
+      {/* Reset Button */}
+      {onReset && (
+        <div className="pt-4 border-t border-parchment-400">
+          {!showConfirm ? (
+            <button
+              onClick={() => setShowConfirm(true)}
+              className="w-full py-2 text-xs font-bold font-small-caps uppercase tracking-wide text-ink-faint hover:text-burgundy border border-parchment-400 hover:border-burgundy rounded-sm transition-colors"
             >
-              <div className="font-bold text-ink text-xs">{cond.name}</div>
-              <div className="text-[10px] text-ink-light">
-                {cond.description}
+              Restart Journey
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-center text-ink-light">Reset all progress?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="flex-1 py-2 text-xs font-bold border border-parchment-400 rounded-sm hover:bg-parchment-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { onReset(); setShowConfirm(false); }}
+                  className="flex-1 py-2 text-xs font-bold bg-burgundy text-parchment-100 rounded-sm hover:bg-burgundy/80"
+                >
+                  Confirm
+                </button>
               </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-4 border-2 border-dashed border-parchment-400 rounded-sm opacity-50">
-          <span className="text-xs italic">Healthy & Unburdened</span>
+          )}
         </div>
       )}
     </div>
-  </div>
-);
+  );
+};
 
 const TabButton = ({ icon, active, onClick, label, disabled }: any) => (
   <button

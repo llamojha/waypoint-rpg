@@ -261,6 +261,36 @@ export default function App() {
     setView("game");
   };
 
+  const handleReset = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/character/reset", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      // Reload all game data
+      setGameState((prev) => ({
+        ...prev,
+        character: data.character,
+        world: data.world || prev.world,
+        turns: [],
+        quests: [],
+        npcs: [],
+      }));
+      setDiffLog([]);
+
+      // Reload turns, quests, npcs
+      await loadTurns(data.character.id);
+      await loadQuests(data.character.id);
+      await loadNpcs(data.character.id);
+    } catch (err) {
+      console.error("Failed to reset:", err);
+      setError(err instanceof Error ? err.message : "Failed to reset");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCharacterComplete = async (charData: Partial<Character>) => {
     setIsLoading(true);
     setError(null);
@@ -454,6 +484,13 @@ export default function App() {
 
               if (data.diffs?.length > 0) {
                 setDiffLog((prev) => [...prev, ...data.diffs]);
+                // Reload NPCs if there were relationship changes
+                const hasRelationshipChange = data.diffs.some(
+                  (d: { type: string }) => d.type === "relationship"
+                );
+                if (hasRelationshipChange && gameState.character.id) {
+                  loadNpcs(gameState.character.id);
+                }
               }
             }
 
@@ -471,7 +508,21 @@ export default function App() {
         setTurnStatus("idle");
       } else {
         console.error("Turn processing failed:", error);
-        setTurnStatus("error");
+        // Update the last turn with the error message as narration
+        const errorMessage = error instanceof Error ? error.message : "Something went wrong.";
+        setGameState((prev) => {
+          const turns = [...prev.turns];
+          const lastTurn = turns[turns.length - 1];
+          if (lastTurn && lastTurn.isStreaming) {
+            turns[turns.length - 1] = {
+              ...lastTurn,
+              narration: errorMessage,
+              isStreaming: false,
+            };
+          }
+          return { ...prev, turns };
+        });
+        setTurnStatus("idle");
       }
     }
   };
@@ -715,6 +766,7 @@ export default function App() {
                 quests={gameState.quests}
                 npcs={gameState.npcs}
                 onCharacterUpdate={handleCharacterUpdate}
+                onReset={handleReset}
               />
             </div>
 

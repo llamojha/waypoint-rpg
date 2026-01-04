@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { dbToCharacter, dbToWorld } from "@/lib/supabase/transforms";
-import { buildTurnPrompt, RollOutcome } from "@/lib/gemini/prompts";
+import { buildTurnPrompt, RollOutcome, NPCForPrompt } from "@/lib/gemini/prompts";
 import { generateTurnStream, StreamMetadata } from "@/lib/gemini/stream";
 import { validateEvents } from "@/lib/turn/validate";
 import { applyEvents } from "@/lib/turn/apply";
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       .select("*")
       .eq("character_id", characterId)
       .order("created_at", { ascending: false })
-      .limit(3);
+      .limit(100);
 
     const recentTurns = (turnRows || [])
       .map((r) => ({
@@ -175,7 +175,30 @@ export async function POST(request: Request) {
     }
 
     // No roll - stream narration
-    const prompt = buildTurnPrompt(character, world, recentTurns, playerAction);
+    // Query NPCs at current location with relationships
+    const { data: npcsAtLocation } = await supabase
+      .from("waypoint_npcs")
+      .select("name, role, personality, dialogue_hints")
+      .ilike("location", world.poi);
+    
+    const { data: npcRelationships } = await supabase
+      .from("waypoint_character_npcs")
+      .select("npc_id, relationship, waypoint_npcs(name)")
+      .eq("character_id", characterId);
+    
+    const relationshipMap = new Map(
+      (npcRelationships || []).map((r: any) => [r.waypoint_npcs?.name, r.relationship])
+    );
+    
+    const npcsPresent = (npcsAtLocation || []).map((npc: any) => ({
+      name: npc.name,
+      role: npc.role,
+      personality: npc.personality || [],
+      dialogueHints: npc.dialogue_hints || [],
+      relationship: relationshipMap.get(npc.name) ?? 0,
+    }));
+
+    const prompt = buildTurnPrompt(character, world, recentTurns, playerAction, undefined, npcsPresent);
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -212,6 +235,38 @@ export async function POST(request: Request) {
             world,
             validatedEvents
           );
+
+          // If location changed, look up full location data from DB
+          if (worldUpdates.poi) {
+            const { data: locationData } = await supabase
+              .from("waypoint_locations")
+              .select("description, art_url, type, nearby_poi")
+              .ilike("name", worldUpdates.poi)
+              .maybeSingle();
+            
+            if (locationData) {
+              worldUpdates.description = locationData.description;
+              worldUpdates.imageUrl = locationData.art_url;
+              worldUpdates.nearbyPoi = locationData.nearby_poi || [];
+              
+              // Get NPCs at this location
+              const { data: npcsAtLocation } = await supabase
+                .from("waypoint_npcs")
+                .select("name")
+                .ilike("location", worldUpdates.poi);
+              
+              const npcNames = (npcsAtLocation || []).map(n => n.name.toLowerCase().replace(/\s+/g, '_'));
+              
+              // Random chance for Wanderer in wilderness
+              if (locationData.type === "wilderness" && Math.random() < 0.15) {
+                if (!npcNames.includes("the_wanderer")) {
+                  npcNames.push("wanderer");
+                }
+              }
+              
+              worldUpdates.entities = npcNames;
+            }
+          }
 
           // Safety filter on output
           const outputFilter = filterOutput(fullNarration);
@@ -360,12 +415,36 @@ async function handleRollStream(
     outcome: checkResult.outcome,
   };
 
+  // Query NPCs at current location with relationships
+  const { data: npcsAtLocation } = await supabase
+    .from("waypoint_npcs")
+    .select("name, role, personality, dialogue_hints")
+    .ilike("location", world.poi);
+  
+  const { data: npcRelationships } = await supabase
+    .from("waypoint_character_npcs")
+    .select("npc_id, relationship, waypoint_npcs(name)")
+    .eq("character_id", character.id);
+  
+  const relationshipMap = new Map(
+    (npcRelationships || []).map((r: any) => [r.waypoint_npcs?.name, r.relationship])
+  );
+  
+  const npcsPresent: NPCForPrompt[] = (npcsAtLocation || []).map((npc: any) => ({
+    name: npc.name,
+    role: npc.role,
+    personality: npc.personality || [],
+    dialogueHints: npc.dialogue_hints || [],
+    relationship: relationshipMap.get(npc.name) ?? 0,
+  }));
+
   const prompt = buildTurnPrompt(
     character,
     world,
     recentTurns,
     turnRow.player_action,
-    rollOutcome
+    rollOutcome,
+    npcsPresent
   );
 
   const stream = new ReadableStream({
@@ -402,6 +481,38 @@ async function handleRollStream(
           world,
           validatedEvents
         );
+
+        // If location changed, look up full location data from DB
+        if (worldUpdates.poi) {
+          const { data: locationData } = await supabase
+            .from("waypoint_locations")
+            .select("description, art_url, type, nearby_poi")
+            .ilike("name", worldUpdates.poi)
+            .maybeSingle();
+          
+          if (locationData) {
+            worldUpdates.description = locationData.description;
+            worldUpdates.imageUrl = locationData.art_url;
+            worldUpdates.nearbyPoi = locationData.nearby_poi || [];
+            
+            // Get NPCs at this location
+            const { data: npcsAtLocation } = await supabase
+              .from("waypoint_npcs")
+              .select("name")
+              .ilike("location", worldUpdates.poi);
+            
+            const npcNames = (npcsAtLocation || []).map(n => n.name.toLowerCase().replace(/\s+/g, '_'));
+            
+            // Random chance for Wanderer in wilderness
+            if (locationData.type === "wilderness" && Math.random() < 0.15) {
+              if (!npcNames.includes("the_wanderer")) {
+                npcNames.push("wanderer");
+              }
+            }
+            
+            worldUpdates.entities = npcNames;
+          }
+        }
 
         // Safety filter on output
         const outputFilter = filterOutput(fullNarration);
@@ -522,6 +633,7 @@ function transformWorldUpdates(
   if (updates.poi !== undefined) db.poi = updates.poi;
   if (updates.weather !== undefined) db.weather = updates.weather;
   if (updates.description !== undefined) db.description = updates.description;
+  // Note: imageUrl is not persisted - it's looked up from waypoint_locations DB at runtime
   if (updates.time?.day !== undefined) db.time_day = updates.time.day;
   if (updates.time?.phase !== undefined) db.time_phase = updates.time.phase;
   if (updates.tags !== undefined) db.tags = updates.tags;

@@ -218,7 +218,7 @@ Inspired by NeverEndingQuest's "hub-and-spoke" architecture — compress convers
 | Trigger                               | Action                                         |
 | ------------------------------------- | ---------------------------------------------- |
 | Location change (POI → POI)           | Generate summary of previous location's events |
-| Turn count threshold (e.g., 15 turns) | Compress oldest turns into summary             |
+| Turn count threshold (e.g., 100 turns) | Compress oldest turns into summary             |
 | Token budget exceeded (~80% of limit) | Emergency compression of oldest content        |
 | Session end                           | Generate session summary for next load         |
 
@@ -328,7 +328,7 @@ CREATE INDEX idx_location_summaries_location
 
 **Phase 1 (MVP+1):** Turn count threshold compression
 
-- After 15 turns, compress oldest 10 into summary
+- After 100 turns, compress oldest 95 into summary
 - Keep last 5 verbatim
 
 **Phase 2:** Location-based compression
