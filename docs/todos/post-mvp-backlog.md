@@ -15,7 +15,30 @@ Location-based and turn-threshold compression to reduce token usage by 50-77%.
 
 ---
 
-## Priority 2: Telemetry & Analytics
+## Priority 2: Player-Driven Quest Generation
+
+**Status:** Deferred (recorded from content-generator planning)
+
+Runtime quest generation triggered by player actions, using existing world entities.
+
+### Triggers
+- **Explicit request** - Player types "I want to find work" or "Any jobs around here?"
+- **NPC interaction** - When relationship with NPC reaches threshold, they offer quests
+- **Location-based** - Entering certain locations reveals available quests
+
+### Approval Workflow
+- Generated quests enter as "rumor" status
+- Become "canon" after validation/completion
+- Admin review queue for edge cases
+
+### Implementation Notes
+- Reuse content-generator templates for schema enforcement
+- Context-aware: reference existing NPCs, locations, lore
+- Interconnected: quests involve existing entities
+
+---
+
+## Priority 3: Telemetry & Analytics
 
 **Status:** Blocked (PostHog project limit)
 **Unblock:** After MVP, when dedicated PostHog project available
@@ -132,3 +155,39 @@ Ideas captured but not prioritized:
 - Custom world creation tools
 - Achievement system
 - Leaderboards (quest completion speed, etc.)
+
+---
+
+## Priority 4: Content Generator Enhancements
+
+**Status:** Deferred (post-MVP)
+**Depends on:** Content Generator Agent (implemented)
+
+Enhancements to the content-generator Kiro agent for richer world building.
+
+### Enemy/Bestiary Generation
+- Generate enemy stat blocks matching `bestiary.md` schema
+- Include HP, damage dice, defense, XP, behavior patterns
+- Loot tables with rarity tiers
+- Tie enemies to locations (spawn tables)
+
+### Item Generation
+- Generate weapons, armor, consumables matching `Item` type
+- Respect rarity bounds from `ITEM_BOUNDS` in steering docs
+- Shop inventory generation for merchant NPCs
+- Quest reward item generation
+
+### Batch Generation
+- "Generate 5 NPCs for this tavern" workflow
+- Bulk location generation for new regions
+- Quest chains with multiple connected quests
+
+### Content Discovery Commands
+- Quick queries: "show all NPCs in Ash Coast"
+- Relationship mapping: "who knows who"
+- Location graph: "what's near the docks"
+
+### Relationship Pre-seeding
+- Option to set initial NPC-to-NPC relationships
+- Faction membership tracking
+- Rivalry/alliance networks

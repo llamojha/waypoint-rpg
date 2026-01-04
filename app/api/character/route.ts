@@ -183,6 +183,28 @@ export async function POST(request: NextRequest) {
       // Non-fatal - character and world were created
     }
 
+    // Unlock Lenna NPC (she's in the opening narration)
+    const { data: lennaNpc } = await supabase
+      .from("waypoint_npcs")
+      .select("id")
+      .eq("name", "Lenna")
+      .maybeSingle();
+
+    if (lennaNpc) {
+      const { error: npcError } = await supabase
+        .from("waypoint_character_npcs")
+        .insert({
+          character_id: newChar.id,
+          npc_id: lennaNpc.id,
+          relationship: 0,
+        });
+
+      if (npcError) {
+        console.error("Error unlocking Lenna NPC:", npcError);
+        // Non-fatal
+      }
+    }
+
     return NextResponse.json({
       character: dbToCharacter(newChar),
       world: dbToWorld(newWorld),
