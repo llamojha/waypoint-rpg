@@ -1,6 +1,6 @@
 # Spec: Skill Checks & Mechanics (with Tool Calling)
 
-## Status: 📋 TODO
+## Status: ✅ COMPLETE
 
 ## Overview
 

@@ -62,20 +62,18 @@ export const MapPage: React.FC<Props> = ({
   return (
     <div className="h-full w-full bg-parchment-300 relative overflow-hidden flex flex-col items-center justify-center panel-texture select-none">
       {/* Map Container */}
-      <div className="relative w-full max-w-5xl aspect-video bg-[#d6cbb1] border-[12px] border-parchment-800 rounded-sm shadow-2xl overflow-hidden m-4 group">
-        {/* Map Texture */}
-        <div className="absolute inset-0 opacity-40 bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] pointer-events-none"></div>
-        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/shattered-island.png')] mix-blend-multiply pointer-events-none scale-150"></div>
+      <div className="relative w-full max-w-5xl aspect-square bg-[#d6cbb1] border-[12px] border-parchment-800 rounded-sm shadow-2xl overflow-hidden m-4 group">
+        {/* Map Image */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src="/world_map_felt_tip.png"
+            alt="World Map"
+            className="w-full h-full object-cover opacity-90 transition-transform duration-1000 group-hover:scale-[1.02]"
+          />
+        </div>
 
-        {/* Grid Lines */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        ></div>
+        {/* Subtle Paper Texture Overlay */}
+        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] pointer-events-none z-1"></div>
 
         {/* Locations */}
         {displayLocations.map((loc) => (
@@ -106,20 +104,13 @@ export const MapPage: React.FC<Props> = ({
         ))}
 
         {/* Current Location Marker (Animated) */}
-        <div className="absolute top-[25%] left-[35%] w-12 h-12 border-2 border-burgundy rounded-full animate-ping opacity-20 pointer-events-none"></div>
+        <div
+          className="absolute w-12 h-12 border-2 border-burgundy rounded-full animate-ping opacity-30 pointer-events-none z-5"
+          style={{ top: '25%', left: '35%' }}
+        ></div>
 
         {/* Fog of War Overlay */}
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-transparent via-transparent to-parchment-900/40"></div>
-
-        {/* Compass Rose */}
-        <div className="absolute bottom-8 right-8 opacity-50 pointer-events-none">
-          <div className="w-24 h-24 border-2 border-ink rounded-full flex items-center justify-center relative">
-            <div className="absolute top-0 -mt-2 text-xs font-serif font-bold">
-              N
-            </div>
-            <div className="w-16 h-16 border border-ink rotate-45"></div>
-          </div>
-        </div>
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-transparent via-transparent to-parchment-900/20 z-10"></div>
       </div>
 
       {/* Legend / Info Panel */}

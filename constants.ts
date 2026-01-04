@@ -531,6 +531,11 @@ export const SKILL_TREE: SkillPillar[] = [
   },
 ];
 
+// Derived skill names for tool calling enums
+export const SKILL_NAMES = SKILL_TREE.flatMap((pillar) =>
+  pillar.skills.map((skill) => skill.name)
+);
+
 // Helper to initialize skills from the tree
 const generateInitialSkills = (): Record<string, SkillProgression> => {
   const skills: Record<string, SkillProgression> = {};
@@ -679,12 +684,13 @@ export const MOCK_SESSIONS: Session[] = [
 
 export const INITIAL_WORLD: WorldContext = {
   name: "Test World",
-  region: "Ash Coast",
-  poi: "Watchtower Ruins",
-  time: { day: 14, phase: "Dusk" },
-  weather: "Heavy Fog",
+  region: "Mistshrouded Valley",
+  poi: "The Waypoint",
+  time: { day: 1, phase: "Dawn" },
+  weather: "Mist",
   description:
-    "Broken stone spires jut out of the grey mist. The air smells of salt and old magic.",
+    "An ancient monolith of black stone rises from the heart of a mist-shrouded valley. Faint runes pulse along its surface, and the air hums with forgotten power.",
+  imageUrl: "/location_waypoint.png",
   tags: [
     { name: "Ruins", type: "canon" },
     {
@@ -746,7 +752,7 @@ export const MOCK_INITIAL_TURN = {
   timestamp: Date.now(),
   playerAction: "Start Adventure",
   narration:
-    "You arrive at the Watchtower Ruins. The fog is thick here, clinging to the mossy stones. Somewhere ahead, you hear the snap of a twig.",
+    "You stand before The Waypoint. The monolithic black stone hums with a vibration that resonates in your chest. The runes glow softly through the thick mist of the valley. Your journey begins here.",
   isStreaming: false,
   suggestedActions: ["Look around", "Call out", "Draw weapon"],
   diffs: [],
@@ -758,36 +764,37 @@ export const MOCK_MAP_LOCATIONS: MapLocation[] = [
     id: "loc1",
     name: "Ash Coast Outpost",
     type: "city",
-    coordinates: { x: 20, y: 30 },
+    coordinates: { x: 28, y: 47 },
     status: "visited",
     description: "A small fortification on the grey sands.",
     region: "Ash Coast",
   },
   {
     id: "loc2",
-    name: "Watchtower Ruins",
+    name: "The Waypoint",
     type: "ruin",
-    coordinates: { x: 35, y: 25 },
+    coordinates: { x: 48, y: 41 },
     status: "visited",
-    description: "Ancient spire broken by time.",
-    region: "Ash Coast",
+    description: "An ancient monolith pulsing with forgotten power.",
+    region: "Mistshrouded Valley",
+    artUrl: "/location_waypoint.png",
   },
   {
     id: "loc3",
-    name: "Whispering Woods",
+    name: "Silverleaf Woods",
     type: "forest",
-    coordinates: { x: 50, y: 50 },
+    coordinates: { x: 68, y: 35 },
     status: "known",
     description: "Locals say the trees speak.",
     region: "Midlands",
   },
   {
     id: "loc4",
-    name: "Ironhold",
+    name: "Dragon's Tooth Peaks",
     type: "mountain",
-    coordinates: { x: 70, y: 15 },
+    coordinates: { x: 74, y: 18 },
     status: "locked",
-    description: "Dwarven stronghold.",
+    description: "Dangerous mountain pass.",
     region: "Peaks",
   },
   {

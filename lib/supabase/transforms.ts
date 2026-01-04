@@ -106,7 +106,7 @@ export function dbToWorld(row: DbWorldState): WorldContext {
   return {
     name: "Test World", // World name is constant for MVP
     region: row.region || "Eldoria",
-    poi: row.poi || "The Crossroads Inn",
+    poi: row.poi || "The Waypoint",
     time: {
       day: row.time_day ?? 1,
       phase: row.time_phase || "Morning",
@@ -114,7 +114,7 @@ export function dbToWorld(row: DbWorldState): WorldContext {
     weather: row.weather || "Clear",
     description:
       row.description ||
-      "A well-worn tavern at the intersection of trade routes.",
+      "An ancient monolith of black stone rises from the heart of a mist-shrouded valley. Faint runes pulse along its surface, and the air hums with forgotten power.",
     tags: coerceArray<WorldTag>(row.tags),
     nearbyPoi: coerceArray<string>(row.nearby_poi),
     entities: coerceArray<string>(row.entities),
@@ -132,13 +132,13 @@ export function worldToDb(
   return {
     character_id: characterId,
     region: world.region || "Eldoria",
-    poi: world.poi || "The Crossroads Inn",
+    poi: world.poi || "The Waypoint",
     time_day: world.time?.day ?? 1,
     time_phase: world.time?.phase || "Morning",
     weather: world.weather || "Clear",
     description:
       world.description ||
-      "A well-worn tavern at the intersection of trade routes.",
+      "An ancient monolith of black stone rises from the heart of a mist-shrouded valley. Faint runes pulse along its surface, and the air hums with forgotten power.",
     tags: toJson(world.tags || []),
     nearby_poi: toJson(
       world.nearbyPoi || [

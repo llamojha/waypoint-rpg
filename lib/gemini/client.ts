@@ -1,4 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, FunctionCallingConfigMode } from "@google/genai";
+import type { FunctionDeclaration } from "@google/genai";
 import type { ProposedEvent } from "@/lib/turn/validate";
 
 /**
@@ -113,4 +114,113 @@ function parseGeminiResponse(text: string): GeminiTurnResponse {
 
     throw error;
   }
+}
+
+/**
+ * Generate content using tool calling for structured outputs (single tool)
+ * @param prompt - The prompt to send
+ * @param tools - Array of function declarations
+ * @param temperature - Generation temperature (default 0.1 for consistency)
+ * @returns The function call arguments, typed as T
+ * @throws Error if no function call in response after retries
+ */
+export async function generateWithTools<T>(
+  prompt: string,
+  tools: FunctionDeclaration[],
+  temperature: number = 0.1
+): Promise<T> {
+  const modelName = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          tools: [{ functionDeclarations: tools }],
+          toolConfig: {
+            functionCallingConfig: { mode: FunctionCallingConfigMode.ANY },
+          },
+          temperature,
+        },
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts;
+      const functionCall = parts?.find((p) => p.functionCall)?.functionCall;
+
+      if (functionCall?.args) {
+        return functionCall.args as T;
+      }
+
+      throw new Error("No function call in response");
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(
+        `generateWithTools error (attempt ${attempt + 1}/2):`,
+        lastError.message
+      );
+
+      if (attempt < 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  throw lastError || new Error("No function call in response");
+}
+
+/**
+ * Generate content using tool calling for multiple structured outputs
+ * @param prompt - The prompt to send
+ * @param tools - Array of function declarations
+ * @param temperature - Generation temperature (default 0.4 for creative proposals)
+ * @returns Array of function call arguments, typed as T[]
+ */
+export async function generateWithMultipleTools<T>(
+  prompt: string,
+  tools: FunctionDeclaration[],
+  temperature: number = 0.4
+): Promise<T[]> {
+  const modelName = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          tools: [{ functionDeclarations: tools }],
+          toolConfig: {
+            functionCallingConfig: { mode: FunctionCallingConfigMode.ANY },
+          },
+          temperature,
+        },
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts || [];
+      const functionCalls = parts
+        .filter((p) => p.functionCall)
+        .map((p) => p.functionCall!.args as T);
+
+      return functionCalls;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(
+        `generateWithMultipleTools error (attempt ${attempt + 1}/2):`,
+        lastError.message
+      );
+
+      if (attempt < 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  console.error(
+    "generateWithMultipleTools failed after 2 attempts:",
+    lastError?.message
+  );
+  return [];
 }

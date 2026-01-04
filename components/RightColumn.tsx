@@ -34,12 +34,22 @@ export const RightColumn: React.FC<Props> = ({ world, diffs, npcs }) => {
       <div className="p-5 pb-2">
         <div className="relative group bg-parchment-100 rounded-sm border border-parchment-400 shadow-sm p-1">
           <div className="h-24 w-full rounded-sm overflow-hidden relative">
-            <div className="absolute inset-0 bg-parchment-900"></div>
+            <div className="absolute inset-0 bg-parchment-900">
+              {(world.imageUrl || world.poi === "The Waypoint") ? (
+                <img
+                  src={world.imageUrl || "/location_waypoint.png"}
+                  alt={world.poi}
+                  className="w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-700"
+                />
+              ) : (
+                <div className="w-full h-full bg-parchment-900"></div>
+              )}
+            </div>
             <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-              <h3 className="text-lg font-display text-parchment-100 leading-none tracking-wide">
+              <h3 className="text-lg font-display text-white leading-none tracking-wide">
                 {world.poi}
               </h3>
-              <div className="flex items-center gap-2 text-[10px] text-parchment-300 font-bold font-small-caps uppercase mt-1">
+              <div className="flex items-center gap-2 text-[10px] text-white/70 font-bold font-small-caps uppercase mt-1">
                 <MapIcon size={10} /> {world.region}
               </div>
             </div>

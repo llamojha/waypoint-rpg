@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { dbToCharacter, dbToWorld } from "@/lib/supabase/transforms";
-import { buildTurnPrompt } from "@/lib/gemini/prompts";
+import { buildTurnPrompt, RollOutcome } from "@/lib/gemini/prompts";
 import { generateTurn } from "@/lib/gemini/client";
 import { validateEvents } from "@/lib/turn/validate";
 import { applyEvents } from "@/lib/turn/apply";
+import { detectIntent } from "@/lib/mechanics/detect";
+import { calculateTotalModifier } from "@/lib/mechanics/modifiers";
+import { resolveCheck } from "@/lib/mechanics/checks";
+import { filterInput, filterOutput, FALLBACK_NARRATION } from "@/lib/safety/sentinel";
 import type { Turn, TurnDiff, Character, WorldContext } from "@/types";
 
 /**
@@ -19,6 +23,8 @@ const TEST_USER_ID = "00000000-0000-0000-0000-000000000001";
 interface TurnRequest {
   characterId: string;
   playerAction: string;
+  roll?: boolean; // If true, resolve pending skill check
+  turnId?: string; // Required when roll=true
 }
 
 /**
@@ -30,9 +36,11 @@ interface TurnResponse {
     narration: string;
     diffs: TurnDiff[];
     suggestedActions: string[];
+    mechanics?: Turn["mechanics"];
   };
   updatedCharacter?: Partial<Character>;
   updatedWorld?: Partial<WorldContext>;
+  pendingRoll?: boolean; // True if waiting for user to roll
 }
 
 /**
@@ -74,11 +82,9 @@ function dbToTurn(row: {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Parse request body
     const body = (await request.json()) as TurnRequest;
-    const { characterId, playerAction } = body;
+    const { characterId, playerAction, roll, turnId } = body;
 
-    // Validate required fields
     if (!characterId || typeof characterId !== "string") {
       return NextResponse.json(
         { error: "characterId is required" },
@@ -86,17 +92,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!playerAction || typeof playerAction !== "string") {
-      return NextResponse.json(
-        { error: "playerAction is required" },
-        { status: 400 }
-      );
-    }
-
-    // Create Supabase admin client (bypasses RLS for TEST_USER_ID)
     const supabase = createAdminClient();
 
-    // Load character from waypoint_characters
+    // Load character
     const { data: characterRow, error: characterError } = await supabase
       .from("waypoint_characters")
       .select("*")
@@ -104,7 +102,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (characterError || !characterRow) {
-      console.error("Failed to load character:", characterError);
       return NextResponse.json(
         { error: "Character not found" },
         { status: 404 }
@@ -113,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     const character = dbToCharacter(characterRow);
 
-    // Load world state from waypoint_world_state
+    // Load world state
     const { data: worldRow, error: worldError } = await supabase
       .from("waypoint_world_state")
       .select("*")
@@ -121,7 +118,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (worldError || !worldRow) {
-      console.error("Failed to load world state:", worldError);
       return NextResponse.json(
         { error: "World state not found" },
         { status: 404 }
@@ -130,171 +126,153 @@ export async function POST(request: NextRequest) {
 
     const world = dbToWorld(worldRow);
 
-    // Load last 3 turns from waypoint_turns for context
-    const { data: turnRows, error: turnsError } = await supabase
+    // Load recent turns for context
+    const { data: turnRows } = await supabase
       .from("waypoint_turns")
       .select("*")
       .eq("character_id", characterId)
       .order("created_at", { ascending: false })
       .limit(3);
 
-    if (turnsError) {
-      console.error("Failed to load turns:", turnsError);
-      // Continue without recent turns - not a fatal error
-    }
-
-    // Transform and reverse to get chronological order
     const recentTurns = (turnRows || []).map(dbToTurn).reverse();
 
-    // Build prompt for Gemini
-    const prompt = buildTurnPrompt(character, world, recentTurns, playerAction);
+    // ROLL RESOLUTION: Handle pending skill check
+    if (roll && turnId) {
+      return handleRollResolution(
+        supabase,
+        turnId,
+        character,
+        world,
+        recentTurns
+      );
+    }
 
-    // Call Gemini API
+    // NEW TURN: Validate playerAction
+    if (!playerAction || typeof playerAction !== "string") {
+      return NextResponse.json(
+        { error: "playerAction is required" },
+        { status: 400 }
+      );
+    }
+
+    // Safety filter on input
+    const inputFilter = filterInput(playerAction);
+    if (inputFilter.status === "block") {
+      return NextResponse.json(
+        { error: inputFilter.output },
+        { status: 400 }
+      );
+    }
+
+    // Detect intent and mechanics
+    const intent = await detectIntent(playerAction, character, world);
+
+    // If action requires a roll, create pending turn
+    if (intent.requires_roll && intent.dc) {
+      const skillLevel = character.skills[intent.primary_skill]?.level || 0;
+      const modifier = calculateTotalModifier(skillLevel, intent.bonus);
+
+      const mechanics: Turn["mechanics"] = {
+        type: "check",
+        skill: intent.primary_skill,
+        dc: intent.dc,
+        modifier,
+      };
+
+      // Insert pending turn (no narration yet)
+      const { data: turnRow, error: turnInsertError } = await supabase
+        .from("waypoint_turns")
+        .insert({
+          character_id: characterId,
+          player_action: playerAction,
+          narration: null,
+          diffs: [],
+          suggested_actions: [],
+          mechanics,
+        })
+        .select()
+        .single();
+
+      if (turnInsertError) {
+        return NextResponse.json(
+          { error: "Failed to save turn" },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        turn: {
+          id: turnRow.id,
+          narration: "",
+          diffs: [],
+          suggestedActions: [],
+          mechanics,
+        },
+        pendingRoll: true,
+      });
+    }
+
+    // No roll needed - generate narration directly
+    const prompt = buildTurnPrompt(character, world, recentTurns, playerAction);
     const geminiResponse = await generateTurn(prompt);
 
-    // Validate proposed events
-    const validatedEvents = validateEvents(
-      geminiResponse.proposed_events,
-      character
-    );
+    // Safety filter on output
+    const outputFilter = filterOutput(geminiResponse.narration);
+    const finalNarration = outputFilter.status === "block" 
+      ? FALLBACK_NARRATION 
+      : geminiResponse.narration;
 
-    // Apply valid events to get state updates
-    const { characterUpdates, worldUpdates, diffs } = applyEvents(
-      character,
-      world,
-      validatedEvents
-    );
+    const validatedEvents = outputFilter.status === "block" 
+      ? [] 
+      : validateEvents(geminiResponse.proposed_events, character);
+    const { characterUpdates, worldUpdates, diffs } = outputFilter.status === "block"
+      ? { characterUpdates: {}, worldUpdates: {}, diffs: [] as TurnDiff[] }
+      : applyEvents(character, world, validatedEvents);
 
-    // Insert turn record to waypoint_turns
+    // Insert turn
     const { data: turnRow, error: turnInsertError } = await supabase
       .from("waypoint_turns")
       .insert({
         character_id: characterId,
         player_action: playerAction,
-        narration: geminiResponse.narration,
-        diffs: diffs,
-        suggested_actions: geminiResponse.suggested_actions,
-        mechanics: null, // No skill checks in this spec
+        narration: finalNarration,
+        diffs,
+        suggested_actions: outputFilter.status === "block" 
+          ? ["Look around", "Wait"] 
+          : geminiResponse.suggested_actions,
+        mechanics: null,
       })
       .select()
       .single();
 
     if (turnInsertError) {
-      console.error("Failed to insert turn:", turnInsertError);
       return NextResponse.json(
         { error: "Failed to save turn" },
         { status: 500 }
       );
     }
 
-    // Update waypoint_characters with changes if any
-    if (Object.keys(characterUpdates).length > 0) {
-      const dbCharacterUpdates: Record<string, unknown> = {
-        updated_at: new Date().toISOString(),
-      };
-
-      // Map frontend field names to database column names
-      if (characterUpdates.hp !== undefined) {
-        dbCharacterUpdates.hp = characterUpdates.hp;
-      }
-      if (characterUpdates.maxHp !== undefined) {
-        dbCharacterUpdates.max_hp = characterUpdates.maxHp;
-      }
-      if (characterUpdates.gold !== undefined) {
-        dbCharacterUpdates.gold = characterUpdates.gold;
-      }
-      if (characterUpdates.inventory !== undefined) {
-        dbCharacterUpdates.inventory = characterUpdates.inventory;
-      }
-      if (characterUpdates.equipment !== undefined) {
-        dbCharacterUpdates.equipment = characterUpdates.equipment;
-      }
-      if (characterUpdates.conditions !== undefined) {
-        dbCharacterUpdates.conditions = characterUpdates.conditions;
-      }
-      if (characterUpdates.skills !== undefined) {
-        dbCharacterUpdates.skills = characterUpdates.skills;
-      }
-
-      const { error: charUpdateError } = await supabase
-        .from("waypoint_characters")
-        .update(dbCharacterUpdates)
-        .eq("id", characterId);
-
-      if (charUpdateError) {
-        console.error("Failed to update character:", charUpdateError);
-        // Log but don't fail - turn was already saved
-      }
+    // Update character state (only if not filtered)
+    if (outputFilter.status === "allow") {
+      await updateCharacterState(supabase, characterId, characterUpdates);
+      await updateWorldState(supabase, characterId, worldUpdates);
     }
 
-    // Update waypoint_world_state if needed
-    if (Object.keys(worldUpdates).length > 0) {
-      const dbWorldUpdates: Record<string, unknown> = {
-        updated_at: new Date().toISOString(),
-      };
-
-      // Map frontend field names to database column names
-      if (worldUpdates.region !== undefined) {
-        dbWorldUpdates.region = worldUpdates.region;
-      }
-      if (worldUpdates.poi !== undefined) {
-        dbWorldUpdates.poi = worldUpdates.poi;
-      }
-      if (worldUpdates.weather !== undefined) {
-        dbWorldUpdates.weather = worldUpdates.weather;
-      }
-      if (worldUpdates.description !== undefined) {
-        dbWorldUpdates.description = worldUpdates.description;
-      }
-      if (worldUpdates.time !== undefined) {
-        if (worldUpdates.time.day !== undefined) {
-          dbWorldUpdates.time_day = worldUpdates.time.day;
-        }
-        if (worldUpdates.time.phase !== undefined) {
-          dbWorldUpdates.time_phase = worldUpdates.time.phase;
-        }
-      }
-      if (worldUpdates.tags !== undefined) {
-        dbWorldUpdates.tags = worldUpdates.tags;
-      }
-      if (worldUpdates.nearbyPoi !== undefined) {
-        dbWorldUpdates.nearby_poi = worldUpdates.nearbyPoi;
-      }
-      if (worldUpdates.entities !== undefined) {
-        dbWorldUpdates.entities = worldUpdates.entities;
-      }
-      if (worldUpdates.memory !== undefined) {
-        dbWorldUpdates.memories = worldUpdates.memory;
-      }
-
-      const { error: worldUpdateError } = await supabase
-        .from("waypoint_world_state")
-        .update(dbWorldUpdates)
-        .eq("character_id", characterId);
-
-      if (worldUpdateError) {
-        console.error("Failed to update world state:", worldUpdateError);
-        // Log but don't fail - turn was already saved
-      }
-    }
-
-    // Build response
     const response: TurnResponse = {
       turn: {
         id: turnRow.id,
-        narration: geminiResponse.narration,
-        diffs: diffs,
-        suggestedActions: geminiResponse.suggested_actions,
+        narration: finalNarration,
+        diffs,
+        suggestedActions: outputFilter.status === "block" 
+          ? ["Look around", "Wait"] 
+          : geminiResponse.suggested_actions,
       },
     };
 
-    // Include updated character fields if any changes were made
-    if (Object.keys(characterUpdates).length > 0) {
+    if (outputFilter.status === "allow" && Object.keys(characterUpdates).length > 0) {
       response.updatedCharacter = characterUpdates;
     }
-
-    // Include updated world fields if any changes were made
-    if (Object.keys(worldUpdates).length > 0) {
+    if (outputFilter.status === "allow" && Object.keys(worldUpdates).length > 0) {
       response.updatedWorld = worldUpdates;
     }
 
@@ -306,4 +284,175 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Handle roll resolution for pending skill check
+ */
+async function handleRollResolution(
+  supabase: ReturnType<typeof createAdminClient>,
+  turnId: string,
+  character: Character,
+  world: WorldContext,
+  recentTurns: Turn[]
+) {
+  // Load pending turn
+  const { data: turnRow, error: turnError } = await supabase
+    .from("waypoint_turns")
+    .select("*")
+    .eq("id", turnId)
+    .single();
+
+  if (turnError || !turnRow) {
+    return NextResponse.json({ error: "Turn not found" }, { status: 404 });
+  }
+
+  const mechanics = turnRow.mechanics as Turn["mechanics"];
+  if (!mechanics || mechanics.outcome) {
+    return NextResponse.json(
+      { error: "Turn already resolved" },
+      { status: 400 }
+    );
+  }
+
+  // Resolve the check
+  const checkResult = resolveCheck(mechanics.dc, mechanics.modifier || 0);
+
+  const updatedMechanics: Turn["mechanics"] = {
+    ...mechanics,
+    rolled: checkResult.rolled,
+    outcome: checkResult.outcome,
+  };
+
+  // Build roll outcome for prompt
+  const rollOutcome: RollOutcome = {
+    skill: mechanics.skill,
+    rolled: checkResult.rolled,
+    modifier: mechanics.modifier || 0,
+    total: checkResult.total,
+    dc: mechanics.dc,
+    outcome: checkResult.outcome,
+  };
+
+  // Generate narration with roll outcome
+  const prompt = buildTurnPrompt(
+    character,
+    world,
+    recentTurns,
+    turnRow.player_action,
+    rollOutcome
+  );
+  const geminiResponse = await generateTurn(prompt);
+
+  const validatedEvents = validateEvents(
+    geminiResponse.proposed_events,
+    character
+  );
+  const { characterUpdates, worldUpdates, diffs } = applyEvents(
+    character,
+    world,
+    validatedEvents
+  );
+
+  // Update turn with results
+  const { error: updateError } = await supabase
+    .from("waypoint_turns")
+    .update({
+      narration: geminiResponse.narration,
+      diffs,
+      suggested_actions: geminiResponse.suggested_actions,
+      mechanics: updatedMechanics,
+    })
+    .eq("id", turnId);
+
+  if (updateError) {
+    return NextResponse.json(
+      { error: "Failed to update turn" },
+      { status: 500 }
+    );
+  }
+
+  // Update character and world state
+  await updateCharacterState(supabase, character.id!, characterUpdates);
+  await updateWorldState(supabase, character.id!, worldUpdates);
+
+  const response: TurnResponse = {
+    turn: {
+      id: turnId,
+      narration: geminiResponse.narration,
+      diffs,
+      suggestedActions: geminiResponse.suggested_actions,
+      mechanics: updatedMechanics,
+    },
+  };
+
+  if (Object.keys(characterUpdates).length > 0) {
+    response.updatedCharacter = characterUpdates;
+  }
+  if (Object.keys(worldUpdates).length > 0) {
+    response.updatedWorld = worldUpdates;
+  }
+
+  return NextResponse.json(response);
+}
+
+/**
+ * Update character state in database
+ */
+async function updateCharacterState(
+  supabase: ReturnType<typeof createAdminClient>,
+  characterId: string,
+  updates: Partial<Character>
+) {
+  if (Object.keys(updates).length === 0) return;
+
+  const dbUpdates: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (updates.hp !== undefined) dbUpdates.hp = updates.hp;
+  if (updates.maxHp !== undefined) dbUpdates.max_hp = updates.maxHp;
+  if (updates.gold !== undefined) dbUpdates.gold = updates.gold;
+  if (updates.inventory !== undefined) dbUpdates.inventory = updates.inventory;
+  if (updates.equipment !== undefined) dbUpdates.equipment = updates.equipment;
+  if (updates.conditions !== undefined) dbUpdates.conditions = updates.conditions;
+  if (updates.skills !== undefined) dbUpdates.skills = updates.skills;
+
+  await supabase
+    .from("waypoint_characters")
+    .update(dbUpdates)
+    .eq("id", characterId);
+}
+
+/**
+ * Update world state in database
+ */
+async function updateWorldState(
+  supabase: ReturnType<typeof createAdminClient>,
+  characterId: string,
+  updates: Partial<WorldContext>
+) {
+  if (Object.keys(updates).length === 0) return;
+
+  const dbUpdates: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (updates.region !== undefined) dbUpdates.region = updates.region;
+  if (updates.poi !== undefined) dbUpdates.poi = updates.poi;
+  if (updates.weather !== undefined) dbUpdates.weather = updates.weather;
+  if (updates.description !== undefined) dbUpdates.description = updates.description;
+  if (updates.time !== undefined) {
+    if (updates.time.day !== undefined) dbUpdates.time_day = updates.time.day;
+    if (updates.time.phase !== undefined) dbUpdates.time_phase = updates.time.phase;
+  }
+  if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+  if (updates.nearbyPoi !== undefined) dbUpdates.nearby_poi = updates.nearbyPoi;
+  if (updates.entities !== undefined) dbUpdates.entities = updates.entities;
+  if (updates.memory !== undefined) dbUpdates.memories = updates.memory;
+
+  await supabase
+    .from("waypoint_world_state")
+    .update(dbUpdates)
+    .eq("character_id", characterId);
 }

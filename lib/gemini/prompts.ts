@@ -117,6 +117,18 @@ Result: ${turn.narration.slice(0, 200)}${
 }
 
 /**
+ * Roll outcome for skill checks
+ */
+export interface RollOutcome {
+  skill: string;
+  rolled: number;
+  modifier: number;
+  total: number;
+  dc: number;
+  outcome: "success" | "failure";
+}
+
+/**
  * Build the complete turn prompt for Gemini
  * Requirements: 3.1, 3.2, 3.3, 3.4
  *
@@ -124,16 +136,35 @@ Result: ${turn.narration.slice(0, 200)}${
  * @param world - Current world context
  * @param recentTurns - Last 3 turns for context
  * @param playerAction - The player's current action
+ * @param rollOutcome - Optional skill check result to incorporate
  * @returns Complete prompt string for Gemini
  */
 export function buildTurnPrompt(
   character: Character,
   world: WorldContext,
   recentTurns: Turn[],
-  playerAction: string
+  playerAction: string,
+  rollOutcome?: RollOutcome
 ): string {
   // Take only the last 3 turns
   const lastThreeTurns = recentTurns.slice(-3);
+
+  let rollContext = "";
+  if (rollOutcome) {
+    rollContext = `
+SKILL CHECK RESULT:
+The player attempted a ${rollOutcome.skill} check.
+- Rolled: ${rollOutcome.rolled} + ${rollOutcome.modifier} modifier = ${rollOutcome.total}
+- DC: ${rollOutcome.dc}
+- Outcome: ${rollOutcome.outcome.toUpperCase()}
+
+Your narration MUST reflect this ${rollOutcome.outcome}. ${
+      rollOutcome.outcome === "success"
+        ? "The action succeeds as intended."
+        : "The action fails or has complications."
+    }
+`;
+  }
 
   const userPrompt = `CURRENT LOCATION:
 ${world.poi} in ${world.region}
@@ -154,7 +185,7 @@ ${formatRecentTurns(lastThreeTurns)}
 
 PLAYER ACTION:
 ${playerAction}
-
+${rollContext}
 Generate the narration and any state changes that result from this action.`;
 
   return `${SYSTEM_PROMPT}

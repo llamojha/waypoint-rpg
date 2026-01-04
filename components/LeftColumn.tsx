@@ -741,16 +741,6 @@ const CharacterTab = ({ character }: { character: Character }) => (
         </div>
       )}
     </div>
-
-    {/* Lasting Choices (Mock) */}
-    <div>
-      <h3 className="text-xs font-bold font-small-caps text-ink uppercase tracking-widest border-b border-parchment-400 mb-3 pb-1">
-        Lasting Oaths
-      </h3>
-      <ul className="text-xs font-serif text-ink list-disc list-inside">
-        <li>Swore to protect the lantern.</li>
-      </ul>
-    </div>
   </div>
 );
 

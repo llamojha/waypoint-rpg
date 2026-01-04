@@ -83,7 +83,7 @@ const Hero = ({ onStart }: { onStart: () => void }) => (
     <div className="absolute inset-0 z-0">
       <img
         src="/hero_waypoint_bg_watercolour.png"
-        alt="Ancient Waypoint"
+        alt="The Waypoint"
         className="absolute inset-0 w-full h-full object-cover opacity-30 scale-105"
       />
     </div>
@@ -198,7 +198,7 @@ const AvatarGrid = () => {
       </div>
       <p className="text-center font-serif text-xl text-ink italic mb-2">
         "Rob an innkeeper. Befriend a dragon. Found a guild. You aren’t locked
-        into a class — you become what you practice."
+        into a class, you become what you practice."
       </p>
       <p className="text-center text-xs font-bold font-small-caps text-ink-light uppercase tracking-widest opacity-70">
         Unlock new actions as you level skills: track trails, forge alloys,
@@ -411,7 +411,7 @@ const ChatDemo = () => (
           </div>
           <div className="narration-text text-ink text-justify relative z-10 drop-cap">
             Wind moans through the broken arrow slits. A lone lantern burns on
-            the stairwell—fresh oil, fresh wick.
+            the stairwell. Fresh oil, fresh wick.
             <br />
             Someone’s here.
           </div>
@@ -425,7 +425,7 @@ const ChatDemo = () => (
           <div className="relative max-w-[90%] text-right">
             <span className="font-serif italic text-lg text-ink-light leading-relaxed">
               I step inside and call up the tower: “Friend or foe? Hear me
-              out—I’m looking for the missing courier.”
+              out. I’m looking for the missing courier.”
             </span>
             <div className="text-[10px] font-bold text-burgundy opacity-50 uppercase tracking-widest mt-1 flex items-center justify-end gap-1">
               <span className="w-4 h-px bg-burgundy"></span> You
@@ -536,7 +536,7 @@ const ChatDemo = () => (
           </div>
 
           <div className="narration-text text-ink text-justify relative z-10 mb-4">
-            Silence—then the lantern light shifts. You hear boots reposition.
+            Silence. then the lantern light shifts. You hear boots reposition.
             “Seal,” Mara repeats. “Then you’re already late.”
             <br />
             <br />
@@ -605,15 +605,15 @@ const FAQList = () => {
     },
     {
       q: "What makes it a “persistent world”?",
-      a: "Discoveries and consequences carry forward — reputations change, locations gain tags, and major findings can enter the shared Codex as canon.",
+      a: "Discoveries and consequences carry forward, reputations change, locations gain tags, and major findings can enter the shared Codex as canon.",
     },
     {
       q: "Can we write lore without breaking continuity?",
-      a: "Yes. Player stories start as Rumors. When proven through play, they become Canon — so the world stays coherent.",
+      a: "Yes. Player stories start as Rumors. When proven through play, they become Canon, so the world stays coherent.",
     },
     {
       q: "Is magic in the game?",
-      a: "Yes — but it’s rare, powerful, and costly. Finding it is an event, not a build choice.",
+      a: "Yes, but it’s rare, powerful, and costly. Finding it is an event, not a build choice.",
     },
     {
       q: "Is it free?",
@@ -660,7 +660,7 @@ const FinalCTA = ({ onStart }: { onStart: () => void }) => (
         Done Waiting Two Weeks Between Sessions?
       </h2>
       <p className="text-xl text-ink-light font-serif italic mb-10">
-        The campfire is lit. The map is waiting. Bring friends — or go alone —
+        The campfire is lit. The map is waiting. Bring friends, or go alone . 
         and leave a mark on a world that remembers.
       </p>
 
@@ -676,7 +676,7 @@ const FinalCTA = ({ onStart }: { onStart: () => void }) => (
             Join 123,360 Adventurers
           </div>
           <div className="text-[10px] font-bold text-ink-faint uppercase tracking-widest opacity-60">
-            No DM. No prep. Just your choices — and the consequences.
+            No DM. No prep. Just your choices, and the consequences.
           </div>
         </div>
       </div>
@@ -695,7 +695,7 @@ const Footer = ({
   setLang: (l: "EN" | "ES") => void;
 }) => (
   <footer className="bg-parchment-900 text-parchment-400 dark:text-ink-light py-12 px-4 border-t-4 border-parchment-800 relative overflow-hidden">
-    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')] pointer-events-none"></div>
+    <div className="absolute inset-0 opacity-20 bg-[url('/footer_oak_texture.png')] bg-cover bg-center pointer-events-none"></div>
 
     <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 relative z-10">
       {/* Language Switcher */}

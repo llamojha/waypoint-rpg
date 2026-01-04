@@ -238,8 +238,8 @@ export default function App() {
     }));
   };
 
-  // 1. Core Turn Processor - Calls /api/turn endpoint
-  const processTurn = async (input: string) => {
+  // 1. Core Turn Processor - Calls /api/turn/stream endpoint with SSE
+  const processTurn = async (input: string, rollTurnId?: string) => {
     // Reset cancellation token
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const abortController = new AbortController();
@@ -248,61 +248,135 @@ export default function App() {
     setTurnStatus("processing");
 
     try {
-      // Ensure we have a character ID
       const characterId = gameState.character.id;
       if (!characterId) {
         throw new Error("Character ID is missing. Please reload the game.");
       }
 
-      // Call the turn API
-      const response = await fetch("/api/turn", {
+      const response = await fetch("/api/turn/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           characterId,
           playerAction: input,
+          roll: !!rollTurnId,
+          turnId: rollTurnId,
         }),
         signal: abortController.signal,
       });
 
-      // Handle non-OK responses
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || `Turn failed with status ${response.status}`
-        );
+        throw new Error(errorData.error || `Turn failed: ${response.status}`);
       }
 
-      const data = await response.json();
+      const contentType = response.headers.get("content-type") || "";
 
-      // Build the Turn object from API response
-      const aiResponse: Turn = {
-        id: data.turn.id,
-        timestamp: Date.now(),
-        playerAction: input,
-        narration: data.turn.narration,
-        isStreaming: false,
-        suggestedActions: data.turn.suggestedActions || [],
-        diffs: data.turn.diffs || [],
-      };
+      // Handle pending roll (non-streaming JSON response)
+      if (contentType.includes("application/json")) {
+        const data = await response.json();
 
-      // Update game state with the new turn and any character/world updates
-      setGameState((prev) => ({
-        ...prev,
-        turns: [...prev.turns, aiResponse],
-        // Merge updated character fields if provided
-        character: data.updatedCharacter
-          ? { ...prev.character, ...data.updatedCharacter }
-          : prev.character,
-        // Merge updated world fields if provided
-        world: data.updatedWorld
-          ? { ...prev.world, ...data.updatedWorld }
-          : prev.world,
-      }));
+        if (data.pendingRoll) {
+          // Update the last turn with mechanics for roll
+          setGameState((prev) => {
+            const turns = [...prev.turns];
+            const lastTurn = turns[turns.length - 1];
+            if (lastTurn) {
+              turns[turns.length - 1] = {
+                ...lastTurn,
+                id: data.turn.id,
+                mechanics: data.turn.mechanics,
+                isStreaming: false,
+              };
+            }
+            return { ...prev, turns };
+          });
+          setTurnStatus("idle");
+          return;
+        }
+      }
 
-      // Update diff log with new diffs
-      if (aiResponse.diffs.length > 0) {
-        setDiffLog((prev) => [...prev, ...aiResponse.diffs]);
+      // Handle streaming response
+      if (!response.body) throw new Error("No response body");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let turnId = rollTurnId || `t-${Date.now()}`;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            const eventType = line.slice(7).trim();
+            continue;
+          }
+          if (line.startsWith("data: ")) {
+            const data = JSON.parse(line.slice(6));
+
+            if (data.text) {
+              // Streaming chunk - append to narration
+              setGameState((prev) => {
+                const turns = [...prev.turns];
+                const lastTurn = turns[turns.length - 1];
+                if (lastTurn) {
+                  turns[turns.length - 1] = {
+                    ...lastTurn,
+                    narration: lastTurn.narration + data.text,
+                    isStreaming: true,
+                  };
+                }
+                return { ...prev, turns };
+              });
+            }
+
+            if (data.turnId !== undefined) {
+              turnId = data.turnId;
+            }
+
+            if (data.diffs !== undefined) {
+              // Complete event - finalize turn
+              setGameState((prev) => {
+                const turns = [...prev.turns];
+                const lastTurn = turns[turns.length - 1];
+                if (lastTurn) {
+                  turns[turns.length - 1] = {
+                    ...lastTurn,
+                    id: turnId,
+                    isStreaming: false,
+                    diffs: data.diffs || [],
+                    suggestedActions: data.suggestedActions || [],
+                    mechanics: data.mechanics || lastTurn.mechanics,
+                  };
+                }
+                return {
+                  ...prev,
+                  turns,
+                  character: data.updatedCharacter
+                    ? { ...prev.character, ...data.updatedCharacter }
+                    : prev.character,
+                  world: data.updatedWorld
+                    ? { ...prev.world, ...data.updatedWorld }
+                    : prev.world,
+                };
+              });
+
+              if (data.diffs?.length > 0) {
+                setDiffLog((prev) => [...prev, ...data.diffs]);
+              }
+            }
+
+            if (data.error) {
+              throw new Error(data.error);
+            }
+          }
+        }
       }
 
       setTurnStatus("idle");
@@ -354,47 +428,21 @@ export default function App() {
     }
   };
 
-  const handleRoll = (turnId: string) => {
-    setGameState((prev) => {
-      const newTurns = prev.turns.map((t) => {
-        if (t.id === turnId && t.mechanics) {
-          const dieResult = Math.floor(Math.random() * 20) + 1;
-          const modifier = 2;
-          const total = dieResult + modifier;
-          const outcome: "success" | "failure" =
-            total >= t.mechanics.dc ? "success" : "failure";
+  const handleRoll = async (turnId: string) => {
+    // Find the turn to get the player action
+    const turn = gameState.turns.find((t) => t.id === turnId);
+    if (!turn) return;
 
-          const newDiff: TurnDiff = {
-            type: "relationship",
-            text: "Glimmer",
-            value: "-1",
-          };
-          if (outcome === "success") {
-            setDiffLog((d) => [
-              ...d,
-              { type: "relationship", text: "Glimmer noticed", value: "-1" },
-            ]);
-          }
+    // Mark turn as streaming while we process
+    setGameState((prev) => ({
+      ...prev,
+      turns: prev.turns.map((t) =>
+        t.id === turnId ? { ...t, isStreaming: true } : t
+      ),
+    }));
 
-          return {
-            ...t,
-            narration:
-              t.narration +
-              (outcome === "success"
-                ? "\n\nSuccess! You spot a small, hooded figure trying to blend into the mossy wall. It's a goblin scout."
-                : "\n\nFailure. You squint into the dark, but the shifting mists play tricks on your eyes. You see nothing."),
-            mechanics: { ...t.mechanics, rolled: total, modifier, outcome },
-            suggestedActions:
-              outcome === "success"
-                ? ["Talk to Scout", "Intimidate"]
-                : ["Move carefully"],
-            diffs: outcome === "success" ? [...t.diffs, newDiff] : t.diffs,
-          };
-        }
-        return t;
-      });
-      return { ...prev, turns: newTurns };
-    });
+    // Process the roll with streaming
+    await processTurn(turn.playerAction, turnId);
   };
 
   const handleTravel = (location: MapLocation) => {

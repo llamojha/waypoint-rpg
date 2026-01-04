@@ -143,6 +143,7 @@ export interface WorldContext {
   };
   weather: string;
   description: string;
+  imageUrl?: string;
   tags: WorldTag[];
   nearbyPoi: string[];
   entities: string[]; // IDs of NPCs present
@@ -171,6 +172,7 @@ export interface MapLocation {
   status: "visited" | "known" | "unknown" | "locked";
   description: string;
   region?: string;
+  artUrl?: string;
 }
 
 export interface CodexEntry {
