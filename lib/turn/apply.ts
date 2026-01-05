@@ -21,8 +21,21 @@ export interface ApplyEventsResult {
   worldUpdates: Partial<WorldContext>;
   diffs: TurnDiff[];
   relationshipChanges: Array<{ npc: string; delta: number; reason: string }>;
-  questChanges: Array<{ type: "start" | "progress"; questId: string; questTitle?: string; progress?: number; reason: string }>;
-  combatEvents: Array<{ type: "damage" | "end"; target: string; damage?: number; outcome?: string; loot?: { gold?: number; items?: string[] }; reason: string }>;
+  questChanges: Array<{
+    type: "start" | "progress";
+    questId: string;
+    questTitle?: string;
+    progress?: number;
+    reason: string;
+  }>;
+  combatEvents: Array<{
+    type: "damage" | "end";
+    target: string;
+    damage?: number;
+    outcome?: string;
+    loot?: { gold?: number; items?: string[] };
+    reason: string;
+  }>;
 }
 
 /**
@@ -205,12 +218,41 @@ function applyRelationshipChange(
     reason: event.reason || "",
   });
 
-  const sign = cappedDelta > 0 ? "+" : "";
-  diffs.push({
-    type: "relationship",
-    text: event.npc,
-    value: `${sign}${cappedDelta}`,
-  });
+  // Check if this is a new NPC discovery based on reason keywords
+  const reasonLower = (event.reason || "").toLowerCase();
+  const isNewNpcDiscovery =
+    reasonLower.includes("met") ||
+    reasonLower.includes("meet") ||
+    reasonLower.includes("encounter") ||
+    reasonLower.includes("discover") ||
+    reasonLower.includes("introduce") ||
+    reasonLower.includes("first") ||
+    reasonLower.includes("new acquaintance") ||
+    reasonLower.includes("initial");
+
+  if (isNewNpcDiscovery) {
+    // For new NPC discoveries, show as "NEW NPC" with a descriptor from the reason
+    // Extract a short descriptor if possible, otherwise use the delta as sentiment
+    let descriptor = "";
+    if (cappedDelta >= 3) descriptor = "Friendly";
+    else if (cappedDelta >= 1) descriptor = "Neutral";
+    else if (cappedDelta <= -3) descriptor = "Hostile";
+    else if (cappedDelta <= -1) descriptor = "Suspicious";
+    else descriptor = "Neutral";
+
+    diffs.push({
+      type: "npc",
+      text: `${event.npc} (${descriptor})`,
+    });
+  } else {
+    // Regular relationship change
+    const sign = cappedDelta > 0 ? "+" : "";
+    diffs.push({
+      type: "relationship",
+      text: event.npc,
+      value: `${sign}${cappedDelta}`,
+    });
+  }
 }
 
 /**
@@ -397,7 +439,12 @@ export function applyEvents(
         break;
 
       case "location_change":
-        applyLocationChange(event as LocationChangeEvent, world, worldUpdates, diffs);
+        applyLocationChange(
+          event as LocationChangeEvent,
+          world,
+          worldUpdates,
+          diffs
+        );
         break;
 
       case "combat_damage":

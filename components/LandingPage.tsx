@@ -424,8 +424,8 @@ const ChatDemo = () => (
         >
           <div className="relative max-w-[90%] text-right">
             <span className="font-serif italic text-lg text-ink-light leading-relaxed">
-              I step inside and call up the tower: “Friend or foe? Hear me
-              out. I’m looking for the missing courier.”
+              I step inside and call up the tower: “Friend or foe? Hear me out.
+              I’m looking for the missing courier.”
             </span>
             <div className="text-[10px] font-bold text-burgundy opacity-50 uppercase tracking-widest mt-1 flex items-center justify-end gap-1">
               <span className="w-4 h-px bg-burgundy"></span> You
@@ -504,7 +504,7 @@ const ChatDemo = () => (
             <div className="flex items-center gap-1.5 text-[11px] font-bold font-sans">
               <Users size={12} className="text-burgundy" />
               <span className="uppercase text-ink-light tracking-wide">
-                NEW NPC:
+                NEW CONTACT:
               </span>
               <span className="text-ink">Warden Mara (Suspicious)</span>
             </div>
@@ -660,7 +660,7 @@ const FinalCTA = ({ onStart }: { onStart: () => void }) => (
         Done Waiting Two Weeks Between Sessions?
       </h2>
       <p className="text-xl text-ink-light font-serif italic mb-10">
-        The campfire is lit. The map is waiting. Bring friends, or go alone . 
+        The campfire is lit. The map is waiting. Bring friends, or go alone .
         and leave a mark on a world that remembers.
       </p>
 

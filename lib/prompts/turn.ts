@@ -38,7 +38,7 @@ EVENT TYPES:
    { "type": "world_update", "field": "string", "value": any, "reason": "string" }
    Example: { "type": "world_update", "field": "weather", "value": "stormy", "reason": "Storm rolled in" }
 
-5. relationship_change - Change NPC relationship
+5. relationship_change - Change NPC relationship (also used when meeting new NPCs)
    { "type": "relationship_change", "npc": "string", "delta": number (-10 to +10), "reason": "string" }
    Scale: -25 (hostile) to +25 (devoted). Delta examples:
    - Small talk, minor help: +1 to +3
@@ -46,7 +46,10 @@ EVENT TYPES:
    - Major favor, saving their life: +10
    - Insult, minor offense: -1 to -3
    - Betrayal, serious harm: -5 to -10
-   Example: { "type": "relationship_change", "npc": "Lenna", "delta": 3, "reason": "Showed interest in her research" }
+
+   IMPORTANT: When the player MEETS a new NPC for the first time, include "met" or "encounter" or "introduce" in the reason.
+   Example (new NPC): { "type": "relationship_change", "npc": "Warden Mara", "delta": -1, "reason": "First encounter - suspicious of stranger" }
+   Example (existing NPC): { "type": "relationship_change", "npc": "Lenna", "delta": 3, "reason": "Showed interest in her research" }
 
 6. quest_start - Start a new quest
    { "type": "quest_start", "questId": "string", "questTitle": "string", "reason": "string" }

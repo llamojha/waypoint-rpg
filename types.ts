@@ -113,7 +113,8 @@ export interface TurnDiff {
     | "inventory"
     | "stat"
     | "world"
-    | "skill";
+    | "skill"
+    | "npc";
   text: string;
   value?: string | number;
 }

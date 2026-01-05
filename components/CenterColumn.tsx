@@ -18,6 +18,13 @@ import {
   AlertTriangle,
   Loader2,
   Minus,
+  Users,
+  BookOpen,
+  Scroll,
+  Package,
+  Heart,
+  Globe,
+  Sparkles,
 } from "lucide-react";
 import { TurnStatus } from "@/App";
 
@@ -237,22 +244,21 @@ const TurnEntry: React.FC<{
 
           <div className="narration-text text-ink text-justify relative z-10">
             <div className={isFirst ? "drop-cap" : ""}>
-              {turn.narration ? (
-                turn.narration.split("\n").map((para, i) => (
-                  <p key={i} className="mb-4 last:mb-0">
-                    {para}
-                    {/* Streaming cursor on last paragraph */}
-                    {turn.isStreaming && i === turn.narration.split("\n").length - 1 && (
-                      <span className="inline-block w-2 h-4 bg-burgundy ml-0.5 animate-pulse" />
-                    )}
-                  </p>
-                ))
-              ) : (
-                /* Show cursor when narration is empty but streaming */
-                turn.isStreaming && (
-                  <span className="inline-block w-2 h-4 bg-burgundy animate-pulse" />
-                )
-              )}
+              {turn.narration
+                ? turn.narration.split("\n").map((para, i) => (
+                    <p key={i} className="mb-4 last:mb-0">
+                      {para}
+                      {/* Streaming cursor on last paragraph */}
+                      {turn.isStreaming &&
+                        i === turn.narration.split("\n").length - 1 && (
+                          <span className="inline-block w-2 h-4 bg-burgundy ml-0.5 animate-pulse" />
+                        )}
+                    </p>
+                  ))
+                : /* Show cursor when narration is empty but streaming */
+                  turn.isStreaming && (
+                    <span className="inline-block w-2 h-4 bg-burgundy animate-pulse" />
+                  )}
             </div>
           </div>
 
@@ -260,28 +266,7 @@ const TurnEntry: React.FC<{
           {turn.diffs.length > 0 && (
             <div className="my-4 py-2 border-y border-parchment-400/30 bg-parchment-200/20 flex flex-wrap gap-x-4 gap-y-2 items-center justify-center">
               {turn.diffs.map((diff, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-1.5 text-[11px] font-bold font-sans"
-                >
-                  <CheckCircle2
-                    size={12}
-                    className={
-                      diff.type === "stat" && typeof diff.value === "string" && diff.value.startsWith("-")
-                        ? "text-burgundy"
-                        : "text-forest"
-                    }
-                  />
-                  <span className="uppercase text-ink-light tracking-wide">
-                    {diff.type}:
-                  </span>
-                  <span className="text-ink">{diff.text}</span>
-                  {diff.value && (
-                    <span className="px-1 bg-parchment-300 rounded-sm border border-parchment-400">
-                      {diff.value}
-                    </span>
-                  )}
-                </div>
+                <DiffBadge key={i} diff={diff} />
               ))}
             </div>
           )}
@@ -425,6 +410,65 @@ const MechanicsCard: React.FC<{
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+/**
+ * DiffBadge - Renders a single diff with appropriate icon and styling
+ * Matches the landing page's "Consequences Ribbon" style
+ */
+const DiffBadge: React.FC<{ diff: TurnDiff }> = ({ diff }) => {
+  // Check if value is negative for stat changes
+  const isNegative =
+    diff.type === "stat" &&
+    typeof diff.value === "string" &&
+    diff.value.startsWith("-");
+
+  // Icon and color mapping based on diff type
+  const getIconAndColor = () => {
+    switch (diff.type) {
+      case "npc":
+        return { icon: Users, color: "text-burgundy", label: "NEW CONTACT" };
+      case "relationship":
+        return { icon: Users, color: "text-burgundy", label: "RELATIONSHIP" };
+      case "news":
+        return { icon: BookOpen, color: "text-gold", label: "CODEX" };
+      case "quest":
+        return { icon: Scroll, color: "text-forest", label: "QUEST" };
+      case "inventory":
+        return { icon: Package, color: "text-gold", label: "INVENTORY" };
+      case "stat":
+        return {
+          icon: isNegative ? Heart : CheckCircle2,
+          color: isNegative ? "text-burgundy" : "text-forest",
+          label: "STAT",
+        };
+      case "world":
+        return { icon: Globe, color: "text-forest", label: "STATE" };
+      case "skill":
+        return { icon: Sparkles, color: "text-gold", label: "SKILL" };
+      default:
+        return {
+          icon: CheckCircle2,
+          color: "text-forest",
+          label: diff.type.toUpperCase(),
+        };
+    }
+  };
+
+  const { icon: Icon, color, label } = getIconAndColor();
+
+  return (
+    <div className="flex items-center gap-1.5 text-[11px] font-bold font-sans">
+      <Icon size={12} className={color} />
+      <span className="uppercase text-ink-light tracking-wide">{label}:</span>
+      <span className="text-ink">{diff.text}</span>
+      {diff.value && (
+        <span className="px-1 bg-parchment-300 rounded-sm border border-parchment-400">
+          {diff.value}
+        </span>
+      )}
     </div>
   );
 };
