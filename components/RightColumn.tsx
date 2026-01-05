@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { WorldContext, TurnDiff, NPC } from "@/types";
 import {
   Compass,
@@ -25,6 +26,9 @@ interface Props {
 
 export const RightColumn: React.FC<Props> = ({ world, diffs, npcs }) => {
   const [activeTab, setActiveTab] = useState<"updates" | "news">("updates");
+  const [showLocationModal, setShowLocationModal] = useState(false);
+
+  const locationImage = world.imageUrl || (world.poi === "The Waypoint" ? "/location_waypoint.png" : null);
 
   return (
     <div className="h-full flex flex-col bg-parchment-200/50 panel-texture relative select-none">
@@ -33,11 +37,14 @@ export const RightColumn: React.FC<Props> = ({ world, diffs, npcs }) => {
       {/* Fixed Header: Location Plate */}
       <div className="p-5 pb-2">
         <div className="relative group bg-parchment-100 rounded-sm border border-parchment-400 shadow-sm p-1">
-          <div className="h-24 w-full rounded-sm overflow-hidden relative">
+          <div 
+            className="h-24 w-full rounded-sm overflow-hidden relative cursor-pointer"
+            onClick={() => locationImage && setShowLocationModal(true)}
+          >
             <div className="absolute inset-0 bg-parchment-900">
-              {(world.imageUrl || world.poi === "The Waypoint") ? (
+              {locationImage ? (
                 <img
-                  src={world.imageUrl || "/location_waypoint.png"}
+                  src={locationImage}
                   alt={world.poi}
                   className="w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-700"
                 />
@@ -78,6 +85,46 @@ export const RightColumn: React.FC<Props> = ({ world, diffs, npcs }) => {
           </div>
         </div>
       </div>
+
+      {/* Location Modal - rendered via portal to escape overflow:hidden */}
+      {showLocationModal && locationImage && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowLocationModal(false)}
+        >
+          <div 
+            className="bg-parchment-200 rounded-sm border-4 border-parchment-800 shadow-2xl max-w-2xl w-full p-4 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowLocationModal(false)}
+              className="absolute top-2 right-2 text-ink-light hover:text-ink text-xl leading-none z-10"
+            >
+              ×
+            </button>
+            
+            <img
+              src={locationImage}
+              alt={world.poi}
+              className="w-full h-auto max-h-[60vh] object-contain rounded-sm mb-4"
+            />
+            
+            <h3 className="text-2xl font-display text-ink text-center mb-1">
+              {world.poi}
+            </h3>
+            <p className="text-sm text-ink-light text-center mb-3">
+              {world.region}
+            </p>
+            
+            {world.description && (
+              <p className="text-sm text-ink text-center leading-relaxed">
+                {world.description}
+              </p>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Tabs */}
       <div className="flex px-5 border-b border-parchment-400 gap-4">

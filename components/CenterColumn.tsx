@@ -222,7 +222,7 @@ const TurnEntry: React.FC<{
       )}
 
       {/* AI */}
-      {(turn.narration || turn.isStreaming) && (
+      {(turn.narration || turn.isStreaming || turn.mechanics) && (
         <div className="relative">
           {turn.playerAction && (
             <div className="flex justify-center my-6 opacity-30 text-gold-dim">
@@ -237,18 +237,21 @@ const TurnEntry: React.FC<{
 
           <div className="narration-text text-ink text-justify relative z-10">
             <div className={isFirst ? "drop-cap" : ""}>
-              {turn.narration.split("\n").map((para, i) => (
-                <p key={i} className="mb-4 last:mb-0">
-                  {para}
-                  {/* Streaming cursor on last paragraph */}
-                  {turn.isStreaming && i === turn.narration.split("\n").length - 1 && (
-                    <span className="inline-block w-2 h-4 bg-burgundy ml-0.5 animate-pulse" />
-                  )}
-                </p>
-              ))}
-              {/* Show cursor even when narration is empty but streaming */}
-              {turn.isStreaming && !turn.narration && (
-                <span className="inline-block w-2 h-4 bg-burgundy animate-pulse" />
+              {turn.narration ? (
+                turn.narration.split("\n").map((para, i) => (
+                  <p key={i} className="mb-4 last:mb-0">
+                    {para}
+                    {/* Streaming cursor on last paragraph */}
+                    {turn.isStreaming && i === turn.narration.split("\n").length - 1 && (
+                      <span className="inline-block w-2 h-4 bg-burgundy ml-0.5 animate-pulse" />
+                    )}
+                  </p>
+                ))
+              ) : (
+                /* Show cursor when narration is empty but streaming */
+                turn.isStreaming && (
+                  <span className="inline-block w-2 h-4 bg-burgundy animate-pulse" />
+                )
               )}
             </div>
           </div>
@@ -264,7 +267,7 @@ const TurnEntry: React.FC<{
                   <CheckCircle2
                     size={12}
                     className={
-                      diff.type === "relationship"
+                      diff.type === "stat" && typeof diff.value === "string" && diff.value.startsWith("-")
                         ? "text-burgundy"
                         : "text-forest"
                     }

@@ -51,11 +51,14 @@
 - [ ] Play 20+ turns with SSE streaming
 - [ ] Complete ≥3 skill checks end-to-end
 - [ ] Equip/unequip items reflected in narration
+- [ ] Interact with ≥2 NPCs
+- [ ] Change 1 NPC relationship (persists)
+
+## Deferred to Phase 4 (Post-Demo)
+
 - [ ] Discover ≥2 rumors
 - [ ] Convert 1 rumor to quest
 - [ ] Advance/complete 1 quest
-- [ ] Interact with ≥2 NPCs
-- [ ] Change 1 NPC relationship (persists)
 
 ## Shared World Features (MVP)
 

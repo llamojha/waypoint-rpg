@@ -36,6 +36,7 @@ import {
 interface Props {
   onBack: () => void;
   onResume: () => void;
+  onReset?: () => void;
   theme: "light" | "dark";
   toggleTheme: () => void;
   character: Character;
@@ -48,6 +49,7 @@ interface Props {
 
 export const ProfilePage: React.FC<Props> = ({
   onResume,
+  onReset,
   character,
   quests,
   npcs,
@@ -58,6 +60,7 @@ export const ProfilePage: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<
     "overview" | "chronicle" | "character" | "quests" | "folk" | "locations"
   >("overview");
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const knownLocations = locations.filter(
     (l) => l.status === "visited" || l.status === "known"
@@ -145,6 +148,38 @@ export const ProfilePage: React.FC<Props> = ({
               label="Relationships"
             />
           </div>
+
+          {/* Restart Journey */}
+          {onReset && (
+            <div className="w-full mt-auto pt-4 border-t border-parchment-400">
+              {!showResetConfirm ? (
+                <button
+                  onClick={() => setShowResetConfirm(true)}
+                  className="w-full py-2 text-xs font-bold font-small-caps uppercase tracking-wide text-ink-faint hover:text-burgundy border border-parchment-400 hover:border-burgundy rounded-sm transition-colors"
+                >
+                  Restart Journey
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-center text-ink-light">Reset all progress?</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowResetConfirm(false)}
+                      className="flex-1 py-2 text-xs font-bold border border-parchment-400 rounded-sm hover:bg-parchment-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => { onReset(); setShowResetConfirm(false); }}
+                      className="flex-1 py-2 text-xs font-bold bg-burgundy text-parchment-100 rounded-sm hover:bg-burgundy/80"
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Main Content Area */}
@@ -500,16 +535,20 @@ export const ProfilePage: React.FC<Props> = ({
                     key={loc.id}
                     className="bg-parchment-200 p-4 rounded-sm border border-parchment-400 shadow-sm flex items-start gap-4 hover:border-gold transition-colors"
                   >
-                    <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center border-2 shrink-0 ${
-                        loc.status === "visited"
-                          ? "bg-burgundy text-parchment-100 border-parchment-800"
-                          : "bg-parchment-100 text-ink border-parchment-400"
-                      }`}
-                    >
-                      {getLocationIcon(loc.type)}
+                    <div className="w-16 h-16 rounded-sm border-2 border-parchment-600 overflow-hidden shrink-0 bg-parchment-300">
+                      {loc.artUrl ? (
+                        <img
+                          src={loc.artUrl}
+                          alt={loc.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-ink-faint">
+                          {getLocationIcon(loc.type)}
+                        </div>
+                      )}
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-bold font-serif text-lg text-ink leading-none">
                           {loc.name}
@@ -546,35 +585,50 @@ export const ProfilePage: React.FC<Props> = ({
                 {npcs.map((npc) => (
                   <div
                     key={npc.id}
-                    className="bg-parchment-200 p-4 rounded-sm border border-parchment-400 shadow-sm"
+                    className="bg-parchment-200 p-4 rounded-sm border border-parchment-400 shadow-sm flex gap-4"
                   >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-bold text-lg text-ink font-serif">
-                        {npc.name}
-                      </span>
-                      <div
-                        className={`text-xs font-bold px-2 py-1 rounded-full border ${
-                          npc.relationship > 0
-                            ? "bg-forest/20 text-forest border-forest/30"
-                            : npc.relationship < 0
-                            ? "bg-burgundy/20 text-burgundy border-burgundy/30"
-                            : "bg-parchment-400/20 text-ink-light border-parchment-400"
-                        }`}
-                      >
-                        Relation: {npc.relationship > 0 ? "+" : ""}
-                        {npc.relationship}
-                      </div>
-                    </div>
-                    <div className="text-xs text-ink-light font-small-caps uppercase tracking-wide mb-3">
-                      {npc.role} • {npc.location}
-                    </div>
-                    <div className="text-xs text-ink space-y-1">
-                      {npc.notes.map((note, i) => (
-                        <div key={i} className="flex items-start gap-2">
-                          <span className="text-gold mt-1">•</span>
-                          <span className="italic">{note}</span>
+                    <div className="w-16 h-16 rounded-full border-2 border-parchment-600 overflow-hidden shrink-0 bg-parchment-300">
+                      {npc.portraitUrl ? (
+                        <img
+                          src={npc.portraitUrl}
+                          alt={npc.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-ink-faint">
+                          <User size={24} />
                         </div>
-                      ))}
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-lg text-ink font-serif">
+                          {npc.name}
+                        </span>
+                        <div
+                          className={`text-xs font-bold px-2 py-1 rounded-full border ${
+                            npc.relationship > 0
+                              ? "bg-forest/20 text-forest border-forest/30"
+                              : npc.relationship < 0
+                              ? "bg-burgundy/20 text-burgundy border-burgundy/30"
+                              : "bg-parchment-400/20 text-ink-light border-parchment-400"
+                          }`}
+                        >
+                          Relation: {npc.relationship > 0 ? "+" : ""}
+                          {npc.relationship}
+                        </div>
+                      </div>
+                      <div className="text-xs text-ink-light font-small-caps uppercase tracking-wide mb-3">
+                        {npc.role} • {npc.location}
+                      </div>
+                      <div className="text-xs text-ink space-y-1">
+                        {npc.notes.map((note, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <span className="text-gold mt-1">•</span>
+                            <span className="italic">{note}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}

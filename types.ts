@@ -100,6 +100,7 @@ export interface NPC {
   portraitUrl?: string;
   relationship: number; // -5 to +5
   location: string;
+  personality?: string[];
   notes: string[];
   history: string[]; // "Betrayed at the bridge", "Gave a potion"
 }

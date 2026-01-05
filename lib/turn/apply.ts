@@ -71,6 +71,11 @@ function applyInventoryAdd(
   charUpdates: Partial<Character>,
   diffs: TurnDiff[]
 ): void {
+  // Safety check - should be caught by validation but defensive
+  if (!event.item || !event.item.name) {
+    return;
+  }
+
   const currentInventory = charUpdates.inventory ?? [...character.inventory];
 
   const newItem: Item = {
@@ -100,6 +105,11 @@ function applyInventoryRemove(
   charUpdates: Partial<Character>,
   diffs: TurnDiff[]
 ): void {
+  // Safety check
+  if (!event.itemName) {
+    return;
+  }
+
   const currentInventory = charUpdates.inventory ?? [...character.inventory];
 
   // Find and remove the first matching item (case-insensitive)
@@ -181,13 +191,18 @@ function applyRelationshipChange(
   relationshipChanges: ApplyEventsResult["relationshipChanges"],
   diffs: TurnDiff[]
 ): void {
-  // Cap delta to ±2 per turn as per game rules
-  const cappedDelta = Math.max(-2, Math.min(2, event.delta));
+  // Safety check
+  if (!event.npc) {
+    return;
+  }
+
+  // Cap delta to ±10 per turn (allows meaningful changes but prevents abuse)
+  const cappedDelta = Math.max(-10, Math.min(10, event.delta || 0));
 
   relationshipChanges.push({
     npc: event.npc,
     delta: cappedDelta,
-    reason: event.reason,
+    reason: event.reason || "",
   });
 
   const sign = cappedDelta > 0 ? "+" : "";

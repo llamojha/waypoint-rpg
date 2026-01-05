@@ -1,18 +1,14 @@
 import { generateWithTools } from "@/lib/gemini/client";
 import { detectIntentTool, DetectIntentResult } from "./tools";
 import { SKILL_TREE } from "@/constants";
+import { buildIntentPrompt } from "@/lib/prompts/intent";
 import type { Character, WorldContext } from "@/types";
 
 /**
- * Build the prompt for intent detection
+ * Format skill tree for prompt
  */
-function buildIntentPrompt(
-  playerAction: string,
-  character: Character,
-  world: WorldContext
-): string {
-  // Format skill tree for context
-  const skillList = SKILL_TREE.map(
+function formatSkillTree(): string {
+  return SKILL_TREE.map(
     (pillar) =>
       `${pillar.pillar}: ${pillar.skills
         .map(
@@ -21,33 +17,17 @@ function buildIntentPrompt(
         )
         .join("; ")}`
   ).join("\n");
+}
 
-  return `Analyze this player action to determine if a skill check is needed.
-
-PLAYER ACTION: "${playerAction}"
-
-CONTEXT:
-- Location: ${world.poi} in ${world.region}
-- Scene: ${world.description}
-
-CHARACTER SKILLS (current levels):
-${Object.entries(character.skills)
-  .filter(([, s]) => s.level > 0)
-  .map(([name, s]) => `- ${name}: Level ${s.level}`)
-  .join("\n") || "- No trained skills yet"}
-
-SKILL TREE (for power word detection):
-${skillList}
-
-RULES:
-- Detect power words from the skill tree tiers
-- tier1 words give +1 bonus, tier2 give +2, tier3 give +3
-- Set requires_roll=true for actions with uncertain outcomes
-- Set requires_roll=false for simple actions (looking, talking casually, walking)
-- DC range: 10 (easy) to 20 (very hard), max 25 (nearly impossible)
-- If action is impossible in context, set denial_reason
-
-Call the detect_intent function with your analysis.`;
+/**
+ * Format character skills for prompt
+ */
+function formatCharacterSkills(character: Character): string {
+  const trained = Object.entries(character.skills)
+    .filter(([, s]) => s.level > 0)
+    .map(([name, s]) => `- ${name}: Level ${s.level}`)
+    .join("\n");
+  return trained || "- No trained skills yet";
 }
 
 /**
@@ -58,7 +38,14 @@ export async function detectIntent(
   character: Character,
   world: WorldContext
 ): Promise<DetectIntentResult> {
-  const prompt = buildIntentPrompt(playerAction, character, world);
+  const prompt = buildIntentPrompt(
+    playerAction,
+    world.poi,
+    world.region,
+    world.description,
+    formatCharacterSkills(character),
+    formatSkillTree()
+  );
 
   const result = await generateWithTools<DetectIntentResult>(
     prompt,

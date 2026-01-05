@@ -157,12 +157,11 @@ export default function App() {
         return;
       }
 
-      if (data.turns && data.turns.length > 0) {
-        setGameState((prev) => ({ ...prev, turns: data.turns }));
-        // Update diff log with diffs from all turns
-        const allDiffs = data.turns.flatMap((t: Turn) => t.diffs || []);
-        setDiffLog(allDiffs);
-      }
+      const turns = data.turns || [];
+      setGameState((prev) => ({ ...prev, turns }));
+      // Update diff log with diffs from all turns
+      const allDiffs = turns.flatMap((t: Turn) => t.diffs || []);
+      setDiffLog(allDiffs);
     } catch (err) {
       console.error("Failed to load turns:", err);
     }
@@ -279,10 +278,12 @@ export default function App() {
       }));
       setDiffLog([]);
 
-      // Reload turns, quests, npcs
+      // Reload turns, quests, npcs, locations, world
+      await loadWorldState(data.character.id);
       await loadTurns(data.character.id);
       await loadQuests(data.character.id);
       await loadNpcs(data.character.id);
+      await loadLocations(data.character.id);
     } catch (err) {
       console.error("Failed to reset:", err);
       setError(err instanceof Error ? err.message : "Failed to reset");
@@ -736,6 +737,7 @@ export default function App() {
           <ProfilePage
             onBack={handleCloseProfile}
             onResume={handleResumeGame}
+            onReset={handleReset}
             theme={theme}
             toggleTheme={toggleTheme}
             character={gameState.character}
@@ -766,7 +768,6 @@ export default function App() {
                 quests={gameState.quests}
                 npcs={gameState.npcs}
                 onCharacterUpdate={handleCharacterUpdate}
-                onReset={handleReset}
               />
             </div>
 

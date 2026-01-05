@@ -1,4 +1,5 @@
 import type { Character, WorldContext, Turn, Equipment, Item } from "@/types";
+import { TURN_SYSTEM_PROMPT } from "@/lib/prompts";
 
 /**
  * Prompt templates for Gemini turn generation
@@ -6,71 +7,9 @@ import type { Character, WorldContext, Turn, Equipment, Item } from "@/types";
  */
 
 /**
- * System prompt with DM instructions
- * Requirements: 3.5, 3.6
+ * System prompt - imported from lib/prompts/turn.ts
  */
-export const SYSTEM_PROMPT = `You are the Dungeon Master for Waypoint, a fantasy RPG. Generate immersive narration and propose game state changes.
-
-RULES:
-- Write in second person ("You step forward...")
-- Keep narration to 2-4 paragraphs
-- Maintain PG-13 fantasy tone
-- Only propose changes that make sense for the action
-- Be consistent with the world context provided
-- Do not reference items the character doesn't have
-- NPCs should behave according to their personality traits
-- When talking to NPCs, reflect their personality in dialogue
-
-RESPONSE FORMAT:
-Return a JSON object with exactly these fields:
-- narration: string (the story text, 2-4 paragraphs)
-- proposed_events: array of state changes (see EVENT TYPES below)
-- suggested_actions: array of 2-4 follow-up action strings
-
-EVENT TYPES:
-1. stat_change - Modify HP or gold
-   { "type": "stat_change", "stat": "hp" | "gold", "delta": number, "reason": "string" }
-   Example: { "type": "stat_change", "stat": "gold", "delta": -5, "reason": "Bought a drink" }
-
-2. inventory_add - Add item to inventory
-   { "type": "inventory_add", "item": { "name": "string", "type": "weapon|armor|consumable|quest|trinket|misc", "description": "string" }, "reason": "string" }
-   Example: { "type": "inventory_add", "item": { "name": "Tavern Key", "type": "quest", "description": "A rusty key given by the innkeeper" }, "reason": "Innkeeper handed you a key" }
-
-3. inventory_remove - Remove item from inventory
-   { "type": "inventory_remove", "itemName": "string", "reason": "string" }
-   Example: { "type": "inventory_remove", "itemName": "Healing Potion", "reason": "Consumed to restore health" }
-
-4. world_update - Update world state
-   { "type": "world_update", "field": "string", "value": any, "reason": "string" }
-   Example: { "type": "world_update", "field": "weather", "value": "stormy", "reason": "Storm rolled in" }
-
-5. relationship_change - Change NPC relationship
-   { "type": "relationship_change", "npc": "string", "delta": number (-2 to +2), "reason": "string" }
-   Example: { "type": "relationship_change", "npc": "Lenna", "delta": 1, "reason": "Showed interest in her research" }
-
-6. quest_start - Start a new quest
-   { "type": "quest_start", "questId": "string", "questTitle": "string", "reason": "string" }
-   Example: { "type": "quest_start", "questId": "welcome-to-windhollow", "questTitle": "Welcome to Windhollow", "reason": "Lenna suggested visiting the outpost" }
-
-7. quest_progress - Update quest progress
-   { "type": "quest_progress", "questId": "string", "progress": number, "reason": "string" }
-   Example: { "type": "quest_progress", "questId": "boar-hunt", "progress": 2, "reason": "Found boar tracks" }
-
-8. combat_damage - Deal damage to an enemy in combat
-   { "type": "combat_damage", "target": "string", "damage": number, "reason": "string" }
-   Example: { "type": "combat_damage", "target": "Wild Boar", "damage": 4, "reason": "Sword strike hit" }
-
-9. combat_end - End combat with an enemy
-   { "type": "combat_end", "target": "string", "outcome": "defeated" | "fled" | "escaped", "loot": { "gold": number, "items": ["string"] }, "reason": "string" }
-   Example: { "type": "combat_end", "target": "Wild Boar", "outcome": "defeated", "loot": { "items": ["Raw Boar Meat"] }, "reason": "Boar collapsed from wounds" }
-
-IMPORTANT:
-- Only propose events that logically follow from the player's action
-- HP changes should be reasonable (small damage: -1 to -5, medium: -6 to -10)
-- Gold changes should match the context (drinks: -2 to -5, meals: -5 to -15)
-- Relationship changes are capped at ±2 per turn
-- Always provide a reason for each event
-- NPCs with relationship >= 2 may offer special rewards or information`;
+export const SYSTEM_PROMPT = TURN_SYSTEM_PROMPT;
 
 /**
  * Format equipment for prompt display
@@ -88,7 +27,7 @@ function formatEquipment(equipment: Equipment): string {
   ];
 
   const equipped = slots
-    .filter((slot) => equipment[slot] !== null)
+    .filter((slot) => equipment[slot] && (equipment[slot] as Item)?.name)
     .map((slot) => {
       const item = equipment[slot] as Item;
       return `${slot}: ${item.name}`;
@@ -125,11 +64,10 @@ function formatRecentTurns(turns: Turn[]): string {
   return turns
     .map((turn, index) => {
       const turnNum = turns.length - index;
+      const narration = turn.narration || "";
       return `Turn ${turnNum}:
-Action: ${turn.playerAction}
-Result: ${turn.narration.slice(0, 500)}${
-        turn.narration.length > 500 ? "..." : ""
-      }`;
+Action: ${turn.playerAction || "Unknown"}
+Result: ${narration.slice(0, 500)}${narration.length > 500 ? "..." : ""}`;
     })
     .join("\n\n");
 }
@@ -216,9 +154,10 @@ Your narration MUST reflect this ${rollOutcome.outcome}. ${
 
   const userPrompt = `CURRENT LOCATION:
 ${world.poi} in ${world.region}
-${world.description}
+${world.description || ""}
 Time: Day ${world.time.day}, ${world.time.phase}
 Weather: ${world.weather}
+${world.nearbyPoi && world.nearbyPoi.length > 0 ? `\nNEARBY LOCATIONS (use these EXACT names for location_change events):\n${world.nearbyPoi.map(p => `- ${p}`).join('\n')}` : ''}
 
 NPCS PRESENT:
 ${formatNPCs(npcsPresent || [])}

@@ -43,7 +43,6 @@ interface Props {
   quests: Quest[];
   npcs: NPC[];
   onCharacterUpdate: (char: Character) => void;
-  onReset?: () => void;
 }
 
 export const LeftColumn: React.FC<Props> = ({
@@ -51,7 +50,6 @@ export const LeftColumn: React.FC<Props> = ({
   quests,
   npcs,
   onCharacterUpdate,
-  onReset,
 }) => {
   const [activeTab, setActiveTab] = useState<
     "char" | "stash" | "skills" | "quests" | "folk" | "magic"
@@ -113,7 +111,7 @@ export const LeftColumn: React.FC<Props> = ({
         <div className="absolute left-1 top-0 bottom-0 w-px bg-parchment-400/30 pointer-events-none"></div>
         <div className="absolute right-1 top-0 bottom-0 w-px bg-parchment-400/30 pointer-events-none"></div>
 
-        {activeTab === "char" && <CharacterTab character={character} onReset={onReset} />}
+        {activeTab === "char" && <CharacterTab character={character} />}
         {activeTab === "stash" && (
           <InventoryTab character={character} onUpdate={onCharacterUpdate} />
         )}
@@ -672,9 +670,7 @@ const StatCard = ({ label, value, icon }: any) => (
    Character Tab
 -------------------------------------------------------------------------------- */
 
-const CharacterTab = ({ character, onReset }: { character: Character; onReset?: () => void }) => {
-  const [showConfirm, setShowConfirm] = useState(false);
-
+const CharacterTab = ({ character }: { character: Character }) => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -746,38 +742,6 @@ const CharacterTab = ({ character, onReset }: { character: Character; onReset?: 
           </div>
         )}
       </div>
-
-      {/* Reset Button */}
-      {onReset && (
-        <div className="pt-4 border-t border-parchment-400">
-          {!showConfirm ? (
-            <button
-              onClick={() => setShowConfirm(true)}
-              className="w-full py-2 text-xs font-bold font-small-caps uppercase tracking-wide text-ink-faint hover:text-burgundy border border-parchment-400 hover:border-burgundy rounded-sm transition-colors"
-            >
-              Restart Journey
-            </button>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-center text-ink-light">Reset all progress?</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowConfirm(false)}
-                  className="flex-1 py-2 text-xs font-bold border border-parchment-400 rounded-sm hover:bg-parchment-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => { onReset(); setShowConfirm(false); }}
-                  className="flex-1 py-2 text-xs font-bold bg-burgundy text-parchment-100 rounded-sm hover:bg-burgundy/80"
-                >
-                  Confirm
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };
@@ -825,49 +789,144 @@ const QuestsTab = ({ quests }: { quests: Quest[] }) => (
     ))}
   </div>
 );
-const SocialTab = ({ npcs }: { npcs: NPC[] }) => (
-  <div className="space-y-3 animate-fade-in pl-2">
-    {npcs.map((npc) => (
-      <div
-        key={npc.id}
-        className="bg-parchment-100 p-3 rounded-sm border border-parchment-400 shadow-sm"
-      >
-        <div className="flex gap-3">
-          {npc.portraitUrl && (
-            <img
-              src={npc.portraitUrl}
-              alt={npc.name}
-              className="w-10 h-10 rounded-full object-cover border border-parchment-400 shrink-0"
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-center">
-              <span className="font-bold text-sm text-ink">{npc.name}</span>
-              <span
-                className={`text-xs font-bold ${
-                  npc.relationship > 0 ? "text-forest" : "text-burgundy"
-                }`}
-              >
-                {npc.relationship > 0 ? "+" : ""}
-                {npc.relationship}
-              </span>
+
+const SocialTab = ({ npcs }: { npcs: NPC[] }) => {
+  const [selectedNpc, setSelectedNpc] = useState<NPC | null>(null);
+
+  return (
+    <div className="space-y-3 animate-fade-in pl-2">
+      {npcs.map((npc) => {
+        // Relationship is -25 to +25, normalize to 0-100% for bar
+        const normalizedRelationship = ((npc.relationship + 25) / 50) * 100;
+        const relationshipLabel = 
+          npc.relationship >= 20 ? "Devoted" :
+          npc.relationship >= 10 ? "Friendly" :
+          npc.relationship >= 5 ? "Warm" :
+          npc.relationship > -5 ? "Neutral" :
+          npc.relationship >= -10 ? "Cool" :
+          npc.relationship >= -20 ? "Unfriendly" :
+          "Hostile";
+        
+        return (
+          <div
+            key={npc.id}
+            className="bg-parchment-100 p-3 rounded-sm border border-parchment-400 shadow-sm"
+          >
+            <div className="flex gap-3">
+              {npc.portraitUrl && (
+                <img
+                  src={npc.portraitUrl}
+                  alt={npc.name}
+                  className="w-10 h-10 rounded-full object-cover border border-parchment-400 shrink-0 cursor-pointer hover:ring-2 hover:ring-gold transition-all"
+                  onClick={() => setSelectedNpc(npc)}
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-sm text-ink">{npc.name}</span>
+                  <span className="text-[10px] font-bold text-ink-light">
+                    {relationshipLabel} ({npc.relationship > 0 ? "+" : ""}{npc.relationship})
+                  </span>
+                </div>
+                <div className="text-[10px] text-ink-light mb-1">{npc.role}</div>
+                {/* Relationship Bar */}
+                <div className="relative">
+                  <div className="h-1.5 bg-parchment-300 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all ${
+                        npc.relationship >= 2 ? "bg-forest" :
+                        npc.relationship >= 0 ? "bg-gold" :
+                        "bg-burgundy"
+                      }`}
+                      style={{ width: `${normalizedRelationship}%` }}
+                    />
+                  </div>
+                  {/* Scale markers */}
+                  <div className="flex justify-between mt-0.5 text-[8px] text-ink-faint">
+                    <span>-25</span>
+                    <span>0</span>
+                    <span>+25</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="text-[10px] text-ink-light">{npc.role}</div>
+            {npc.history.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-parchment-300">
+                <div className="text-[9px] uppercase font-bold text-ink-light mb-1">
+                  Recent Memory
+                </div>
+                <ul className="text-[10px] text-ink italic list-disc list-inside">
+                  {npc.history.map((h, i) => (
+                    <li key={i}>{h}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* NPC Detail Modal */}
+      {selectedNpc && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedNpc(null)}
+        >
+          <div 
+            className="bg-parchment-200 rounded-sm border-4 border-parchment-800 shadow-2xl max-w-sm w-full p-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedNpc(null)}
+              className="absolute top-2 right-2 text-ink-light hover:text-ink text-xl leading-none"
+            >
+              ×
+            </button>
+            
+            {selectedNpc.portraitUrl && (
+              <img
+                src={selectedNpc.portraitUrl}
+                alt={selectedNpc.name}
+                className="w-64 h-64 rounded-full object-cover border-4 border-gold mx-auto mb-4 shadow-lg"
+              />
+            )}
+            
+            <h3 className="text-xl font-display text-ink text-center mb-1">
+              {selectedNpc.name}
+            </h3>
+            <p className="text-sm text-ink-light text-center mb-4">
+              {selectedNpc.role}
+            </p>
+            
+            {selectedNpc.personality && selectedNpc.personality.length > 0 && (
+              <div className="mb-3">
+                <div className="text-[10px] uppercase font-bold text-ink-light mb-1">
+                  Personality
+                </div>
+                <p className="text-xs text-ink">
+                  {selectedNpc.personality.join(", ")}
+                </p>
+              </div>
+            )}
+            
+            {selectedNpc.history && selectedNpc.history.length > 0 && (
+              <div>
+                <div className="text-[10px] uppercase font-bold text-ink-light mb-1">
+                  What You Know
+                </div>
+                <ul className="text-xs text-ink space-y-1">
+                  {selectedNpc.history.map((h, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="text-gold">•</span>
+                      <span>{h}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
-        {npc.history.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-parchment-300">
-            <div className="text-[9px] uppercase font-bold text-ink-light mb-1">
-              Recent Memory
-            </div>
-            <ul className="text-[10px] text-ink italic list-disc list-inside">
-              {npc.history.map((h, i) => (
-                <li key={i}>{h}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    ))}
-  </div>
-);
+      )}
+    </div>
+  );
+};

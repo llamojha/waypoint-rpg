@@ -190,13 +190,15 @@ export async function POST(request: Request) {
       (npcRelationships || []).map((r: any) => [r.waypoint_npcs?.name, r.relationship])
     );
     
-    const npcsPresent = (npcsAtLocation || []).map((npc: any) => ({
-      name: npc.name,
-      role: npc.role,
-      personality: npc.personality || [],
-      dialogueHints: npc.dialogue_hints || [],
-      relationship: relationshipMap.get(npc.name) ?? 0,
-    }));
+    const npcsPresent = (npcsAtLocation || [])
+      .filter((npc: any) => npc && npc.name)
+      .map((npc: any) => ({
+        name: npc.name,
+        role: npc.role || "Unknown",
+        personality: npc.personality || [],
+        dialogueHints: npc.dialogue_hints || [],
+        relationship: relationshipMap.get(npc.name) ?? 0,
+      }));
 
     const prompt = buildTurnPrompt(character, world, recentTurns, playerAction, undefined, npcsPresent);
 
@@ -255,7 +257,9 @@ export async function POST(request: Request) {
                 .select("name")
                 .ilike("location", worldUpdates.poi);
               
-              const npcNames = (npcsAtLocation || []).map(n => n.name.toLowerCase().replace(/\s+/g, '_'));
+              const npcNames = (npcsAtLocation || [])
+                .filter((n: any) => n && n.name)
+                .map((n: any) => n.name.toLowerCase().replace(/\s+/g, '_'));
               
               // Random chance for Wanderer in wilderness
               if (locationData.type === "wilderness" && Math.random() < 0.15) {
@@ -430,13 +434,15 @@ async function handleRollStream(
     (npcRelationships || []).map((r: any) => [r.waypoint_npcs?.name, r.relationship])
   );
   
-  const npcsPresent: NPCForPrompt[] = (npcsAtLocation || []).map((npc: any) => ({
-    name: npc.name,
-    role: npc.role,
-    personality: npc.personality || [],
-    dialogueHints: npc.dialogue_hints || [],
-    relationship: relationshipMap.get(npc.name) ?? 0,
-  }));
+  const npcsPresent: NPCForPrompt[] = (npcsAtLocation || [])
+    .filter((npc: any) => npc && npc.name)
+    .map((npc: any) => ({
+      name: npc.name,
+      role: npc.role || "Unknown",
+      personality: npc.personality || [],
+      dialogueHints: npc.dialogue_hints || [],
+      relationship: relationshipMap.get(npc.name) ?? 0,
+    }));
 
   const prompt = buildTurnPrompt(
     character,
@@ -486,7 +492,7 @@ async function handleRollStream(
         if (worldUpdates.poi) {
           const { data: locationData } = await supabase
             .from("waypoint_locations")
-            .select("description, art_url, type, nearby_poi")
+            .select("id, description, art_url, type, nearby_poi")
             .ilike("name", worldUpdates.poi)
             .maybeSingle();
           
@@ -495,13 +501,39 @@ async function handleRollStream(
             worldUpdates.imageUrl = locationData.art_url;
             worldUpdates.nearbyPoi = locationData.nearby_poi || [];
             
+            // Mark location as discovered/visited
+            const { data: existingDiscovery } = await supabase
+              .from("waypoint_character_locations")
+              .select("id")
+              .eq("character_id", character.id)
+              .eq("location_id", locationData.id)
+              .maybeSingle();
+            
+            if (!existingDiscovery) {
+              await supabase
+                .from("waypoint_character_locations")
+                .insert({
+                  character_id: character.id,
+                  location_id: locationData.id,
+                  status: "visited",
+                });
+            } else {
+              await supabase
+                .from("waypoint_character_locations")
+                .update({ status: "visited" })
+                .eq("character_id", character.id)
+                .eq("location_id", locationData.id);
+            }
+            
             // Get NPCs at this location
             const { data: npcsAtLocation } = await supabase
               .from("waypoint_npcs")
               .select("name")
               .ilike("location", worldUpdates.poi);
             
-            const npcNames = (npcsAtLocation || []).map(n => n.name.toLowerCase().replace(/\s+/g, '_'));
+            const npcNames = (npcsAtLocation || [])
+              .filter((n: any) => n && n.name)
+              .map((n: any) => n.name.toLowerCase().replace(/\s+/g, '_'));
             
             // Random chance for Wanderer in wilderness
             if (locationData.type === "wilderness" && Math.random() < 0.15) {

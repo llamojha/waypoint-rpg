@@ -188,6 +188,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Mark starting location as discovered
+    const { data: startingLocation } = await supabase
+      .from("waypoint_locations")
+      .select("id")
+      .eq("name", "The Waystone")
+      .maybeSingle();
+
+    if (startingLocation) {
+      await supabase
+        .from("waypoint_character_locations")
+        .insert({
+          character_id: newChar.id,
+          location_id: startingLocation.id,
+          status: "visited",
+        });
+    }
+
     // Create opening turn with narration (includes Lenna discovery diff)
     const openingDiffs = [
       { type: "world", text: "Arrived at The Waystone", value: "Windhollow Vale" },
