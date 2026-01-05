@@ -10,12 +10,14 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   redirectTo?: string;
+  isWaitlist?: boolean;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   redirectTo,
+  isWaitlist = false,
 }) => {
   const { signInWithEmail, signInWithOAuth } = useAuth();
   const [email, setEmail] = useState("");
@@ -78,35 +80,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-md mx-4 bg-parchment-200 border-4 border-parchment-800 rounded-sm shadow-2xl panel-texture animate-fade-in">
-        {/* Corner Flourishes */}
-        <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-gold opacity-50" />
-        <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-gold opacity-50" />
-        <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-gold opacity-50" />
-        <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-gold opacity-50" />
-
+      <div className="relative w-full max-w-md mx-4 bg-parchment-200 border-2 border-parchment-600 rounded-sm shadow-2xl panel-texture animate-fade-in">
         {/* Close Button */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 p-1 text-ink-light hover:text-ink transition-colors"
+          className="absolute top-3 right-3 p-1.5 text-ink-faint hover:text-ink hover:bg-parchment-300 rounded-sm transition-colors"
           aria-label="Close"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
 
         {/* Content */}
         <div className="p-8">
           {success ? (
-            <SuccessMessage email={email} onClose={handleClose} />
+            <SuccessMessage email={email} onClose={handleClose} isWaitlist={isWaitlist} />
           ) : (
             <>
               {/* Header */}
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-display text-ink mb-2">
-                  Begin Your Journey
+                  {isWaitlist ? "Join the Waiting List" : "Begin Your Journey"}
                 </h2>
                 <p className="text-sm text-ink-light font-serif">
-                  Sign in to save your progress and continue your adventure
+                  {isWaitlist
+                    ? "Be the first to know when Waypoint launches"
+                    : "Sign in to save your progress and continue your adventure"}
                 </p>
               </div>
 
@@ -147,7 +145,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <span>Sending...</span>
                     </>
                   ) : (
-                    <span>Send Magic Link</span>
+                    <span>{isWaitlist ? "Join Waitlist" : "Send Magic Link"}</span>
                   )}
                 </button>
               </form>
@@ -246,24 +244,29 @@ const OAuthButton: React.FC<OAuthButtonProps> = ({
 interface SuccessMessageProps {
   email: string;
   onClose: () => void;
+  isWaitlist?: boolean;
 }
 
-const SuccessMessage: React.FC<SuccessMessageProps> = ({ email, onClose }) => (
+const SuccessMessage: React.FC<SuccessMessageProps> = ({ email, onClose, isWaitlist }) => (
   <div className="text-center py-4">
     <div className="w-16 h-16 mx-auto mb-6 bg-forest/10 rounded-full flex items-center justify-center">
       <Mail size={32} className="text-forest" />
     </div>
     <h2 className="text-2xl font-display text-ink mb-3">Check Your Email</h2>
-    <p className="text-ink-light font-serif mb-2">We've sent a magic link to</p>
+    <p className="text-ink-light font-serif mb-2">
+      {isWaitlist ? "We've sent a confirmation to" : "We've sent a magic link to"}
+    </p>
     <p className="text-ink font-bold mb-6">{email}</p>
     <p className="text-sm text-ink-faint mb-6">
-      Click the link in the email to sign in. The link expires in 1 hour.
+      {isWaitlist
+        ? "Click the link to confirm your spot. We'll notify you when Waypoint launches!"
+        : "Click the link in the email to sign in. The link expires in 1 hour."}
     </p>
     <button
       onClick={onClose}
       className="px-6 py-2 bg-parchment-400 text-ink font-bold font-small-caps uppercase tracking-wider rounded-sm hover:bg-parchment-800 hover:text-parchment-100 transition-all"
     >
-      Close
+      Got it
     </button>
   </div>
 );

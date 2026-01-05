@@ -22,6 +22,7 @@ import {
 import { UNKNOWN_IMG } from "@/constants";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/lib/auth";
+import { canUserPlay, isWaitlistMode } from "@/lib/supabase/user-profile";
 
 interface Props {
   onStart: () => void;
@@ -35,32 +36,43 @@ interface Props {
 export const LandingPage: React.FC<Props> = ({ onStart, lang, setLang }) => {
   const { user } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showWaitlistMessage, setShowWaitlistMessage] = useState(false);
 
-  const handleStartClick = () => {
-    if (user) {
-      // User is authenticated, proceed to character creation
-      onStart();
-    } else {
-      // User is not authenticated, show auth modal
+  const handleStartClick = async () => {
+    if (!user) {
       setShowAuthModal(true);
+      return;
     }
+
+    // Check if user can play (tier check)
+    const { allowed, reason } = await canUserPlay();
+    if (!allowed && reason === "waitlist") {
+      setShowWaitlistMessage(true);
+      return;
+    }
+
+    onStart();
   };
 
   // Navigation is now handled by the global Header via IDs
+  const waitlistMode = isWaitlistMode();
+  // Show waitlist button if: waitlist mode is on AND user is not logged in
+  const showWaitlistButton = waitlistMode && !user;
+  
   return (
     <div
       id="landing-container"
       className="h-full w-full overflow-y-auto overflow-x-hidden bg-parchment-300 text-ink font-sans selection:bg-gold selection:text-ink relative scroll-smooth"
     >
       <main className="space-y-24">
-        <Hero onStart={handleStartClick} />
+        <Hero onStart={handleStartClick} isWaitlist={showWaitlistButton} />
         {/* CoreSystems removed as requested */}
         <AvatarGrid />
         <Testimonials />
         <VideoEmbed />
         <ChatDemo />
         <FAQList />
-        <FinalCTA onStart={handleStartClick} />
+        <FinalCTA onStart={handleStartClick} isWaitlist={showWaitlistButton} />
       </main>
 
       <Footer lang={lang} setLang={setLang} />
@@ -69,7 +81,30 @@ export const LandingPage: React.FC<Props> = ({ onStart, lang, setLang }) => {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
+        isWaitlist={waitlistMode}
       />
+
+      {/* Waitlist Message Modal */}
+      {showWaitlistMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowWaitlistMessage(false)}
+          />
+          <div className="relative w-full max-w-md mx-4 bg-parchment-200 border-2 border-parchment-600 rounded-sm shadow-2xl p-8 text-center">
+            <h2 className="text-2xl font-display text-ink mb-3">You're on the Waiting List!</h2>
+            <p className="text-ink-light font-serif mb-6">
+              Thanks for your interest! We'll notify you when Waypoint is ready for you to play.
+            </p>
+            <button
+              onClick={() => setShowWaitlistMessage(false)}
+              className="px-6 py-2 bg-burgundy text-parchment-100 font-bold font-small-caps uppercase tracking-wider rounded-sm hover:bg-burgundy-dim transition-all"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -77,7 +112,7 @@ export const LandingPage: React.FC<Props> = ({ onStart, lang, setLang }) => {
 /* -------------------------------------------------------------------------
    3. Hero Block
 ------------------------------------------------------------------------- */
-const Hero = ({ onStart }: { onStart: () => void }) => (
+const Hero = ({ onStart, isWaitlist }: { onStart: () => void; isWaitlist: boolean }) => (
   <section className="relative pt-20 pb-32 px-4 text-center max-w-full mx-auto animate-fade-in overflow-hidden">
     {/* Background Image */}
     <div className="absolute inset-0 z-0">
@@ -119,7 +154,7 @@ const Hero = ({ onStart }: { onStart: () => void }) => (
         >
           <div className="flex items-center gap-3 relative z-10">
             <Sword className="fill-current" size={24} />
-            <span>Start Your Saga</span>
+            <span>{isWaitlist ? "Join the Waiting List" : "Start Your Saga"}</span>
             <ChevronRight
               className="group-hover:translate-x-1 transition-transform"
               size={24}
@@ -643,7 +678,7 @@ const FAQList = () => {
 /* -------------------------------------------------------------------------
    9. Final CTA
 ------------------------------------------------------------------------- */
-const FinalCTA = ({ onStart }: { onStart: () => void }) => (
+const FinalCTA = ({ onStart, isWaitlist }: { onStart: () => void; isWaitlist: boolean }) => (
   <section className="relative px-4 text-center py-24 bg-parchment-200 border-y-2 border-parchment-800 overflow-hidden">
     {/* Background Image */}
     <div className="absolute inset-0 z-0">
@@ -669,7 +704,7 @@ const FinalCTA = ({ onStart }: { onStart: () => void }) => (
           onClick={onStart}
           className="px-12 py-5 bg-burgundy text-parchment-100 font-display text-2xl rounded-sm shadow-xl hover:bg-burgundy-dim border-2 border-parchment-900 transition-all hover:-translate-y-1"
         >
-          Start Playing Now
+          {isWaitlist ? "Join the Waiting List" : "Start Playing Now"}
         </button>
         <div className="flex flex-col items-center gap-1">
           <div className="text-xs font-bold font-small-caps text-ink-light uppercase tracking-widest opacity-80">

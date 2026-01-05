@@ -127,6 +127,7 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 | ID  | Spec Name    | Estimate | Status  |
 | --- | ------------ | -------- | ------- |
 | 6.1 | `mvp-polish` | 8-12h    | 📋 TODO |
+| 6.2 | `e2e-testing` | 6-10h   | 📋 TODO |
 
 **🎮 MVP COMPLETE**
 
@@ -138,6 +139,8 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - [ ] Performance acceptable (<3s turn response)
 - [ ] All UI elements accessible
 - [ ] Edge cases handled (empty inventory, 0 HP, etc.)
+- [ ] E2E tests pass for demo path
+- [ ] E2E tests validate edge cases
 
 ---
 
@@ -168,6 +171,9 @@ Phase 0-3: ✅ COMPLETE (Demo Ready)
                    ▼
               6.1 mvp-polish
                    │
+                   ▼
+              6.2 e2e-testing
+                   │
               🎮 MVP COMPLETE
 ```
 
@@ -179,8 +185,8 @@ Phase 0-3: ✅ COMPLETE (Demo Ready)
 |-------|-------|-------|-------|
 | 4 Agent Pipeline | 4 | 20-28h | Proper validation & context |
 | 5 Gameplay | 6 | 31-43h | Full game systems |
-| 6 Polish | 1 | 8-12h | Bug fixes & UX |
-| **Total** | **11** | **~59-83h** | |
+| 6 Polish | 2 | 14-22h | Bug fixes, UX & E2E tests |
+| **Total** | **12** | **~65-93h** | |
 
 ---
 

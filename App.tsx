@@ -87,6 +87,25 @@ export default function App() {
     }
   }, [user, authLoading, view]);
 
+  // Waitlist check - redirect waitlist users to landing
+  useEffect(() => {
+    const checkWaitlistAccess = async () => {
+      if (!user || authLoading) return;
+      
+      const protectedViews: ViewState[] = ["game", "creation", "map", "codex"];
+      if (!protectedViews.includes(view)) return;
+
+      const { canUserPlay } = await import("@/lib/supabase/user-profile");
+      const { allowed, reason } = await canUserPlay();
+      
+      if (!allowed && reason === "waitlist") {
+        setView("landing");
+      }
+    };
+    
+    checkWaitlistAccess();
+  }, [user, authLoading, view]);
+
   // Load character on mount when user is authenticated
   const loadCharacter = async () => {
     setIsLoading(true);
