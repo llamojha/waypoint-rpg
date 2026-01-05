@@ -448,12 +448,6 @@ const DiffBadge: React.FC<{ diff: TurnDiff }> = ({ diff }) => {
         return { icon: Globe, color: "text-forest", label: "STATE" };
       case "skill":
         return { icon: Sparkles, color: "text-gold", label: "SKILL" };
-      default:
-        return {
-          icon: CheckCircle2,
-          color: "text-forest",
-          label: diff.type.toUpperCase(),
-        };
     }
   };
 
