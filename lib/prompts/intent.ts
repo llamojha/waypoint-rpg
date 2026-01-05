@@ -33,7 +33,9 @@ RULES:
 - If no power word is detected, set requires_roll=false
 - Power word bonuses: tier1 = +1, tier2 = +2, tier3 = +3 (set bonus field)
 - Even if player has no skill levels, they can still attempt actions (bonus = 0)
-- DC range: 10 (easy) to 20 (very hard), max 25 (nearly impossible)
+- DC range: 5 (trivial) to 25 (nearly impossible)
+- DC guidelines: 5=trivial, 8=easy, 10=moderate, 12=challenging, 15=hard, 18=very hard, 20+=heroic
+- Consider context: sneaking past a distracted guard=8, alert guard=12, captain=15
 - If action is impossible in context, set denial_reason
 
 Call the detect_intent function with your analysis.`;

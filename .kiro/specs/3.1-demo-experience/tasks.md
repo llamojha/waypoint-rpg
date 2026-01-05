@@ -93,8 +93,9 @@
 
 #### Task 6.2: Demo Flow Testing
 - [x] Core systems implemented and connected
-- [ ] Manual testing of 20-turn scenario (requires running app)
-- [ ] Polish loading states (deferred to manual testing)
+- [x] Gold changes working (gain/lose)
+- [x] 20+ turn scenario completed (23 turns)
+- [x] Loading states working
 
 ---
 

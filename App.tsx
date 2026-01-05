@@ -21,11 +21,11 @@ import {
   MOCK_SESSIONS,
   USE_MOCK_DATA,
 } from "@/constants";
-import { User, BookOpen, Map as MapIcon, Book, Loader2 } from "lucide-react";
+import { User, BookOpen, Globe, Menu, Map as MapIcon, Book, Settings, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 type ViewState = "landing" | "creation" | "game" | "profile" | "map" | "codex";
-type MobileTab = "sheet" | "play" | "map" | "codex";
+type MobileTab = "sheet" | "play" | "world" | "menu";
 export type TurnStatus = "idle" | "processing" | "error";
 
 export default function App() {
@@ -46,6 +46,7 @@ export default function App() {
 
   // Mobile Tab State
   const [mobileTab, setMobileTab] = useState<MobileTab>("play");
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Codex Deep Linking
   const [codexSearchTerm, setCodexSearchTerm] = useState("");
@@ -436,6 +437,21 @@ export default function App() {
           if (line.startsWith("data: ")) {
             const data = JSON.parse(line.slice(6));
 
+            // Roll result - update mechanics immediately to show success/failure
+            if (data.mechanics) {
+              setGameState((prev) => {
+                const turns = [...prev.turns];
+                const lastTurn = turns[turns.length - 1];
+                if (lastTurn) {
+                  turns[turns.length - 1] = {
+                    ...lastTurn,
+                    mechanics: data.mechanics,
+                  };
+                }
+                return { ...prev, turns };
+              });
+            }
+
             if (data.text) {
               // Streaming chunk - append to narration
               setGameState((prev) => {
@@ -617,15 +633,16 @@ export default function App() {
   const handleViewLore = (locationName: string) => {
     setCodexSearchTerm(locationName);
     setView("codex");
-    setMobileTab("codex");
   };
 
   // Mobile Nav Handler to switch views or tabs
   const handleMobileNav = (tab: MobileTab) => {
-    setMobileTab(tab);
-    if (tab === "map") setView("map");
-    if (tab === "codex") setView("codex");
-    if (tab === "play" || tab === "sheet") setView("game");
+    if (tab === "menu") {
+      setShowMobileMenu(true);
+    } else {
+      setMobileTab(tab);
+      setShowMobileMenu(false);
+    }
   };
 
   return (
@@ -791,36 +808,20 @@ export default function App() {
             {/* Right Side (World Memory) */}
             <div
               className={`${
-                mobileTab === "map" || mobileTab === "codex"
-                  ? "block"
-                  : "hidden"
+                mobileTab === "world" ? "block" : "hidden"
               } md:block h-full relative z-10 border-l-2 border-parchment-800 shadow-[-2px_0_10px_rgba(0,0,0,0.1)] transition-colors duration-300 overflow-hidden`}
             >
-              {/* On Desktop: Show World Memory. On Mobile: Show Map/Codex if selected */}
-              <div className="md:block hidden h-full">
-                <RightColumn
-                  world={gameState.world}
-                  diffs={diffLog}
-                  npcs={gameState.npcs}
-                />
-              </div>
-              <div className="md:hidden h-full">
-                {mobileTab === "map" && (
-                  <MapPage
-                    onTravel={handleTravel}
-                    onViewLore={handleViewLore}
-                  />
-                )}
-                {mobileTab === "codex" && (
-                  <CodexPage initialSearchTerm={codexSearchTerm} />
-                )}
-              </div>
+              <RightColumn
+                world={gameState.world}
+                diffs={diffLog}
+                npcs={gameState.npcs}
+              />
             </div>
           </div>
         )}
       </main>
 
-      {/* Mobile Game Nav (4 Tabs) */}
+      {/* Mobile Game Nav (4 Tabs: Hero, Play, World, Menu) */}
       {view === "game" && (
         <nav className="md:hidden h-16 bg-parchment-200 border-t-2 border-parchment-800 flex justify-around items-center shrink-0 z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.1)] transition-colors duration-300">
           <button
@@ -846,28 +847,56 @@ export default function App() {
             <span className="text-[10px] font-small-caps">Play</span>
           </button>
           <button
-            onClick={() => handleMobileNav("map")}
+            onClick={() => handleMobileNav("world")}
             className={`flex flex-col items-center gap-1 w-16 ${
-              mobileTab === "map"
+              mobileTab === "world"
                 ? "text-burgundy scale-110 font-bold"
                 : "text-ink-faint"
             }`}
           >
-            <MapIcon size={20} />
-            <span className="text-[10px] font-small-caps">Map</span>
+            <Globe size={20} />
+            <span className="text-[10px] font-small-caps">World</span>
           </button>
           <button
-            onClick={() => handleMobileNav("codex")}
-            className={`flex flex-col items-center gap-1 w-16 ${
-              mobileTab === "codex"
-                ? "text-burgundy scale-110 font-bold"
-                : "text-ink-faint"
-            }`}
+            onClick={() => handleMobileNav("menu")}
+            className="flex flex-col items-center gap-1 w-16 text-ink-faint"
           >
-            <Book size={20} />
-            <span className="text-[10px] font-small-caps">Codex</span>
+            <Menu size={20} />
+            <span className="text-[10px] font-small-caps">Menu</span>
           </button>
         </nav>
+      )}
+
+      {/* Mobile Menu Overlay */}
+      {showMobileMenu && (
+        <div className="md:hidden fixed inset-0 z-[100] bg-black/50" onClick={() => setShowMobileMenu(false)}>
+          <div 
+            className="absolute bottom-16 left-0 right-0 bg-parchment-200 border-t-2 border-parchment-800 p-4 space-y-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => { setView("map"); setShowMobileMenu(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-ink hover:bg-parchment-300 rounded-sm transition-colors"
+            >
+              <MapIcon size={20} />
+              <span className="font-serif">Map</span>
+            </button>
+            <button
+              onClick={() => { setView("codex"); setShowMobileMenu(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-ink hover:bg-parchment-300 rounded-sm transition-colors"
+            >
+              <Book size={20} />
+              <span className="font-serif">Codex</span>
+            </button>
+            <button
+              onClick={() => { handleOpenProfile(); setShowMobileMenu(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-ink hover:bg-parchment-300 rounded-sm transition-colors"
+            >
+              <Settings size={20} />
+              <span className="font-serif">Settings</span>
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Trace Modal */}

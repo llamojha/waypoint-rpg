@@ -3,7 +3,7 @@ import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { dbToCharacter, dbToWorld } from "@/lib/supabase/transforms";
 import { buildTurnPrompt, RollOutcome } from "@/lib/gemini/prompts";
 import { generateTurn } from "@/lib/gemini/client";
-import { validateEvents } from "@/lib/turn/validate";
+import { validateEvents, ValidationContext } from "@/lib/turn/validate";
 import { applyEvents } from "@/lib/turn/apply";
 import { detectIntent } from "@/lib/mechanics/detect";
 import { calculateTotalModifier } from "@/lib/mechanics/modifiers";
@@ -268,9 +268,13 @@ export async function POST(request: NextRequest) {
       ? FALLBACK_NARRATION 
       : geminiResponse.narration;
 
+    // Build validation context with valid locations
+    const validLocations = [world.poi, ...(world.nearbyPoi || [])];
+    const validationContext: ValidationContext = { validLocations };
+
     const validatedEvents = outputFilter.status === "block" 
       ? [] 
-      : validateEvents(geminiResponse.proposed_events, character);
+      : validateEvents(geminiResponse.proposed_events, character, validationContext);
     const { characterUpdates, worldUpdates, diffs, questChanges, relationshipChanges } = outputFilter.status === "block"
       ? { characterUpdates: {}, worldUpdates: {}, diffs: [] as TurnDiff[], questChanges: [], relationshipChanges: [] }
       : applyEvents(character, world, validatedEvents);
@@ -392,9 +396,14 @@ async function handleRollResolution(
   );
   const geminiResponse = await generateTurn(prompt);
 
+  // Build validation context with valid locations
+  const validLocations = [world.poi, ...(world.nearbyPoi || [])];
+  const validationContext: ValidationContext = { validLocations };
+
   const validatedEvents = validateEvents(
     geminiResponse.proposed_events,
-    character
+    character,
+    validationContext
   );
   const { characterUpdates, worldUpdates, diffs, questChanges, relationshipChanges } = applyEvents(
     character,

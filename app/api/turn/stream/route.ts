@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { dbToCharacter, dbToWorld } from "@/lib/supabase/transforms";
 import { buildTurnPrompt, RollOutcome, NPCForPrompt } from "@/lib/gemini/prompts";
 import { generateTurnStream, StreamMetadata } from "@/lib/gemini/stream";
-import { validateEvents } from "@/lib/turn/validate";
+import { validateEvents, ValidationContext } from "@/lib/turn/validate";
 import { applyEvents } from "@/lib/turn/apply";
 import { detectIntent } from "@/lib/mechanics/detect";
 import { calculateTotalModifier } from "@/lib/mechanics/modifiers";
@@ -227,10 +227,18 @@ export async function POST(request: Request) {
             );
           }
 
+          // Build validation context with valid locations
+          const validLocations = [
+            world.poi, // Current location
+            ...(world.nearbyPoi || []), // Nearby POIs
+          ];
+          const validationContext: ValidationContext = { validLocations };
+
           // Validate and apply events
           const validatedEvents = validateEvents(
             metadata.proposed_events,
-            character
+            character,
+            validationContext
           );
           const { characterUpdates, worldUpdates, diffs, questChanges, relationshipChanges } = applyEvents(
             character,
@@ -462,6 +470,13 @@ async function handleRollStream(
       };
 
       try {
+        // Send roll result immediately so UI shows success/failure before narration
+        controller.enqueue(
+          encoder.encode(
+            `event: roll\ndata: ${JSON.stringify({ mechanics: updatedMechanics })}\n\n`
+          )
+        );
+
         const generator = generateTurnStream(prompt);
 
         while (true) {
@@ -478,9 +493,17 @@ async function handleRollStream(
           );
         }
 
+        // Build validation context with valid locations
+        const validLocations = [
+          world.poi,
+          ...(world.nearbyPoi || []),
+        ];
+        const validationContext: ValidationContext = { validLocations };
+
         const validatedEvents = validateEvents(
           metadata.proposed_events,
-          character
+          character,
+          validationContext
         );
         const { characterUpdates, worldUpdates, diffs, questChanges, relationshipChanges } = applyEvents(
           character,

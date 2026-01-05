@@ -275,11 +275,30 @@ function validateQuestProgress(event: QuestProgressEvent): boolean {
 
 /**
  * Validates a location_change event
+ * - Location must be in the list of valid locations (if provided)
  */
-function validateLocationChange(event: LocationChangeEvent): boolean {
+function validateLocationChange(
+  event: LocationChangeEvent,
+  validLocations?: string[]
+): boolean {
   if (typeof event.location !== "string" || event.location.trim() === "") {
     return false;
   }
+  
+  // If valid locations provided, enforce the constraint
+  if (validLocations && validLocations.length > 0) {
+    const locationLower = event.location.toLowerCase();
+    const isValid = validLocations.some(
+      (loc) => loc.toLowerCase() === locationLower
+    );
+    if (!isValid) {
+      console.warn(
+        `[Validator] Rejected location_change to "${event.location}" - not in valid locations: ${validLocations.join(", ")}`
+      );
+      return false;
+    }
+  }
+  
   return true;
 }
 
@@ -310,9 +329,20 @@ function validateCombatEnd(event: CombatEndEvent): boolean {
 }
 
 /**
+ * Validation context - additional data needed for validation
+ */
+export interface ValidationContext {
+  validLocations?: string[]; // Valid POI names for location_change
+}
+
+/**
  * Validates a single proposed event
  */
-function validateEvent(event: ProposedEvent, character: Character): boolean {
+function validateEvent(
+  event: ProposedEvent,
+  character: Character,
+  context?: ValidationContext
+): boolean {
   // All events must have a type
   if (!event || typeof event.type !== "string") {
     return false;
@@ -341,7 +371,10 @@ function validateEvent(event: ProposedEvent, character: Character): boolean {
       return validateQuestProgress(event as QuestProgressEvent);
 
     case "location_change":
-      return validateLocationChange(event as LocationChangeEvent);
+      return validateLocationChange(
+        event as LocationChangeEvent,
+        context?.validLocations
+      );
 
     case "combat_damage":
       return validateCombatDamage(event as CombatDamageEvent);
@@ -364,14 +397,16 @@ function validateEvent(event: ProposedEvent, character: Character): boolean {
  * - 5.2: Gold changes don't go negative
  * - 5.3: Inventory items have required fields (name and type)
  * - 5.4: Invalid state changes are rejected silently
+ * - Location changes must be to valid locations (if context provided)
  */
 export function validateEvents(
   events: ProposedEvent[],
-  character: Character
+  character: Character,
+  context?: ValidationContext
 ): ValidatedEvent[] {
   if (!Array.isArray(events)) {
     return [];
   }
 
-  return events.filter((event) => validateEvent(event, character));
+  return events.filter((event) => validateEvent(event, character, context));
 }

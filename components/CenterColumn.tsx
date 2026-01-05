@@ -169,7 +169,7 @@ export const CenterColumn: React.FC<Props> = ({
             placeholder={
               turnStatus === "processing"
                 ? "Wait for the ink to dry..."
-                : "Write your next action..."
+                : "Speak, act, or both..."
             }
             rows={2}
             className={`flex-1 bg-parchment-100 border border-parchment-400 rounded-sm p-3 text-ink font-serif text-base leading-relaxed focus:ring-1 focus:ring-gold focus:border-gold focus:outline-none resize-none placeholder-ink-faint transition-all ${
@@ -301,12 +301,11 @@ const MechanicsCard: React.FC<{
   // Animation Logic
   const handleRollClick = () => {
     setIsRolling(true);
-    const startTime = Date.now();
-    const duration = 800; // 0.8s roll duration
+    const duration = 1500; // 1.5s roll duration
 
     const interval = setInterval(() => {
       setDisplayVal(Math.floor(Math.random() * 20) + 1);
-    }, 50);
+    }, 150); // ~6-7 fps, readable number changes
 
     setTimeout(() => {
       clearInterval(interval);

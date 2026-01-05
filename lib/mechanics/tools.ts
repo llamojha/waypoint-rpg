@@ -47,7 +47,7 @@ export const detectIntentTool = createTool(
       },
       dc: {
         type: Type.NUMBER,
-        description: "Difficulty class if roll required (10-25)",
+        description: "Difficulty class if roll required (5-25, where 5=trivial, 10=moderate, 15=hard, 20=heroic)",
       },
       denial_reason: {
         type: Type.STRING,
