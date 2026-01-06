@@ -50,8 +50,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const { error: authError } = await signInWithPassword(email.trim(), password);
         if (authError) {
           setError(formatAuthError(authError));
+        } else {
+          handleClose();
         }
-        // On success, auth state change will handle redirect
       } else {
         const { error: authError } = await signInWithEmail(email.trim());
         if (authError) {
