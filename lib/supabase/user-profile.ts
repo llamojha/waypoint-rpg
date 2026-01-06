@@ -28,7 +28,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 }
 
 export function isWaitlistMode(): boolean {
-  return process.env.NEXT_PUBLIC_WAITLIST_MODE === "true";
+  return process.env.NEXT_PUBLIC_WAITLIST_MODE !== "false";
 }
 
 export async function canUserPlay(): Promise<{ allowed: boolean; reason?: string }> {

@@ -81,15 +81,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       {/* Modal */}
       <div className="relative w-full max-w-md mx-4 bg-parchment-200 border-2 border-parchment-600 rounded-sm shadow-2xl panel-texture animate-fade-in">
-        {/* Close Button */}
-        <button
-          onClick={handleClose}
-          className="absolute top-3 right-3 p-1.5 text-ink-faint hover:text-ink hover:bg-parchment-300 rounded-sm transition-colors"
-          aria-label="Close"
-        >
-          <X size={18} />
-        </button>
-
         {/* Content */}
         <div className="p-8">
           {success ? (
@@ -150,28 +141,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </form>
 
-              {/* Divider */}
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex-1 h-px bg-parchment-400" />
-                <span className="text-xs font-bold font-small-caps text-ink-faint uppercase tracking-widest">
-                  Or continue with
-                </span>
-                <div className="flex-1 h-px bg-parchment-400" />
-              </div>
 
-              {/* OAuth Buttons */}
-              <div className="space-y-3">
-                <OAuthButton
-                  provider="google"
-                  onClick={() => handleOAuthSignIn("google")}
-                  disabled={isLoading}
-                />
-                <OAuthButton
-                  provider="discord"
-                  onClick={() => handleOAuthSignIn("discord")}
-                  disabled={isLoading}
-                />
-              </div>
             </>
           )}
         </div>
