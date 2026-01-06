@@ -9,6 +9,7 @@
  * - {{SCENE}} - Scene description
  * - {{CHARACTER_SKILLS}} - Formatted list of character's trained skills
  * - {{SKILL_TREE}} - Full skill tree with power words by tier
+ * - {{MAGIC_STATUS}} - Whether magic is available to the character
  */
 
 export const INTENT_DETECTION_PROMPT = `Analyze this player action to determine if a skill check is needed.
@@ -24,6 +25,8 @@ CHARACTER SKILLS (current levels):
 
 SKILL TREE (for power word detection):
 {{SKILL_TREE}}
+
+{{MAGIC_STATUS}}
 
 RULES:
 - ONLY set requires_roll=true if the player uses a POWER WORD from the skill tree above
@@ -49,13 +52,18 @@ export function buildIntentPrompt(
   region: string,
   scene: string,
   characterSkills: string,
-  skillTree: string
+  skillTree: string,
+  isMagicUnlocked: boolean
 ): string {
-  return INTENT_DETECTION_PROMPT
-    .replace("{{PLAYER_ACTION}}", playerAction)
+  const magicStatus = isMagicUnlocked
+    ? "MAGIC: Character has unlocked magical abilities."
+    : "MAGIC: Character has NOT unlocked magic. Any magic-related actions should be denied with denial_reason explaining they have no magical knowledge.";
+
+  return INTENT_DETECTION_PROMPT.replace("{{PLAYER_ACTION}}", playerAction)
     .replace("{{LOCATION}}", location)
     .replace("{{REGION}}", region)
     .replace("{{SCENE}}", scene)
     .replace("{{CHARACTER_SKILLS}}", characterSkills)
-    .replace("{{SKILL_TREE}}", skillTree);
+    .replace("{{SKILL_TREE}}", skillTree)
+    .replace("{{MAGIC_STATUS}}", magicStatus);
 }

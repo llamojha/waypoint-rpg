@@ -359,7 +359,7 @@ const MechanicsCard: React.FC<{
         </div>
         <div className="flex justify-between items-center">
           <span>Stat Modifier:</span>
-          <span className="text-ink font-bold">+{mechanics.modifier || 2}</span>
+          <span className="text-ink font-bold">+{mechanics.modifier ?? 0}</span>
         </div>
 
         {/* Result or Action Area */}
@@ -379,10 +379,8 @@ const MechanicsCard: React.FC<{
                 d20 (
                 {isRolling
                   ? displayVal
-                  : mechanics.rolled
-                  ? mechanics.rolled - (mechanics.modifier || 2)
-                  : 0}
-                ) + {mechanics.modifier || 2} =
+                  : mechanics.rolled ?? 0}
+                ) + {mechanics.modifier || 0} =
                 <span
                   className={`ml-1 ${
                     isRolling
@@ -393,8 +391,8 @@ const MechanicsCard: React.FC<{
                   }`}
                 >
                   {isRolling
-                    ? displayVal + (mechanics.modifier || 2)
-                    : mechanics.rolled}
+                    ? displayVal + (mechanics.modifier || 0)
+                    : mechanics.total ?? (mechanics.rolled ?? 0) + (mechanics.modifier ?? 0)}
                 </span>
               </span>
             </>

@@ -10,10 +10,11 @@ RULES:
 - Keep narration to 2-4 paragraphs
 - Maintain PG-13 fantasy tone
 - Only propose changes that make sense for the action
-- Be consistent with the world context provided
+- CRITICAL: The CURRENT LOCATION provided is authoritative. The player IS at that location regardless of what recent events mention.
 - Do not reference items the character doesn't have
 - NPCs should behave according to their personality traits
 - When talking to NPCs, reflect their personality in dialogue
+- Only NPCs listed in "NPCS PRESENT" are at the current location. Other NPCs from history are NOT present unless listed.
 
 RESPONSE FORMAT:
 Return a JSON object with exactly these fields:

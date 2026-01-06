@@ -213,6 +213,41 @@ export async function POST(request: NextRequest) {
     // Detect intent and mechanics
     const intent = await detectIntent(playerAction, character, world);
 
+    // Handle denied actions (e.g., magic when not unlocked)
+    if (intent.denial_reason) {
+      const denialNarration = intent.denial_reason;
+
+      // Insert turn with denial narration
+      const { data: turnRow, error: turnInsertError } = await supabase
+        .from("waypoint_turns")
+        .insert({
+          character_id: characterId,
+          player_action: playerAction,
+          narration: denialNarration,
+          diffs: [],
+          suggested_actions: ["Look around", "Try something else"],
+          mechanics: null,
+        })
+        .select()
+        .single();
+
+      if (turnInsertError) {
+        return NextResponse.json(
+          { error: "Failed to save turn" },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        turn: {
+          id: turnRow.id,
+          narration: denialNarration,
+          diffs: [],
+          suggestedActions: ["Look around", "Try something else"],
+        },
+      });
+    }
+
     // If action requires a roll, create pending turn
     if (intent.requires_roll && intent.dc) {
       const skillLevel = character.skills[intent.primary_skill]?.level || 0;
@@ -373,6 +408,7 @@ async function handleRollResolution(
   const updatedMechanics: Turn["mechanics"] = {
     ...mechanics,
     rolled: checkResult.rolled,
+    total: checkResult.total,
     outcome: checkResult.outcome,
   };
 

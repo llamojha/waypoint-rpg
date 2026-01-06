@@ -15,6 +15,7 @@ export interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   signInWithEmail: (email: string) => Promise<{ error: AuthError | null }>;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signInWithOAuth: (provider: "google" | "discord") => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -65,6 +66,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     []
   );
 
+  const signInWithPassword = useCallback(
+    async (email: string, password: string): Promise<{ error: AuthError | null }> => {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      return { error };
+    },
+    []
+  );
+
   const signInWithOAuth = useCallback(
     async (provider: "google" | "discord"): Promise<void> => {
       const supabase = createClient();
@@ -88,6 +101,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user,
     isLoading,
     signInWithEmail,
+    signInWithPassword,
     signInWithOAuth,
     signOut,
   };

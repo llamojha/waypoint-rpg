@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Mail, Loader2 } from "lucide-react";
+import { X, Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth/use-auth";
 import { validateEmail } from "@/lib/auth/validation";
 import { formatAuthError } from "@/lib/auth/error-utils";
@@ -19,8 +19,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   redirectTo,
   isWaitlist = false,
 }) => {
-  const { signInWithEmail, signInWithOAuth } = useAuth();
+  const { signInWithEmail, signInWithPassword, signInWithOAuth } = useAuth();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [usePassword, setUsePassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -39,11 +41,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     setIsLoading(true);
     try {
-      const { error: authError } = await signInWithEmail(email.trim());
-      if (authError) {
-        setError(formatAuthError(authError));
+      if (usePassword) {
+        if (!password) {
+          setError("Password is required");
+          setIsLoading(false);
+          return;
+        }
+        const { error: authError } = await signInWithPassword(email.trim(), password);
+        if (authError) {
+          setError(formatAuthError(authError));
+        }
+        // On success, auth state change will handle redirect
       } else {
-        setSuccess(true);
+        const { error: authError } = await signInWithEmail(email.trim());
+        if (authError) {
+          setError(formatAuthError(authError));
+        } else {
+          setSuccess(true);
+        }
       }
     } catch (err: unknown) {
       setError(formatAuthError(err as Error));
@@ -65,6 +80,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleClose = () => {
     setEmail("");
+    setPassword("");
+    setUsePassword(false);
     setError(null);
     setSuccess(false);
     setIsLoading(false);
@@ -125,6 +142,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     className="w-full pl-10 pr-4 py-3 bg-parchment-100 border-2 border-parchment-400 rounded-sm text-ink font-serif focus:border-gold focus:outline-none placeholder-ink-faint disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
+
+                {/* Password field (toggle) */}
+                {usePassword && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-bold font-small-caps text-ink-light mb-2 uppercase tracking-widest">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <Lock
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint"
+                      />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        disabled={isLoading}
+                        className="w-full pl-10 pr-4 py-3 bg-parchment-100 border-2 border-parchment-400 rounded-sm text-ink font-serif focus:border-gold focus:outline-none placeholder-ink-faint disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -136,9 +177,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <span>Sending...</span>
                     </>
                   ) : (
-                    <span>{isWaitlist ? "Join Waitlist" : "Send Magic Link"}</span>
+                    <span>{isWaitlist ? "Join Waitlist" : usePassword ? "Sign In" : "Send Magic Link"}</span>
                   )}
                 </button>
+
+                {/* Toggle password mode */}
+                {!isWaitlist && (
+                  <button
+                    type="button"
+                    onClick={() => setUsePassword(!usePassword)}
+                    className="w-full mt-2 text-sm text-ink-light hover:text-ink underline"
+                  >
+                    {usePassword ? "Use magic link instead" : "Sign in with password"}
+                  </button>
+                )}
               </form>
 
 

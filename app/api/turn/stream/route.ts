@@ -128,6 +128,42 @@ export async function POST(request: Request) {
 
     const intent = await detectIntent(playerAction, character, world);
 
+    // Handle denied actions (e.g., magic when not unlocked)
+    if (intent.denial_reason) {
+      const denialNarration = intent.denial_reason;
+
+      const { data: turnRow, error: insertErr } = await supabase
+        .from("waypoint_turns")
+        .insert({
+          character_id: characterId,
+          player_action: playerAction,
+          narration: denialNarration,
+          diffs: [],
+          suggested_actions: ["Look around", "Try something else"],
+          mechanics: null,
+        })
+        .select()
+        .single();
+
+      if (insertErr) {
+        return new Response(JSON.stringify({ error: "Failed to save turn" }), {
+          status: 500,
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          turn: {
+            id: turnRow.id,
+            narration: denialNarration,
+            diffs: [],
+            suggestedActions: ["Look around", "Try something else"],
+          },
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     // If roll required, return pending (non-streaming)
     if (intent.requires_roll && intent.dc) {
       const skillLevel = character.skills[intent.primary_skill]?.level || 0;
@@ -415,6 +451,7 @@ async function handleRollStream(
   const updatedMechanics: Turn["mechanics"] = {
     ...mechanics,
     rolled: checkResult.rolled,
+    total: checkResult.total,
     outcome: checkResult.outcome,
   };
 

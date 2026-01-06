@@ -132,7 +132,7 @@ export function buildTurnPrompt(
   rollOutcome?: RollOutcome,
   npcsPresent?: NPCForPrompt[]
 ): string {
-  // Take only the last 10 turns
+  // Use large context window - Gemini supports long history
   const lastTurns = recentTurns.slice(-100);
 
   let rollContext = "";

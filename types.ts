@@ -131,6 +131,7 @@ export interface Turn {
     dc: number;
     rolled?: number;
     modifier?: number;
+    total?: number;
     outcome?: "success" | "failure";
   };
   suggestedActions: string[];
