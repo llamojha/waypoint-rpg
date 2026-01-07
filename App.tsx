@@ -451,11 +451,16 @@ export default function App() {
 
         for (const line of lines) {
           if (line.startsWith("event: ")) {
-            const eventType = line.slice(7).trim();
             continue;
           }
           if (line.startsWith("data: ")) {
-            const data = JSON.parse(line.slice(6));
+            let data;
+            try {
+              data = JSON.parse(line.slice(6));
+            } catch (e) {
+              console.error("Failed to parse SSE data:", line);
+              continue;
+            }
 
             // Roll result - update mechanics immediately to show success/failure
             if (data.mechanics) {
@@ -542,24 +547,20 @@ export default function App() {
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         console.log("Turn cancelled by user");
-        setTurnStatus("idle");
+        // Cancel handler already cleans up state
+        return;
       } else {
         console.error("Turn processing failed:", error);
-        // Update the last turn with the error message as narration
-        const errorMessage = error instanceof Error ? error.message : "Something went wrong.";
+        // Remove only the last streaming turn and show error state
         setGameState((prev) => {
-          const turns = [...prev.turns];
-          const lastTurn = turns[turns.length - 1];
-          if (lastTurn && lastTurn.isStreaming) {
-            turns[turns.length - 1] = {
-              ...lastTurn,
-              narration: errorMessage,
-              isStreaming: false,
-            };
-          }
-          return { ...prev, turns };
+          const lastStreamingIndex = prev.turns.findLastIndex((t) => t.isStreaming);
+          if (lastStreamingIndex === -1) return prev;
+          return {
+            ...prev,
+            turns: prev.turns.filter((_, i) => i !== lastStreamingIndex),
+          };
         });
-        setTurnStatus("idle");
+        setTurnStatus("error");
       }
     }
   };
@@ -598,7 +599,14 @@ export default function App() {
   const handleCancel = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
+    // Remove incomplete streaming turns with no narration
+    setGameState((prev) => ({
+      ...prev,
+      turns: prev.turns.filter((t) => !t.isStreaming || (t.narration || "").trim() !== ""),
+    }));
+    setTurnStatus("idle");
   };
 
   const handleRoll = async (turnId: string) => {

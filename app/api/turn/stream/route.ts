@@ -828,15 +828,15 @@ async function updateRelationshipState(
         .maybeSingle();
 
       if (existing) {
-        // Update existing relationship (clamped to -5 to +5)
-        const newRelationship = Math.max(-5, Math.min(5, existing.relationship + change.delta));
+        // Update existing relationship (clamped to -25 to +25)
+        const newRelationship = Math.max(-25, Math.min(25, existing.relationship + change.delta));
         await supabase
           .from("waypoint_character_npcs")
           .update({ relationship: newRelationship })
           .eq("id", existing.id);
       } else {
         // Create new relationship
-        const newRelationship = Math.max(-5, Math.min(5, change.delta));
+        const newRelationship = Math.max(-25, Math.min(25, change.delta));
         await supabase
           .from("waypoint_character_npcs")
           .insert({

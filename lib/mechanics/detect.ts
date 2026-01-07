@@ -76,6 +76,29 @@ export async function detectIntent(
     };
   }
 
+  // For non-roll actions (dialogue, looking, etc.), NEVER deny - just proceed to narration
+  // Denial should only happen for contextually impossible actions (locked door, etc.)
+  if (!result.requires_roll) {
+    return {
+      primary_skill: result.primary_skill,
+      power_words: result.power_words || [],
+      tier: result.tier || 1,
+      bonus: result.bonus || 0,
+      requires_roll: false,
+      dc: undefined,
+      denial_reason: undefined, // Never deny non-roll actions
+    };
+  }
+
+  // For roll actions, only allow denial for contextual impossibilities
+  // Filter out LLM mistakes like "not using power words"
+  const invalidDenialPatterns = [
+    "power word", "no skill", "regular dialogue", "not a magic user",
+    "cannot cast", "not using any", "no action", "just talking", "conversation",
+  ];
+  const isInvalidDenial = result.denial_reason && 
+    invalidDenialPatterns.some(p => result.denial_reason!.toLowerCase().includes(p));
+
   // Ensure defaults for optional fields
   return {
     primary_skill: result.primary_skill,
@@ -84,6 +107,6 @@ export async function detectIntent(
     bonus: result.bonus || 0,
     requires_roll: result.requires_roll,
     dc: result.dc,
-    denial_reason: result.denial_reason,
+    denial_reason: isInvalidDenial ? undefined : result.denial_reason,
   };
 }

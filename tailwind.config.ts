@@ -41,6 +41,11 @@ const config: Config = {
           DEFAULT: "var(--burgundy)",
           dim: "var(--burgundy-dim)",
         },
+        error: {
+          DEFAULT: "#dc2626",
+          light: "#fef2f2",
+          border: "#f87171",
+        },
         forest: {
           DEFAULT: "var(--forest)",
           dim: "var(--forest-dim)",

@@ -86,10 +86,43 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 
 **🎮 CHECKPOINT 3**: Full agent architecture with proper validation.
 
+#### Spec Details (Hub-and-Spoke Architecture):
+
+**4.1 `orchestrator-arbiter`**
+- Orchestrator becomes central coordinator (the hub)
+- Receives intent from Rune Marshal, dispatches targeted queries to spokes
+- Arbiter validates proposed events against rules/canon
+- Arbiter can modify events (cap damage, fix rarity) not just reject
+- Rune Marshal no longer returns `denial_reason` - only mechanics
+
+**4.2 `lorekeeper`**
+- Spoke agent: receives targeted queries from Orchestrator
+- "What do we know about these guards?" not "fetch all canon"
+- Returns canon snippets relevant to the specific intent
+- Runs in parallel with Arbiter (Phase 3 of pipeline)
+
+**4.3 `agent-pipeline`**
+- Wire up hub-and-spoke flow:
+  1. Rune Marshal (intent) → 
+  2. Orchestrator (dispatch) → 
+  3. [Lorekeeper, Arbiter] parallel → 
+  4. Orchestrator (collect) → 
+  5. Chronicler (narrate)
+- Chronicler only narrates approved events
+- No more meta-commentary in narration
+
+**4.4 `conversation-compression`**
+- Compress turn history when changing locations
+- Generate summaries for context management
+- Stay within token budget for long sessions
+
 #### Checkpoint 3 Checklist:
-- [ ] Orchestrator proposes events via tool calling
+- [ ] Rune Marshal detects intent without denying actions
+- [ ] Orchestrator dispatches targeted queries to spokes
+- [ ] Lorekeeper + Arbiter run in parallel
+- [ ] Orchestrator collects responses and proposes events
 - [ ] Arbiter validates/rejects/modifies events
-- [ ] Lorekeeper provides canon context to prompts
+- [ ] Chronicler only narrates approved events (no meta-commentary)
 - [ ] NPCs appear correctly at their locations
 - [ ] Invalid location changes rejected
 - [ ] Conversation compression working for long sessions

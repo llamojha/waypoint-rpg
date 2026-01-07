@@ -15,6 +15,9 @@ RULES:
 - NPCs should behave according to their personality traits
 - When talking to NPCs, reflect their personality in dialogue
 - Only NPCs listed in "NPCS PRESENT" are at the current location. Other NPCs from history are NOT present unless listed.
+- NEVER write meta-commentary about the player's input (e.g., "The player is speaking" or "No power words detected")
+- ALWAYS respond with in-world narration, even for dialogue - describe how NPCs react or how the words echo in the space
+- If the player speaks dialogue, narrate them saying it and show NPC reactions or environmental response
 
 RESPONSE FORMAT:
 Return a JSON object with exactly these fields:

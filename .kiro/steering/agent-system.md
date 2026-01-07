@@ -1,48 +1,56 @@
-# Agent System (A2A Architecture with Tool Calling)
+# Agent System (Hub-and-Spoke Architecture with Tool Calling)
 
 ## Overview
 
-Waypoint uses a multi-agent pipeline where each agent has a single responsibility. Agents communicate via Gemini tool calling (function calling) for typed, schema-enforced I/O — no agent can directly mutate game state.
+Waypoint uses a hub-and-spoke agent architecture where the **Orchestrator** acts as the central coordinator. Agents communicate via Gemini tool calling (function calling) for typed, schema-enforced I/O — no agent can directly mutate game state.
 
 ## Tool Calling Strategy
 
 | Agent            | Uses Tool Calling? | Reason                        |
 | ---------------- | ------------------ | ----------------------------- |
-| Lorekeeper       | ✅ Yes             | Typed codex queries           |
 | Rune Marshal     | ✅ Yes             | Typed intent detection        |
-| Orchestrator     | ✅ Yes             | Multiple event proposal tools |
+| Orchestrator     | ✅ Yes             | Dispatches to specialists     |
+| Lorekeeper       | ✅ Yes             | Typed codex queries           |
 | World Arbiter    | ✅ Yes             | Typed validation decisions    |
 | Chronicler       | ❌ No (JSON mode)  | Free-form prose output        |
 | Content Sentinel | ❌ No              | Deterministic filtering       |
 
-## Agent Pipeline Flow
+## Agent Pipeline Flow (Hub-and-Spoke)
 
 ```
 User Input
     │
     ▼
 ┌─────────────────┐
-│   Lorekeeper    │ ◄── Query canon/codex
-└────────┬────────┘
-         │ canon_snippets[]
-         ▼
-┌─────────────────┐
 │  Rune Marshal   │ ◄── Detect intent, power words, determine checks
 └────────┬────────┘
-         │ mechanics (roll_type, DC, modifiers)
+         │ intent { skill, dc, requires_roll }
          ▼
 ┌─────────────────┐
-│  Orchestrator   │ ◄── Propose state changes
+│  Orchestrator   │ ◄── Central coordinator (THE HUB)
+│    (Hub)        │
 └────────┬────────┘
-         │ proposed_events[]
-         ▼
+         │
+         │ Dispatches targeted queries based on intent
+         │
+    ┌────┴────┬────────────┐
+    ▼         ▼            ▼
+┌────────┐ ┌────────┐ ┌──────────┐
+│Lore-   │ │World   │ │ Other    │  ◄── PARALLEL (spokes)
+│keeper  │ │Arbiter │ │Validators│
+└────┬───┘ └────┬───┘ └────┬─────┘
+     │          │          │
+     └──────────┴──────────┘
+                │
+                ▼ collected responses
 ┌─────────────────┐
-│ World Arbiter   │ ◄── Validate against canon/state
+│  Orchestrator   │ ◄── Collects answers, builds context
+│  (Hub returns)  │
 └────────┬────────┘
-         │ approved_events[]
+         │ approved_events[] + context
          ▼
 ┌─────────────────┐
-│   Chronicler    │ ◄── Generate narration
+│   Chronicler    │ ◄── Generate narration from approved events
 └────────┬────────┘
          │ prose + summary
          ▼
@@ -54,48 +62,33 @@ User Input
     UI / Client
 ```
 
+## Key Design Principles
+
+### Why Hub-and-Spoke?
+
+1. **Intent-Driven Queries**: Orchestrator knows what the player wants before querying specialists
+2. **Efficient**: Only fetch relevant canon/validation (no wasted tokens)
+3. **Parallel Resolution**: Lorekeeper + Arbiter + other validators run simultaneously
+4. **Single Coordinator**: Orchestrator is the brain, others are specialists
+5. **Extensible**: Add new validators without changing the flow
+
+### Agent Responsibilities
+
+| Agent | Does | Does NOT |
+|-------|------|----------|
+| Rune Marshal | Detect intent, skills, DC | Deny actions, narrate |
+| Orchestrator | Coordinate, propose events, collect answers | Validate rules, generate prose |
+| Lorekeeper | Fetch canon facts | Make decisions |
+| World Arbiter | Validate/reject/modify events | Propose events |
+| Chronicler | Generate narration | Make game decisions |
+
 ## Agent Specifications
 
-### 1. Lorekeeper (Read-Only Knowledge)
+### 1. Rune Marshal (Intent Detection) — First in Pipeline
 
-**Purpose**: Retrieve relevant canon and lore for current context
+**Purpose**: Parse player intent, detect power words, determine if skill check needed
 
-**Input**:
-
-```typescript
-{
-  scene: WorldContext,
-  query: string,           // Derived from user action
-  entity_refs: string[]    // NPCs, locations, items mentioned
-}
-```
-
-**Output**:
-
-```typescript
-{
-  canon_snippets: Array<{
-    source_id: string,     // Codex entry ID
-    text: string,
-    relevance: number      // 0-1 score
-  }>,
-  known_facts: string      // Summary for other agents
-}
-```
-
-**Rules**:
-
-- Read-only — no state changes
-- No decisions or interpretations
-- Returns raw facts for other agents to use
-
-**Temperature**: 0.1 (deterministic retrieval)
-
----
-
-### 2. Rune Marshal (Mechanics & Intent) — Tool Calling
-
-**Purpose**: Parse player intent, detect power words, determine skill checks
+**Position**: FIRST — runs before Orchestrator to establish intent
 
 **Tool Declaration**:
 
@@ -114,7 +107,6 @@ export const detectIntentTool: FunctionDeclaration = {
       bonus: { type: Type.NUMBER },
       requires_roll: { type: Type.BOOLEAN },
       dc: { type: Type.NUMBER },
-      denial_reason: { type: Type.STRING },
     },
     required: ["primary_skill", "requires_roll"],
   },
@@ -385,70 +377,80 @@ export const validateEventTool: FunctionDeclaration = {
 ```
 User Input
     │
-    ├──────────────────┐
-    ▼                  ▼
-Lorekeeper        Rune Marshal     ◄── PARALLEL (no dependencies)
-    │                  │
-    └────────┬─────────┘
-             ▼
-        Orchestrator               ◄── Waits for both
-             │
-             ▼
-       World Arbiter
-             │
-             ▼
-        Chronicler
-             │
-             ▼
-      Content Sentinel
+    ▼
+Rune Marshal                       ◄── FIRST (establishes intent)
+    │
+    ▼
+Orchestrator (dispatch)            ◄── Knows what to ask
+    │
+    ├─────────┬─────────┐
+    ▼         ▼         ▼
+Lorekeeper  Arbiter   (others)     ◄── PARALLEL (spokes)
+    │         │         │
+    └─────────┴─────────┘
+              │
+              ▼
+Orchestrator (collect)             ◄── Aggregates responses
+    │
+    ▼
+Chronicler                         ◄── Narrates approved events
+    │
+    ▼
+Content Sentinel
 ```
 
 ### Parallel Execution Groups
 
-| Phase | Agents                   | Can Parallelize? | Notes                             |
-| ----- | ------------------------ | ---------------- | --------------------------------- |
-| 1     | Lorekeeper, Rune Marshal | ✅ Yes           | Both only need user input + state |
-| 2     | Orchestrator             | ❌ Sequential    | Needs outputs from Phase 1        |
-| 3     | World Arbiter            | ❌ Sequential    | Needs proposed_events             |
-| 4     | Chronicler               | ❌ Sequential    | Needs validated_events            |
-| 5     | Content Sentinel         | ❌ Sequential    | Needs final prose                 |
+| Phase | Agents                              | Can Parallelize? | Notes                                |
+| ----- | ----------------------------------- | ---------------- | ------------------------------------ |
+| 1     | Rune Marshal                        | ❌ Sequential    | Must run first to establish intent   |
+| 2     | Orchestrator (dispatch)             | ❌ Sequential    | Prepares targeted queries            |
+| 3     | Lorekeeper, World Arbiter, others   | ✅ Yes           | Parallel spokes with specific queries|
+| 4     | Orchestrator (collect)              | ❌ Sequential    | Aggregates spoke responses           |
+| 5     | Chronicler                          | ❌ Sequential    | Needs approved events + context      |
+| 6     | Content Sentinel                    | ❌ Sequential    | Needs final prose                    |
 
 ### Implementation Pattern
 
 ```typescript
-// Phase 1: Parallel
-const [lorekeeperResult, runeMarshalResult] = await Promise.all([
-  lorekeeper.query({ scene, query, entity_refs }),
-  runeMarshal.analyze({ user_action, character, context }),
+// Phase 1: Intent Detection
+const intent = await runeMarshal.analyze({ 
+  user_action, 
+  character, 
+  context 
+});
+
+// Phase 2: Orchestrator prepares queries based on intent
+const queries = orchestrator.prepareQueries({
+  user_action,
+  intent,
+  current_state,
+});
+
+// Phase 3: Parallel spoke execution
+const [lorekeeperResult, arbiterResult] = await Promise.all([
+  lorekeeper.query(queries.lorekeeper),  // "What do we know about these guards?"
+  worldArbiter.prevalidate(queries.arbiter),  // "Can player sneak here?"
 ]);
 
-// Phase 2-5: Sequential pipeline
-const orchestratorResult = await orchestrator.propose({
+// Phase 4: Orchestrator collects and proposes events
+const proposedEvents = await orchestrator.propose({
   user_action,
-  current_state,
+  intent,
   canon_snippets: lorekeeperResult.canon_snippets,
-  mechanics_result: runeMarshalResult,
+  validation_hints: arbiterResult.hints,
   roll_outcome,
-  recent_events,
 });
 
-const arbiterResult = await worldArbiter.validate({
-  user_action,
-  proposed_events: orchestratorResult.proposed_events,
-  canon_snippets: lorekeeperResult.canon_snippets,
-  current_state,
-  rules,
-});
-
-// Stream narration as it generates
+// Phase 5: Stream narration
 const chroniclerStream = chronicler.narrate({
-  validated_events: arbiterResult.approved_events,
-  updated_state,
-  scene_direction: orchestratorResult.scene_direction,
+  approved_events: proposedEvents.approved,
+  context: lorekeeperResult.known_facts,
+  scene_direction: proposedEvents.scene_direction,
   roll_outcome,
 });
 
-// Final safety check on complete prose
+// Phase 6: Safety check
 const finalOutput = await contentSentinel.filter({
   user_text: user_action,
   final_narration: await chroniclerStream.complete(),
@@ -459,13 +461,14 @@ const finalOutput = await contentSentinel.filter({
 
 | Agent            | Target    | Notes                                  |
 | ---------------- | --------- | -------------------------------------- |
-| Lorekeeper       | 300ms     | DB query + tool call                   |
 | Rune Marshal     | 400ms     | Low-temp, tool call (schema-enforced)  |
-| Orchestrator     | 600ms     | Medium complexity, multiple tool calls |
-| World Arbiter    | 400ms     | Mostly rule checks + tool calls        |
+| Orchestrator     | 200ms     | Query preparation (minimal LLM)        |
+| Lorekeeper       | 300ms     | DB query + tool call                   |
+| World Arbiter    | 400ms     | Parallel with Lorekeeper               |
+| Orchestrator     | 400ms     | Event proposal with context            |
 | Chronicler       | 1000ms    | Streaming JSON mode, display early     |
 | Content Sentinel | 200ms     | Fast classifier (no LLM)               |
-| **Total**        | **~2.5s** | With Phase 1 parallel                  |
+| **Total**        | **~2.5s** | With Phase 3 parallel                  |
 
 ### Tool Calling Benefits for Latency
 

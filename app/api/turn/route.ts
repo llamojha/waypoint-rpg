@@ -85,13 +85,16 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Load turns for character (most recent first, then reverse for chronological order)
+    // Load latest 50 turns for character (fetch newest first, then reverse for chronological display)
     const { data: turnRows, error } = await supabase
       .from("waypoint_turns")
       .select("*")
       .eq("character_id", characterId)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(50);
+
+    // Reverse to get chronological order (oldest first for display)
+    turnRows?.reverse();
 
     if (error) {
       console.error("Error loading turns:", error);
@@ -645,15 +648,15 @@ async function updateRelationshipState(
         .maybeSingle();
 
       if (existing) {
-        // Update existing relationship (clamped to -5 to +5)
-        const newRelationship = Math.max(-5, Math.min(5, existing.relationship + change.delta));
+        // Update existing relationship (clamped to -25 to +25)
+        const newRelationship = Math.max(-25, Math.min(25, existing.relationship + change.delta));
         await supabase
           .from("waypoint_character_npcs")
           .update({ relationship: newRelationship })
           .eq("id", existing.id);
       } else {
         // Create new relationship
-        const newRelationship = Math.max(-5, Math.min(5, change.delta));
+        const newRelationship = Math.max(-25, Math.min(25, change.delta));
         await supabase
           .from("waypoint_character_npcs")
           .insert({

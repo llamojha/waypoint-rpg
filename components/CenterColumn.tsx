@@ -130,25 +130,30 @@ export const CenterColumn: React.FC<Props> = ({
 
         {turnStatus === "error" && (
           <div className="flex flex-col items-center justify-center py-6 animate-fade-in w-full">
-            <div className="bg-parchment-200 border-2 border-burgundy/50 rounded-sm p-4 w-full max-w-lg shadow-sm flex items-center justify-between gap-4 relative overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-burgundy"></div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-burgundy/10 flex items-center justify-center text-burgundy shrink-0 border border-burgundy/20">
+            <div className="bg-error-light border-2 border-error-border rounded-sm p-4 w-full max-w-lg shadow-sm relative overflow-hidden">
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center text-error shrink-0 border border-error/30">
                   <AlertTriangle size={20} />
                 </div>
-                <div>
-                  <h4 className="font-bold text-ink text-sm">Ink Spilled</h4>
-                  <p className="text-xs text-ink-light italic">
-                    The chronicle could not be updated.
+                <div className="flex-1">
+                  <h4 className="font-bold text-error text-sm">System Error</h4>
+                  <p className="text-xs text-error/80 mt-1">
+                    Something went wrong while processing your turn.
                   </p>
+                  <p className="text-xs text-error/70 mt-2">
+                    If this keeps happening, please contact support or notify a developer.
+                  </p>
+                  <div className="flex justify-end mt-3">
+                    <button
+                      onClick={onRetry}
+                      className="px-4 py-2 bg-error text-white rounded-sm font-bold font-small-caps uppercase text-xs hover:bg-error/90 shadow-md flex items-center gap-2 transition-all active:translate-y-0.5"
+                    >
+                      <RefreshCw size={14} /> Retry
+                    </button>
+                  </div>
                 </div>
               </div>
-              <button
-                onClick={onRetry}
-                className="px-4 py-2 bg-burgundy text-parchment-100 rounded-sm font-bold font-small-caps uppercase text-xs hover:bg-burgundy-dim shadow-md flex items-center gap-2 transition-all active:translate-y-0.5 border border-parchment-900"
-              >
-                <RefreshCw size={14} /> Retry
-              </button>
             </div>
           </div>
         )}
