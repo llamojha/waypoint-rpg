@@ -428,8 +428,9 @@ export default function App() {
             return { ...prev, turns };
           });
           setTurnStatus("idle");
-          return;
         }
+        // JSON response fully consumed, don't try to read stream
+        return;
       }
 
       // Handle streaming response
