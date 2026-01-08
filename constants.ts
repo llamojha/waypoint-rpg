@@ -29,6 +29,17 @@ export const SKILL_RULES = {
   wordBonus: { tier1: 1, tier2: 2, tier3: 3 },
 };
 
+/**
+ * Item stat bounds by rarity tier
+ * Used by Arbiter to validate item proposals
+ */
+export const ITEM_BOUNDS = {
+  common: { maxDamage: 6, maxAC: 1, maxValue: 50 },
+  uncommon: { maxDamage: 8, maxAC: 2, maxValue: 200 },
+  rare: { maxDamage: 12, maxAC: 3, maxValue: 1000 },
+  legendary: { maxDamage: 20, maxAC: 4, maxValue: 5000 },
+} as const;
+
 export const SKILL_TREE: SkillPillar[] = [
   {
     pillar: "Combat",

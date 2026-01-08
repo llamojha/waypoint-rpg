@@ -86,28 +86,32 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 
 **🎮 CHECKPOINT 3**: Full agent architecture with proper validation.
 
-#### Spec Details (Hub-and-Spoke Architecture):
+#### Spec Details (Hybrid LLM + Code Architecture):
 
 **4.1 `orchestrator-arbiter`**
 - Orchestrator becomes central coordinator (the hub)
-- Receives intent from Rune Marshal, dispatches targeted queries to spokes
-- Arbiter validates proposed events against rules/canon
+- Handles intent detection + event proposals in single call (temp 0.1)
+- Uses read tools: `get_power_word_tier()`, `get_skill_level()`
+- Uses proposal tools: `detect_intent`, `propose_*`
+- Code layer handles dice rolls, modifier calculation between agents
+- Arbiter: code validation first (bounds, caps), LLM for contextual checks
 - Arbiter can modify events (cap damage, fix rarity) not just reject
-- Rune Marshal no longer returns `denial_reason` - only mechanics
 
 **4.2 `lorekeeper`**
 - Spoke agent: receives targeted queries from Orchestrator
+- Uses read tools: `query_codex()`, `get_npcs_at_location()`, `get_location_details()`
 - "What do we know about these guards?" not "fetch all canon"
 - Returns canon snippets relevant to the specific intent
-- Runs in parallel with Arbiter (Phase 3 of pipeline)
+- Runs in parallel with Arbiter
 
 **4.3 `agent-pipeline`**
-- Wire up hub-and-spoke flow:
-  1. Rune Marshal (intent) → 
-  2. Orchestrator (dispatch) → 
-  3. [Lorekeeper, Arbiter] parallel → 
-  4. Orchestrator (collect) → 
-  5. Chronicler (narrate)
+- Wire up hub-and-spoke flow with code layers:
+  1. Orchestrator (read tools + proposals) → 
+  2. Code: Mechanics Layer (dice, modifiers) →
+  3. [Lorekeeper, Arbiter] parallel (read tools + validation) → 
+  4. Code: Apply State (DB writes) →
+  5. Chronicler (read tools + narration)
+- Context injection: SKILL_TREE in Orchestrator prompt
 - Chronicler only narrates approved events
 - No more meta-commentary in narration
 
@@ -117,10 +121,12 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - Stay within token budget for long sessions
 
 #### Checkpoint 3 Checklist:
-- [ ] Rune Marshal detects intent without denying actions
-- [ ] Orchestrator dispatches targeted queries to spokes
+- [ ] Orchestrator uses read tools (`get_power_word_tier`, `get_skill_level`)
+- [ ] Orchestrator outputs proposals via tool calls (temp 0.1)
+- [ ] Code layer handles dice rolls and modifier calculation
+- [ ] SKILL_TREE injected in Orchestrator prompt
 - [ ] Lorekeeper + Arbiter run in parallel
-- [ ] Orchestrator collects responses and proposes events
+- [ ] Orchestrator collects responses and finalizes proposals
 - [ ] Arbiter validates/rejects/modifies events
 - [ ] Chronicler only narrates approved events (no meta-commentary)
 - [ ] NPCs appear correctly at their locations

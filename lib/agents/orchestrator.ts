@@ -1,0 +1,250 @@
+import { GoogleGenAI, FunctionCallingConfigMode } from "@google/genai";
+import type { Content, Part } from "@google/genai";
+import { SKILL_TREE } from "@/constants";
+import { READ_TOOLS } from "./tools/read-tools";
+import { PROPOSAL_TOOLS, ProposalResult, DetectIntentResult } from "./tools/proposal-tools";
+import { handleReadToolCall } from "./tools/read-handlers";
+import type { Character, WorldContext, Turn } from "@/types";
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+
+/** Magic skill names for denial detection */
+const MAGIC_SKILLS = ["Spellcasting", "Rituals", "Wards", "Summoning"];
+
+export interface OrchestratorOutput {
+  intent: DetectIntentResult;
+  proposals: ProposalResult[];
+  sceneDirection?: string;
+}
+
+/**
+ * Build system prompt with injected context
+ */
+function buildOrchestratorPrompt(
+  character: Character,
+  world: WorldContext,
+  recentTurns: Turn[]
+): string {
+  const skillTreeStr = JSON.stringify(SKILL_TREE, null, 2);
+  const characterStr = JSON.stringify({
+    name: character.name,
+    hp: character.hp,
+    maxHp: character.maxHp,
+    gold: character.gold,
+    skills: character.skills,
+    inventory: character.inventory.map(i => i.name),
+    isMagicUnlocked: character.isMagicUnlocked,
+  }, null, 2);
+  const worldStr = JSON.stringify({
+    region: world.region,
+    poi: world.poi,
+    time: world.time,
+    weather: world.weather,
+    description: world.description,
+    nearbyPoi: world.nearbyPoi,
+    entities: world.entities,
+  }, null, 2);
+  const recentStr = recentTurns.slice(-5).map(t => 
+    `Player: ${t.playerAction}\nResult: ${t.narration?.slice(0, 200)}...`
+  ).join("\n\n");
+
+  return `You are the Orchestrator for Waypoint RPG. Your job is to:
+1. Detect player intent and determine if a skill check is needed
+2. Propose state changes based on the action
+
+## SKILL_TREE (use for power word detection)
+${skillTreeStr}
+
+## Current Character
+${characterStr}
+
+## Current Location
+${worldStr}
+
+## Recent Events
+${recentStr || "No recent events"}
+
+## Rules
+- ALWAYS call detect_intent first to analyze the player's action
+- Then call relevant propose_* tools for ANY state changes that should happen
+- ${character.isMagicUnlocked ? "Magic is unlocked" : "Magic is NOT unlocked - deny magic skill attempts"}
+
+## When to Use Each Tool
+
+### detect_intent (REQUIRED for every action)
+- Analyze what skill is being used
+- Set requires_roll=true ONLY for actions with meaningful risk or challenge:
+  * Combat attacks
+  * Stealth/sneaking past enemies
+  * Picking locks, disarming traps
+  * Persuading hostile or reluctant NPCs
+  * Climbing dangerous surfaces
+  * Searching for hidden things
+- Set requires_roll=false for routine actions:
+  * Walking/traveling to a location
+  * Talking to friendly NPCs
+  * Looking around
+  * Buying/selling items
+  * Resting
+  * Simple movement
+- DC guidelines: 8=trivial, 10=easy, 12=moderate, 15=hard, 18=very hard
+
+### propose_stat_change
+- HP damage: small=-1 to -5, medium=-6 to -10, severe=-11 to -15
+- HP healing: potions=2d4, rest=1d6, full rest=full
+- Gold spent: drinks=-2 to -5, meals=-5 to -15, items=-10 to -100
+- Gold gained: small task=5-15, job=20-50, treasure=50-200
+
+### propose_inventory_add
+- When player finds, receives, or buys an item
+- Include rarity: common (mundane), uncommon (quality), rare (magical), legendary (unique)
+- Always provide description
+
+### propose_inventory_remove
+- When player uses consumable, drops, sells, or loses an item
+- Item must exist in inventory
+
+### propose_relationship_change
+- Small talk, minor help: +1
+- Meaningful assistance, shared moment: +2
+- Insult, minor offense: -1
+- Betrayal, serious harm: -2
+- First meeting: include "met" or "encounter" in reason
+
+### propose_quest_start
+- When player learns of a new quest or task
+- Use quest title that matches existing quests if applicable
+
+### propose_quest_progress
+- When player completes a quest step
+- Progress increments by 1 per step
+
+### propose_location_change
+- ONLY when player explicitly travels to a new location
+- Location MUST be in nearbyPoi list: ${world.nearbyPoi?.join(", ") || "none"}
+
+### propose_npc_discovered
+- When player meets a NEW NPC not seen before
+- Include role and personality traits
+
+## Output
+- Call ALL relevant propose_* tools for state changes
+- Be generous with proposals - if something should change, propose it`;
+}
+
+/**
+ * Run the Orchestrator agent
+ * Handles read tool calls in a loop, collects proposal tool calls
+ */
+export async function runOrchestrator(
+  playerAction: string,
+  character: Character,
+  world: WorldContext,
+  recentTurns: Turn[],
+  rollOutcome?: { skill: string; success: boolean; total: number; dc: number },
+  detectedIntent?: string
+): Promise<OrchestratorOutput> {
+  const systemPrompt = buildOrchestratorPrompt(character, world, recentTurns);
+  
+  // Build user message with intent and optional roll outcome
+  let userMessage = `${systemPrompt}\n\nPlayer action: "${playerAction}"`;
+  if (detectedIntent) {
+    userMessage += `\nIntent: ${detectedIntent}`;
+  }
+  if (rollOutcome) {
+    userMessage += `\n\n## Roll Outcome
+- Skill: ${rollOutcome.skill}
+- Result: ${rollOutcome.success ? "SUCCESS" : "FAILURE"} (rolled ${rollOutcome.total} vs DC ${rollOutcome.dc})
+- Base proposals on this outcome. If failed, limit positive outcomes.`;
+  }
+  
+  // Remove detect_intent from tools since Rune Marshal already did that
+  const proposalTools = PROPOSAL_TOOLS.filter(t => t.name !== "detect_intent");
+  const allTools = [...READ_TOOLS, ...proposalTools];
+  
+  const messages: Content[] = [
+    { role: "user", parts: [{ text: userMessage }] },
+  ];
+
+  const proposals: ProposalResult[] = [];
+  let intent: DetectIntentResult | null = null;
+  let iterations = 0;
+  const maxIterations = 5;
+
+  try {
+    while (iterations < maxIterations) {
+      iterations++;
+
+      const response = await ai.models.generateContent({
+        model: MODEL,
+        contents: messages,
+        config: {
+          tools: [{ functionDeclarations: allTools }],
+          toolConfig: {
+            functionCallingConfig: { mode: FunctionCallingConfigMode.ANY },
+          },
+          temperature: 0.1,
+        },
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts || [];
+      const functionCalls = parts.filter(p => p.functionCall).map(p => p.functionCall!);
+
+      if (functionCalls.length === 0) break;
+
+      // Process each function call
+      const functionResponseParts: Part[] = [];
+      let hasReadTools = false;
+
+      for (const call of functionCalls) {
+        const name = call.name as string;
+        const args = call.args as Record<string, unknown>;
+
+        // Check if it's a read tool
+        if (name === "get_power_word_tier" || name === "get_skill_level") {
+          hasReadTools = true;
+          const result = handleReadToolCall(name, args, character);
+          functionResponseParts.push({
+            functionResponse: { name, response: result as Record<string, unknown> },
+          });
+        } else {
+          // It's a proposal tool - collect it
+          if (name === "detect_intent") {
+            intent = args as unknown as DetectIntentResult;
+            proposals.push({ type: "detect_intent", data: intent });
+          } else {
+            proposals.push({ type: name, data: args } as unknown as ProposalResult);
+          }
+        }
+      }
+
+      // If we had read tools, continue the conversation with responses
+      if (hasReadTools && functionResponseParts.length > 0) {
+        messages.push({
+          role: "model",
+          parts: functionCalls.map(fc => ({ functionCall: fc })),
+        });
+        messages.push({
+          role: "user",
+          parts: functionResponseParts,
+        });
+      } else {
+        // No read tools, we're done
+        break;
+      }
+    }
+  } catch (error) {
+    console.error("Orchestrator LLM error:", error);
+  }
+
+  // Ensure we have an intent
+  if (!intent) {
+    intent = {
+      primary_skill: "Perception",
+      requires_roll: false,
+    };
+  }
+
+  return { intent, proposals };
+}

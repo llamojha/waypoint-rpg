@@ -6,19 +6,45 @@ Google Gemini (`gemini-2.5-flash-lite` primary, `gemini-3-flash-preview` optiona
 
 **SDK**: `@google/genai`
 
+## Hybrid Architecture: LLM + Code
+
+Waypoint uses a hybrid approach where LLMs handle judgment/creativity and code handles deterministic operations:
+
+| Layer | Responsibility | Examples |
+|-------|----------------|----------|
+| LLM (judgment) | Decide what to do | Intent detection, context relevance, narrative |
+| LLM Read Tools | Fetch data for decisions | `query_codex()`, `get_npcs_at_location()` |
+| LLM Proposal Tools | Structured output for changes | `propose_stat_change()`, `propose_relationship_change()` |
+| Code Layer | Execute deterministic logic | Dice rolls, modifier calculation, validation rules |
+| Code Layer | Apply state changes | DB updates after Arbiter approval |
+
+**Key principle**: LLM proposes, code disposes. All state mutations happen in code after validation.
+
 ## Tool Calling Architecture
 
-Waypoint uses Gemini's tool calling (function calling) for structured outputs instead of JSON mode. This provides schema-enforced responses and eliminates JSON parsing failures.
+Waypoint uses Gemini's tool calling (function calling) for structured outputs. This provides schema-enforced responses and eliminates JSON parsing failures.
 
-### When to Use Tool Calling vs JSON Mode
+### Tool Categories
 
-| Use Case             | Approach      | Reason                              |
-| -------------------- | ------------- | ----------------------------------- |
-| Intent detection     | Tool calling  | Typed schema, enum constraints      |
-| Event proposals      | Tool calling  | Multiple typed tools per event type |
-| Validation decisions | Tool calling  | Boolean approve/reject with reason  |
-| Narration generation | JSON mode     | Free-form prose, not structured     |
-| Safety filtering     | Deterministic | No LLM needed                       |
+| Category | Purpose | Who Executes |
+|----------|---------|--------------|
+| Read Tools | Fetch data for LLM decisions | Code executes query, returns to LLM |
+| Proposal Tools | Structured output from LLM | LLM outputs, code processes |
+| Code Layer | Deterministic game logic | Code only, no LLM |
+
+### When to Use Each Approach
+
+| Use Case | Approach | Reason |
+|----------|----------|--------|
+| Power word lookup | Read tool | LLM decides what to look up |
+| NPC/location queries | Read tool | LLM decides what's relevant |
+| Intent detection | Proposal tool | Structured output from LLM |
+| Event proposals | Proposal tool | Schema-enforced changes |
+| Dice rolls | Code layer | Must be deterministic |
+| Modifier calculation | Code layer | Pure math |
+| Validation rules | Code layer | Enforced consistently |
+| Narration | JSON mode | Free-form prose |
+| Safety filtering | Code layer | Pattern matching |
 
 ### Tool Declaration Pattern
 
@@ -50,69 +76,175 @@ const response = await ai.models.generateContent({
   model: "gemini-2.5-flash",
   contents: prompt,
   config: {
-    tools: [{ functionDeclarations: [detectIntentTool] }],
+    tools: [{ functionDeclarations: [detectIntentTool, getPowerWordTierTool] }],
     toolConfig: {
       functionCallingConfig: { mode: FunctionCallingConfigMode.ANY },
     },
   },
 });
 
+// Handle read tool calls - execute and return results
 if (response.functionCalls) {
   for (const call of response.functionCalls) {
-    // call.name = "detect_intent"
-    // call.args = { primary_skill: "Sneaking", ... }
+    if (call.name === "get_power_word_tier") {
+      // Execute code, return result to LLM
+      const result = lookupPowerWordTier(call.args.word, call.args.skill);
+      // Continue conversation with result...
+    }
+    if (call.name === "detect_intent") {
+      // This is a proposal - process the structured output
+      const intent = call.args;
+      // Pass to code layer for mechanics resolution...
+    }
   }
 }
 ```
 
-## Two-Pass Generation Pattern
+## Context Injection
 
-### Pass A: Narration + Intent (LLM, temp ~0.8)
+Agents receive static context via prompt injection (not tool calls):
 
-Input to LLM:
-
-- Current world context (location, time, weather)
-- Character state (HP, gold, equipped items, conditions, skill levels)
-- Recent turn history (last 3-5 turns for context)
-- Player's current action
-- Pending skill check results (if any)
-
-Output:
-
-- Narrative text (streamed via SSE)
-- `proposed_events[]` - suggested state changes
-- `detected_intent` - skill/action interpretation
-
-### Pass B: Hybrid Validation (Rules Engine + LLM fallback)
-
-**Step 1: Deterministic Rules Engine**
-
-- Validate inventory changes against current state
-- Check bounds (HP ≤ maxHP, gold ≥ 0)
-- Verify NPC exists in location or global registry
-- Enforce relationship change caps (±2 per turn)
-- Validate quest progression (no skipping steps)
-
-**Step 2: LLM Validator (low temp ~0.2) - only if needed**
-
-- Semantic consistency check (narration matches diffs)
-- Item balance check (is "Legendary Sword" appropriate for context?)
-- NPC behavior consistency (does this match their personality?)
-
-**On Validation Failure:**
-
-1. Log rejection reason
-2. Notify user: "Refining the story..."
-3. Re-run Pass A with rejection context in prompt
-4. Max 2 retries, then graceful fallback narration
-
-## Power Word & Intent Detection
-
-Use Gemini tool calling with dedicated low-temp (~0.1) call for intent parsing:
+| Agent | Injected Context |
+|-------|------------------|
+| Orchestrator | SKILL_TREE (full), character state, current location, recent turns |
+| Lorekeeper | Current location, entity refs from Orchestrator |
+| Arbiter | Game rules (ITEM_BOUNDS, relationship caps) |
+| Chronicler | Validated events, roll outcomes, scene direction |
 
 ```typescript
-import { FunctionDeclaration, Type } from "@google/genai";
+// Example: Orchestrator system prompt includes SKILL_TREE
+const orchestratorPrompt = `
+You are the Orchestrator for Waypoint RPG.
 
+## SKILL_TREE (use for power word detection)
+${JSON.stringify(SKILL_TREE, null, 2)}
+
+## Current Character
+${JSON.stringify(character, null, 2)}
+
+## Current Location
+${JSON.stringify(worldContext, null, 2)}
+
+## Recent Events
+${JSON.stringify(recentTurns, null, 2)}
+
+## Available Tools
+- get_power_word_tier(word, skill): Look up tier/bonus for a power word
+- get_skill_level(character_id, skill): Get current skill progression
+- detect_intent(...): Output skill check requirements
+- propose_stat_change(...): Propose HP/gold changes
+- propose_relationship_change(...): Propose NPC relationship delta
+`;
+```
+
+## Temperature Guidelines
+
+Temperature controls LLM output randomness. Use the right temperature for each task:
+
+| Agent/Task           | Temperature | Reason                                      |
+| -------------------- | ----------- | ------------------------------------------- |
+| Orchestrator         | 0.1         | Deterministic intent detection & proposals  |
+| Lorekeeper           | 0.1         | Factual canon retrieval                     |
+| World Arbiter        | 0.1         | Strict rule validation                      |
+| Chronicler           | 0.8         | Creative prose narration                    |
+| Content Sentinel     | N/A         | Pure code (no LLM)                          |
+| Compression summaries| 0.2         | Factual but readable summaries              |
+
+**Key principle**: Mechanical decisions (intent, DC, event proposals, validation) should be deterministic (0.1). Creativity belongs only in the Chronicler (0.8).
+
+## Agent Pipeline with Code Layers
+
+```
+User Input
+    │
+    ▼
+┌─────────────────┐
+│  Orchestrator   │ ◄── Read tools + proposal tools (temp 0.1)
+│                 │     get_power_word_tier(), detect_intent, propose_*
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Code: Mechanics│ ◄── Roll dice, calculate modifiers, resolve checks
+│     Layer       │     Pure code, no LLM
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    ▼         ▼
+Lorekeeper  Arbiter    ◄── PARALLEL (read tools + validation)
+    │         │
+    └────┬────┘
+         ▼
+┌─────────────────┐
+│  Code: Apply    │ ◄── Apply approved changes to DB
+│  State Changes  │     Pure code, no LLM
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   Chronicler    │ ◄── Read tools + narration (temp 0.8)
+│                 │     get_npc_voice(), get_atmosphere()
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│Content Sentinel │ ◄── Safety filter (pure code)
+└────────┬────────┘
+         │
+    UI / Client
+```
+
+## Code Layer: Mechanics Resolution
+
+The code layer runs between Orchestrator and the parallel spokes:
+
+```typescript
+// After Orchestrator outputs intent
+const intent = orchestratorResult.detect_intent;
+
+if (intent.requires_roll) {
+  // Code layer handles the roll - NOT the LLM
+  const roll = rollD20();
+  const skillLevel = character.skills[intent.primary_skill]?.level || 0;
+  const modifier = Math.floor(skillLevel / 10);
+  const bonus = intent.bonus || 0;
+  
+  const total = roll + modifier + bonus;
+  const success = total >= intent.dc;
+  
+  // Result passed to Chronicler for narration
+  rollOutcome = {
+    skill: intent.primary_skill,
+    rolled: roll,
+    modifier,
+    bonus,
+    dc: intent.dc,
+    total,
+    success,
+  };
+}
+```
+
+## Orchestrator: Read Tools + Proposals
+
+The Orchestrator can call read tools to gather data, then output proposals:
+
+```typescript
+// Read tools (LLM calls these to get data)
+export const getPowerWordTierTool: FunctionDeclaration = {
+  name: "get_power_word_tier",
+  description: "Look up the tier and bonus for a power word in a skill",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      word: { type: Type.STRING },
+      skill: { type: Type.STRING, enum: SKILL_NAMES },
+    },
+    required: ["word", "skill"],
+  },
+};
+
+// Proposal tools (LLM outputs these as structured data)
 export const detectIntentTool: FunctionDeclaration = {
   name: "detect_intent",
   description: "Analyze player action to determine skill check requirements",
@@ -129,32 +261,60 @@ export const detectIntentTool: FunctionDeclaration = {
     required: ["primary_skill", "requires_roll"],
   },
 };
+
+export const proposeStatChangeTool: FunctionDeclaration = { ... };
+export const proposeInventoryAddTool: FunctionDeclaration = { ... };
+export const proposeRelationshipChangeTool: FunctionDeclaration = { ... };
 ```
 
-Example tool call response:
+Example flow:
+1. LLM calls `get_power_word_tier({ word: "strike", skill: "Melee" })`
+2. Code returns `{ tier: 1, bonus: 1 }`
+3. LLM uses this to output `detect_intent({ primary_skill: "Melee", bonus: 1, dc: 12, ... })`
+4. Code layer rolls dice, resolves check
 
-```json
-{
-  "name": "detect_intent",
-  "args": {
-    "primary_skill": "Sneaking",
-    "power_words": ["sneak", "quietly"],
-    "tier": 1,
-    "bonus": 1,
-    "requires_roll": true,
-    "dc": 12
-  }
-}
+## Validation Flow
+
+### Hybrid Validation (Code First + LLM Fallback)
+
+**Step 1: Code Validation (deterministic)**
+
+```typescript
+const codeValidations = {
+  validateRelationshipCap: (current, delta) => {
+    if (Math.abs(delta) > 2) return { valid: false, capped: Math.sign(delta) * 2 };
+    return { valid: true };
+  },
+  
+  validateItemBounds: (rarity, stats) => {
+    const bounds = ITEM_BOUNDS[rarity];
+    // Check damage, AC, value against bounds
+    return { valid: true } | { valid: false, reason: '...' };
+  },
+  
+  validateQuestProgression: (current, proposed) => {
+    if (proposed > current + 1) return { valid: false, reason: 'Cannot skip steps' };
+    return { valid: true };
+  },
+};
 ```
 
-- Aliases resolve to parent skill (e.g., "tiptoe" → Sneaking)
-- Ambiguous words: LLM picks best fit from context
-- Multi-skill actions: pick dominant intent, note secondary
-- Schema-enforced: no JSON parsing failures
+**Step 2: LLM Validation (contextual) - only if code passes**
+
+- Is this item contextually appropriate?
+- Does this NPC behavior match their personality?
+- Is this action consistent with the scene?
+
+**On Validation Failure:**
+
+1. Log rejection reason
+2. Notify user: "Refining the story..."
+3. Re-run Orchestrator with rejection context in prompt
+4. Max 2 retries, then graceful fallback narration
 
 ## Item Generation Rules
 
-No strict loot table, but LLM must follow:
+No strict loot table, but Orchestrator must follow:
 
 - **Rarity tiers**: common / uncommon / rare / legendary
 - **Context-appropriate**: no legendary items from random crates
@@ -170,6 +330,11 @@ const ITEM_BOUNDS = {
 };
 ```
 
+Item details should come from:
+1. Pre-seeded loot tables
+2. Context from Lorekeeper
+3. Minimal LLM generation (validated by Arbiter)
+
 ## NPC Discovery & Persistence
 
 ### Pre-seeded NPCs
@@ -179,8 +344,8 @@ const ITEM_BOUNDS = {
 
 ### LLM-Generated NPCs
 
-1. LLM proposes NPC in narration
-2. Validator extracts NPC data (name, role, location)
+1. Orchestrator proposes NPC via `propose_npc_discovered` tool
+2. Arbiter validates NPC data (name, role, location)
 3. Check global registry for duplicates
 4. If new: insert to `npcs` table (becomes canonical)
 5. Future players can encounter same NPC
@@ -211,7 +376,7 @@ LLM context windows are finite. Long play sessions accumulate turn history that:
 
 ### Solution: Location-Based Compression
 
-Inspired by NeverEndingQuest's "hub-and-spoke" architecture — compress conversation history when player changes locations.
+Compress conversation history when player changes locations.
 
 ### Compression Triggers
 
@@ -224,15 +389,13 @@ Inspired by NeverEndingQuest's "hub-and-spoke" architecture — compress convers
 
 ### Living Summary Format
 
-When compression triggers, generate a "chronicle" summary:
-
 ```typescript
 interface LocationSummary {
   location: string;
   visitNumber: number;
   turnRange: { start: number; end: number };
-  summary: string; // AI-generated prose summary
-  keyEvents: string[]; // Bullet points of important happenings
+  summary: string;
+  keyEvents: string[];
   npcsEncountered: string[];
   itemsGained: string[];
   itemsLost: string[];
@@ -241,51 +404,26 @@ interface LocationSummary {
 }
 ```
 
-### Context Injection Strategy
-
-When building LLM prompt:
-
-```
-1. System prompt (fixed)
-2. Character state (current)
-3. World context (current location)
-4. Location summaries (compressed history) ← NEW
-5. Recent turns (last 3-5 verbatim)
-6. Current player action
-```
-
 ### Token Budget Estimation
 
 ```typescript
-// Rough estimates for Gemini
 const TOKEN_ESTIMATES = {
   systemPrompt: 2000,
+  skillTree: 1500,        // Injected context
   characterState: 500,
   worldContext: 300,
-  perSummary: 200, // Compressed location summary
-  perVerbatimTurn: 150, // Full turn with narration
+  perSummary: 200,
+  perVerbatimTurn: 150,
   playerAction: 50,
   buffer: 500,
 };
 
 const MAX_CONTEXT = 30000; // Gemini flash limit
-
-const calculateBudget = (summaryCount: number, verbatimTurns: number) => {
-  return (
-    TOKEN_ESTIMATES.systemPrompt +
-    TOKEN_ESTIMATES.characterState +
-    TOKEN_ESTIMATES.worldContext +
-    summaryCount * TOKEN_ESTIMATES.perSummary +
-    verbatimTurns * TOKEN_ESTIMATES.perVerbatimTurn +
-    TOKEN_ESTIMATES.playerAction +
-    TOKEN_ESTIMATES.buffer
-  );
-};
 ```
 
 ### Compression Prompt
 
-Low-temp (~0.2) call to generate summary:
+Low-temp (0.2) call to generate summary:
 
 ```
 Summarize the following adventure segment in 2-3 sentences.
@@ -298,63 +436,11 @@ Turns: {turns_json}
 Output JSON: { "summary": "...", "keyEvents": [...] }
 ```
 
-### Database Schema Addition
-
-```sql
--- Location summaries (per character)
-CREATE TABLE waypoint_location_summaries (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  character_id UUID REFERENCES waypoint_characters(id) NOT NULL,
-  location VARCHAR(100) NOT NULL,
-  visit_number INT DEFAULT 1,
-  turn_range_start INT NOT NULL,
-  turn_range_end INT NOT NULL,
-  summary TEXT NOT NULL,
-  key_events JSONB DEFAULT '[]',
-  npcs_encountered JSONB DEFAULT '[]',
-  items_gained JSONB DEFAULT '[]',
-  items_lost JSONB DEFAULT '[]',
-  quest_progress JSONB DEFAULT '[]',
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_location_summaries_character
-  ON waypoint_location_summaries(character_id);
-CREATE INDEX idx_location_summaries_location
-  ON waypoint_location_summaries(character_id, location);
-```
-
-### Implementation Phases
-
-**Phase 1 (MVP+1):** Turn count threshold compression
-
-- After 100 turns, compress oldest 95 into summary
-- Keep last 5 verbatim
-
-**Phase 2:** Location-based compression
-
-- Detect POI changes
-- Generate summary on location exit
-- Restore summary on location re-entry
-
-**Phase 3:** Smart budget management
-
-- Real-time token counting
-- Dynamic verbatim turn count based on budget
-- Priority-based summary inclusion
-
-### Cost Savings Estimate
-
-| Scenario  | Without Compression | With Compression | Savings |
-| --------- | ------------------- | ---------------- | ------- |
-| 20 turns  | ~3000 tokens        | ~1500 tokens     | 50%     |
-| 50 turns  | ~7500 tokens        | ~2500 tokens     | 67%     |
-| 100 turns | ~15000 tokens       | ~3500 tokens     | 77%     |
-
 ## Prompt Engineering Principles
 
 ### Context Window Management
 
+- Inject SKILL_TREE for power word detection
 - Summarize older turns, keep recent 3-5 verbatim
 - Include only relevant character stats for current action
 - World context: current POI + nearby POIs + present entities
@@ -368,62 +454,41 @@ CREATE INDEX idx_location_summaries_location
 
 ### Proposed Events Format
 
-Events are proposed via tool calls, not JSON in narration. Each event type has its own tool:
+Events are proposed via tool calls, not JSON in narration:
 
 **Tool: `propose_stat_change`**
-
 ```json
 { "stat": "gold", "delta": -5, "reason": "Bought a drink" }
 ```
 
 **Tool: `propose_inventory_add`**
-
 ```json
-{
-  "item_name": "Rusty Key",
-  "item_type": "quest",
-  "rarity": "common",
-  "reason": "found in chest"
-}
+{ "item_name": "Rusty Key", "item_type": "quest", "rarity": "common", "reason": "found in chest" }
 ```
 
 **Tool: `propose_relationship_change`**
-
 ```json
 { "npc": "Glimmer", "delta": -1, "reason": "startled" }
 ```
 
-**Tool: `propose_quest_progress`**
-
-```json
-{ "quest_id": "q1", "new_progress": 2, "reason": "Found the hidden entrance" }
-```
-
-**Tool: `propose_npc_discovered`**
-
-```json
-{ "name": "Old Fisherman", "role": "Hermit", "location": "Ash Coast" }
-```
-
-Benefits over JSON-in-prompt:
-
+Benefits:
 - Schema-enforced (no malformed events)
-- Enum-constrained values (rarity, item types)
-- Each event is a separate tool call (easier to validate individually)
+- Enum-constrained values
+- Each event is a separate tool call (easier to validate)
 
 ## Safety Guardrails
 
-### Input Filtering
+### Input Filtering (Code Layer)
 
 - Reject explicit sexual content
 - Reject hate speech / slurs
 - Reject real-world violence instructions
 
-### Output Filtering
+### Output Filtering (Code Layer)
 
-- Rewrite unsafe LLM outputs
+- Pattern matching for unsafe content
+- Rewrite/block unsafe LLM outputs
 - Maintain PG-13 fantasy rating
-- Refuse and redirect if content policy violated
 
 ## SSE Streaming Format
 

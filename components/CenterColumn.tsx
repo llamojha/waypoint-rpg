@@ -244,7 +244,7 @@ const TurnEntry: React.FC<{
 
           {/* Mechanics with Animation Logic */}
           {turn.mechanics && (
-            <MechanicsCard mechanics={turn.mechanics} onRoll={onRoll} />
+            <MechanicsCard mechanics={turn.mechanics} onRoll={onRoll} isProcessing={turn.isStreaming} />
           )}
 
           <div className="narration-text text-ink text-justify relative z-10">
@@ -284,9 +284,22 @@ const TurnEntry: React.FC<{
 const MechanicsCard: React.FC<{
   mechanics: NonNullable<Turn["mechanics"]>;
   onRoll: () => void;
-}> = ({ mechanics, onRoll }) => {
+  isProcessing?: boolean;
+}> = ({ mechanics, onRoll, isProcessing }) => {
   const [isRolling, setIsRolling] = useState(false);
   const [displayVal, setDisplayVal] = useState(1);
+  const [showReveal, setShowReveal] = useState(false);
+  const prevOutcomeRef = useRef(mechanics.outcome);
+
+  // Trigger reveal animation when outcome changes from undefined to defined
+  useEffect(() => {
+    if (!prevOutcomeRef.current && mechanics.outcome) {
+      setShowReveal(true);
+      const timer = setTimeout(() => setShowReveal(false), 2000);
+      return () => clearTimeout(timer);
+    }
+    prevOutcomeRef.current = mechanics.outcome;
+  }, [mechanics.outcome]);
 
   // Animation Logic
   const handleRollClick = () => {
@@ -304,12 +317,20 @@ const MechanicsCard: React.FC<{
     }, duration);
   };
 
+  const isWaitingForResult = isProcessing && !isRolling && !mechanics.outcome;
+
   return (
-    <div className="bg-parchment-200 border border-parchment-400 rounded-sm p-4 my-6 font-mono text-xs shadow-sm relative overflow-hidden max-w-md mx-auto">
+    <div className={`bg-parchment-200 border rounded-sm p-4 my-6 font-mono text-xs shadow-sm relative overflow-hidden max-w-md mx-auto transition-all duration-300 ${
+      showReveal ? 'border-2 scale-[1.02]' : 'border'
+    } ${
+      showReveal && mechanics.outcome === 'success' ? 'border-forest shadow-lg shadow-forest/20' :
+      showReveal && mechanics.outcome === 'failure' ? 'border-burgundy shadow-lg shadow-burgundy/20' :
+      'border-parchment-400'
+    }`}>
       {/* Accent Bar based on state */}
       <div
-        className={`absolute top-0 left-0 w-1 h-full ${
-          isRolling
+        className={`absolute top-0 left-0 w-1 h-full transition-colors duration-300 ${
+          isRolling || isWaitingForResult
             ? "bg-gold animate-pulse"
             : !mechanics.outcome
             ? "bg-gold"
@@ -325,7 +346,7 @@ const MechanicsCard: React.FC<{
           <Dice5
             size={12}
             className={
-              isRolling
+              isRolling || isWaitingForResult
                 ? "animate-spin text-gold"
                 : mechanics.outcome
                 ? "opacity-50"
@@ -337,21 +358,21 @@ const MechanicsCard: React.FC<{
 
         {mechanics.outcome && !isRolling ? (
           <span
-            className={`font-bold px-2 rounded-sm border ${
+            className={`font-bold px-2 rounded-sm border transition-all duration-300 ${
               mechanics.outcome === "success"
                 ? "text-forest bg-parchment-100 border-parchment-300"
                 : "text-burgundy bg-parchment-100 border-parchment-300"
-            }`}
+            } ${showReveal ? 'scale-110' : ''}`}
           >
             {mechanics.outcome.toUpperCase()}
           </span>
         ) : (
           <span
             className={`font-bold bg-parchment-100 px-2 rounded-sm border border-parchment-300 ${
-              isRolling ? "text-gold-dim animate-pulse" : "text-gold-dim"
+              isRolling || isWaitingForResult ? "text-gold-dim animate-pulse" : "text-gold-dim"
             }`}
           >
-            {isRolling ? "ROLLING..." : "PENDING"}
+            {isRolling ? "ROLLING..." : isWaitingForResult ? "RESOLVING..." : "PENDING"}
           </span>
         )}
       </div>
@@ -370,35 +391,41 @@ const MechanicsCard: React.FC<{
         {/* Result or Action Area */}
         <div
           className={`flex justify-between items-center pt-1 mt-1 border-t border-parchment-300 ${
-            !mechanics.outcome && !isRolling
+            !mechanics.outcome && !isRolling && !isWaitingForResult
               ? ""
               : "bg-parchment-100/50 -mx-4 px-4 py-1"
           }`}
         >
-          {mechanics.outcome || isRolling ? (
+          {mechanics.outcome || isRolling || isWaitingForResult ? (
             <>
               <span className="uppercase tracking-widest font-bold text-[10px]">
                 Roll Result
               </span>
-              <span className="font-bold text-ink text-sm">
-                d20 (
-                {isRolling
-                  ? displayVal
-                  : mechanics.rolled ?? 0}
-                ) + {mechanics.modifier || 0} =
-                <span
-                  className={`ml-1 ${
-                    isRolling
-                      ? "text-gold"
-                      : mechanics.outcome === "success"
-                      ? "text-forest"
-                      : "text-burgundy"
-                  }`}
-                >
-                  {isRolling
-                    ? displayVal + (mechanics.modifier || 0)
-                    : mechanics.total ?? (mechanics.rolled ?? 0) + (mechanics.modifier ?? 0)}
-                </span>
+              <span className={`font-bold text-ink transition-all duration-300 ${showReveal ? 'text-base' : 'text-sm'}`}>
+                {isWaitingForResult ? (
+                  <span className="text-gold-dim animate-pulse">Waiting...</span>
+                ) : (
+                  <>
+                    d20 (
+                    {isRolling
+                      ? displayVal
+                      : mechanics.rolled ?? 0}
+                    ) + {mechanics.modifier || 0} =
+                    <span
+                      className={`ml-1 transition-all duration-300 ${
+                        isRolling
+                          ? "text-gold"
+                          : mechanics.outcome === "success"
+                          ? "text-forest"
+                          : "text-burgundy"
+                      } ${showReveal ? 'font-black text-lg' : ''}`}
+                    >
+                      {isRolling
+                        ? displayVal + (mechanics.modifier || 0)
+                        : mechanics.total ?? (mechanics.rolled ?? 0) + (mechanics.modifier ?? 0)}
+                    </span>
+                  </>
+                )}
               </span>
             </>
           ) : (

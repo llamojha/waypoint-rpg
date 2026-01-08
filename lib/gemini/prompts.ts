@@ -1,15 +1,11 @@
 import type { Character, WorldContext, Turn, Equipment, Item } from "@/types";
-import { TURN_SYSTEM_PROMPT } from "@/lib/prompts";
+import { CHRONICLER_SYSTEM_PROMPT } from "@/lib/prompts";
+import type { ProposedEvent } from "@/lib/turn/validate";
 
 /**
  * Prompt templates for Gemini turn generation
- * Requirements: 3.1-3.6
+ * Updated for Orchestrator-Arbiter pipeline
  */
-
-/**
- * System prompt - imported from lib/prompts/turn.ts
- */
-export const SYSTEM_PROMPT = TURN_SYSTEM_PROMPT;
 
 /**
  * Format equipment for prompt display
@@ -41,7 +37,6 @@ function formatEquipment(equipment: Equipment): string {
  */
 function formatInventory(inventory: Item[]): string {
   if (inventory.length === 0) return "Empty";
-
   return inventory.map((item) => item.name).join(", ");
 }
 
@@ -50,13 +45,11 @@ function formatInventory(inventory: Item[]): string {
  */
 function formatConditions(conditions: Character["conditions"]): string {
   if (conditions.length === 0) return "None";
-
   return conditions.map((c) => `${c.name} (${c.type})`).join(", ");
 }
 
 /**
  * Format recent turns for context
- * Requirements: 3.3
  */
 function formatRecentTurns(turns: Turn[]): string {
   if (turns.length === 0) return "This is the beginning of your adventure.";
@@ -101,6 +94,36 @@ function formatNPCs(npcs: NPCForPrompt[]): string {
 }
 
 /**
+ * Format approved events for Chronicler
+ */
+function formatApprovedEvents(events: ProposedEvent[]): string {
+  if (!events || events.length === 0) return "No state changes to narrate.";
+
+  return events.map((event, i) => {
+    switch (event.type) {
+      case "stat_change":
+        return `${i + 1}. ${event.stat.toUpperCase()} ${event.delta > 0 ? "+" : ""}${event.delta} (${event.reason})`;
+      case "inventory_add":
+        return `${i + 1}. Gained item: ${event.item.name} (${event.reason})`;
+      case "inventory_remove":
+        return `${i + 1}. Lost item: ${event.itemName} (${event.reason})`;
+      case "relationship_change":
+        return `${i + 1}. Relationship with ${event.npc}: ${event.delta > 0 ? "+" : ""}${event.delta} (${event.reason})`;
+      case "quest_start":
+        return `${i + 1}. Quest started: ${event.questTitle} (${event.reason})`;
+      case "quest_progress":
+        return `${i + 1}. Quest progress: ${event.questId} step ${event.progress} (${event.reason})`;
+      case "location_change":
+        return `${i + 1}. Traveled to: ${event.location} (${event.reason})`;
+      case "world_update":
+        return `${i + 1}. World change: ${event.field} = ${event.value} (${event.reason})`;
+      default:
+        return `${i + 1}. ${event.type}: ${event.reason}`;
+    }
+  }).join("\n");
+}
+
+/**
  * Roll outcome for skill checks
  */
 export interface RollOutcome {
@@ -113,16 +136,17 @@ export interface RollOutcome {
 }
 
 /**
- * Build the complete turn prompt for Gemini
- * Requirements: 3.1, 3.2, 3.3, 3.4
+ * Build the complete turn prompt for Chronicler
+ * Now accepts pre-approved events from Arbiter
  *
  * @param character - Current character state
  * @param world - Current world context
- * @param recentTurns - Last 3 turns for context
+ * @param recentTurns - Last turns for context
  * @param playerAction - The player's current action
  * @param rollOutcome - Optional skill check result to incorporate
- * @param npcsPresent - NPCs present at the current location with their data
- * @returns Complete prompt string for Gemini
+ * @param approvedEvents - Pre-approved events from Arbiter to narrate
+ * @param npcsPresent - NPCs present at the current location
+ * @returns Complete prompt string for Chronicler
  */
 export function buildTurnPrompt(
   character: Character,
@@ -130,9 +154,9 @@ export function buildTurnPrompt(
   recentTurns: Turn[],
   playerAction: string,
   rollOutcome?: RollOutcome,
+  approvedEvents?: ProposedEvent[],
   npcsPresent?: NPCForPrompt[]
 ): string {
-  // Use large context window - Gemini supports long history
   const lastTurns = recentTurns.slice(-100);
 
   let rollContext = "";
@@ -152,12 +176,23 @@ Your narration MUST reflect this ${rollOutcome.outcome}. ${
 `;
   }
 
+  let eventsContext = "";
+  if (approvedEvents && approvedEvents.length > 0) {
+    eventsContext = `
+APPROVED EVENTS TO NARRATE:
+${formatApprovedEvents(approvedEvents)}
+
+Your narration must incorporate these approved events naturally into the story.
+Do NOT propose additional events - these have already been validated.
+`;
+  }
+
   const userPrompt = `CURRENT LOCATION:
 ${world.poi} in ${world.region}
 ${world.description || ""}
 Time: Day ${world.time.day}, ${world.time.phase}
 Weather: ${world.weather}
-${world.nearbyPoi && world.nearbyPoi.length > 0 ? `\nNEARBY LOCATIONS (use these EXACT names for location_change events):\n${world.nearbyPoi.map(p => `- ${p}`).join('\n')}` : ''}
+${world.nearbyPoi && world.nearbyPoi.length > 0 ? `\nNEARBY LOCATIONS:\n${world.nearbyPoi.map(p => `- ${p}`).join('\n')}` : ''}
 
 NPCS PRESENT:
 ${formatNPCs(npcsPresent || [])}
@@ -175,10 +210,10 @@ ${formatRecentTurns(lastTurns)}
 
 PLAYER ACTION:
 ${playerAction}
-${rollContext}
-Generate the narration and any state changes that result from this action.`;
+${rollContext}${eventsContext}
+Generate the narration for this action and the approved events.`;
 
-  return `${SYSTEM_PROMPT}
+  return `${CHRONICLER_SYSTEM_PROMPT}
 
 ${userPrompt}`;
 }
