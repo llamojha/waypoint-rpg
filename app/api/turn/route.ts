@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { dbToCharacter, dbToWorld } from "@/lib/supabase/transforms";
 import { runRuneMarshal } from "@/lib/agents/rune-marshal";
-import { runOrchestrator } from "@/lib/agents/orchestrator";
+import { runOrchestrator, type QuestContext } from "@/lib/agents/orchestrator";
 import { runArbiter, proposalsToEvents } from "@/lib/agents/arbiter";
+import { runLorekeeper } from "@/lib/agents/lorekeeper";
+import { runQuestAgent } from "@/lib/agents/quest-agent";
+import { collectParallelOutputs, buildChroniclerContext } from "@/lib/agents/collector";
 import type { ProposalResult } from "@/lib/agents/tools/proposal-tools";
 import { resolveSkillCheck, calculateTotalModifier } from "@/lib/agents/mechanics";
 import { generateTurn } from "@/lib/gemini/client";
@@ -239,8 +242,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // === NO ROLL NEEDED - Run Orchestrator now ===
-    const orchestratorResult = await runOrchestrator(playerAction, character, world, recentTurns, undefined, intent.intent);
+    // === QUEST AGENT: Gather quest context ===
+    const questAgentResult = await runQuestAgent(characterId);
+    const questContext: QuestContext = {
+      activeQuests: questAgentResult.activeQuests,
+      npcQuests: questAgentResult.npcQuests,
+    };
+
+    // === NO ROLL NEEDED - Run Orchestrator with quest context ===
+    const orchestratorResult = await runOrchestrator(playerAction, character, world, recentTurns, undefined, intent.intent, questContext);
     
     return completeTurnPipeline(
       supabase,
@@ -250,7 +260,9 @@ export async function POST(request: NextRequest) {
       world,
       recentTurns,
       orchestratorResult.proposals,
-      undefined // no roll outcome
+      undefined,
+      0,
+      questContext
     );
   } catch (error) {
     console.error("Turn processing error:", error);
@@ -378,6 +390,7 @@ async function handleRollResolution(
 
 /**
  * Continue turn pipeline with narration after roll is complete
+ * Includes retry loop for Arbiter rejections
  */
 async function continueWithNarration(
   supabase: ReturnType<typeof createAdminClient>,
@@ -388,6 +401,7 @@ async function continueWithNarration(
   recentTurns: Turn[],
   mechanics: NonNullable<Turn["mechanics"]> & { detectedIntent?: string }
 ) {
+  const MAX_RETRIES = 2;
   const rollOutcome = {
     skill: mechanics.skill,
     success: mechanics.outcome === "success",
@@ -395,26 +409,60 @@ async function continueWithNarration(
     dc: mechanics.dc,
   };
 
-  // Run Orchestrator now that we have roll outcome
-  const orchestratorResult = await runOrchestrator(
-    playerAction,
-    character,
-    world,
-    recentTurns,
-    rollOutcome,
-    mechanics.detectedIntent
-  );
+  // === QUEST AGENT: Gather quest context ===
+  const questAgentResult = await runQuestAgent(character.id!);
+  const questContext: QuestContext = {
+    activeQuests: questAgentResult.activeQuests,
+    npcQuests: questAgentResult.npcQuests,
+  };
 
-  // === ARBITER ===
-  const arbiterResult = await runArbiter(orchestratorResult.proposals, {
-    character,
-    world,
-    playerAction,
-    rollOutcome,
-  });
+  // Run Orchestrator with retry loop
+  let proposals: ProposalResult[] = [];
+  let arbiterResult;
+  let lorekeeperResult;
+
+  for (let retry = 0; retry <= MAX_RETRIES; retry++) {
+    const rejectionContext = retry > 0 && arbiterResult?.rejected.length
+      ? `Previous proposals rejected: ${arbiterResult.rejected.map(r => `${r.proposal.type} - ${r.reason}`).join("; ")}. Please adjust.`
+      : mechanics.detectedIntent;
+
+    const orchestratorResult = await runOrchestrator(
+      playerAction,
+      character,
+      world,
+      recentTurns,
+      rollOutcome,
+      rejectionContext,
+      questContext
+    );
+    proposals = orchestratorResult.proposals;
+
+    // === PARALLEL: ARBITER + LOREKEEPER ===
+    [arbiterResult, lorekeeperResult] = await Promise.all([
+      runArbiter(proposals, {
+        character,
+        world,
+        playerAction,
+        rollOutcome,
+      }),
+      runLorekeeper(playerAction, world, character.id!),
+    ]);
+
+    // If no rejections or max retries reached, break
+    if (arbiterResult.rejected.length === 0 || retry === MAX_RETRIES) break;
+  }
+
+  // === COLLECTOR: First pass - merge parallel outputs ===
+  const collected = collectParallelOutputs(arbiterResult!, lorekeeperResult!);
 
   // Convert approved proposals to events for applyEvents
-  const approvedEvents = proposalsToEvents(arbiterResult.approved);
+  const approvedEvents = proposalsToEvents(collected.arbiter.approved);
+
+  // === APPLY STATE ===
+  const applyResult = applyEvents(character, world, approvedEvents as unknown as ValidatedEvent[]);
+
+  // === COLLECTOR: Second pass - build Chronicler context ===
+  const chroniclerContext = buildChroniclerContext(collected, applyResult);
 
   // === CHRONICLER ===
   const prompt = buildTurnPrompt(
@@ -430,7 +478,18 @@ async function continueWithNarration(
       dc: mechanics.dc,
       outcome: mechanics.outcome!,
     },
-    approvedEvents as unknown as ValidatedEvent[]
+    approvedEvents as unknown as ValidatedEvent[],
+    chroniclerContext.npcsPresent.map(npc => ({
+      name: npc.name,
+      role: npc.role,
+      personality: npc.personality,
+      dialogueHints: npc.dialogueHints,
+      relationship: 0, // TODO: fetch actual relationship
+    })),
+    chroniclerContext.codexSnippets,
+    chroniclerContext.consequences,
+    chroniclerContext.npcVoices,
+    chroniclerContext.atmosphere
   );
 
   const geminiResponse = await generateTurn(prompt);
@@ -439,11 +498,11 @@ async function continueWithNarration(
   const outputFilter = filterOutput(geminiResponse.narration);
   const finalNarration = outputFilter.status === "block" ? FALLBACK_NARRATION : geminiResponse.narration;
 
-  // Apply approved events
+  // Use apply result (already computed above)
   const { characterUpdates, worldUpdates, diffs, questChanges, relationshipChanges } =
     outputFilter.status === "block"
       ? { characterUpdates: {}, worldUpdates: {}, diffs: [] as TurnDiff[], questChanges: [], relationshipChanges: [] }
-      : applyEvents(character, world, approvedEvents as unknown as ValidatedEvent[]);
+      : applyResult;
 
   // Clean mechanics for storage (remove pendingProposals)
   const cleanMechanics: Turn["mechanics"] = {
@@ -497,7 +556,8 @@ async function continueWithNarration(
 }
 
 /**
- * Complete the turn pipeline (Arbiter → Chronicler → Apply)
+ * Complete the turn pipeline (Arbiter + Lorekeeper parallel → Apply → Chronicler)
+ * Includes retry loop: if Arbiter rejects proposals, re-run Orchestrator (max 2 retries)
  */
 async function completeTurnPipeline(
   supabase: ReturnType<typeof createAdminClient>,
@@ -507,18 +567,66 @@ async function completeTurnPipeline(
   world: WorldContext,
   recentTurns: Turn[],
   proposals: ProposalResult[],
-  rollOutcome?: { skill: string; success: boolean; total: number; dc: number }
+  rollOutcome?: { skill: string; success: boolean; total: number; dc: number },
+  retryCount: number = 0,
+  questContext?: QuestContext
 ) {
-  // === ARBITER ===
-  const arbiterResult = await runArbiter(proposals, {
-    character,
-    world,
-    playerAction,
-    rollOutcome,
-  });
+  const MAX_RETRIES = 2;
+
+  // === PARALLEL: ARBITER + LOREKEEPER ===
+  const [arbiterResult, lorekeeperResult] = await Promise.all([
+    runArbiter(proposals, {
+      character,
+      world,
+      playerAction,
+      rollOutcome,
+    }),
+    runLorekeeper(playerAction, world, characterId),
+  ]);
+
+  // === RETRY LOOP: If any rejections, re-run Orchestrator with context ===
+  if (arbiterResult.rejected.length > 0 && retryCount < MAX_RETRIES) {
+    const rejectionContext = arbiterResult.rejected
+      .map(r => `Rejected: ${r.proposal.type} - ${r.reason}`)
+      .join("; ");
+
+    // Re-run Orchestrator with rejection context
+    const retryResult = await runOrchestrator(
+      playerAction,
+      character,
+      world,
+      recentTurns,
+      rollOutcome,
+      `Previous proposals rejected: ${rejectionContext}. Please adjust.`,
+      questContext
+    );
+
+    // Recursive call with incremented retry count
+    return completeTurnPipeline(
+      supabase,
+      characterId,
+      playerAction,
+      character,
+      world,
+      recentTurns,
+      retryResult.proposals,
+      rollOutcome,
+      retryCount + 1,
+      questContext
+    );
+  }
+
+  // === COLLECTOR: First pass - merge parallel outputs ===
+  const collected = collectParallelOutputs(arbiterResult, lorekeeperResult);
 
   // Convert approved proposals to events for applyEvents
-  const approvedEvents = proposalsToEvents(arbiterResult.approved);
+  const approvedEvents = proposalsToEvents(collected.arbiter.approved);
+
+  // === APPLY STATE ===
+  const applyResult = applyEvents(character, world, approvedEvents as unknown as ValidatedEvent[]);
+
+  // === COLLECTOR: Second pass - build Chronicler context ===
+  const chroniclerContext = buildChroniclerContext(collected, applyResult);
 
   // === CHRONICLER ===
   const prompt = buildTurnPrompt(
@@ -534,7 +642,18 @@ async function completeTurnPipeline(
       dc: rollOutcome.dc,
       outcome: rollOutcome.success ? "success" : "failure",
     } : undefined,
-    approvedEvents as unknown as ValidatedEvent[]
+    approvedEvents as unknown as ValidatedEvent[],
+    chroniclerContext.npcsPresent.map(npc => ({
+      name: npc.name,
+      role: npc.role,
+      personality: npc.personality,
+      dialogueHints: npc.dialogueHints,
+      relationship: 0, // TODO: fetch actual relationship
+    })),
+    chroniclerContext.codexSnippets,
+    chroniclerContext.consequences,
+    chroniclerContext.npcVoices,
+    chroniclerContext.atmosphere
   );
 
   const geminiResponse = await generateTurn(prompt);
@@ -543,11 +662,11 @@ async function completeTurnPipeline(
   const outputFilter = filterOutput(geminiResponse.narration);
   const finalNarration = outputFilter.status === "block" ? FALLBACK_NARRATION : geminiResponse.narration;
 
-  // Apply approved events
+  // Use apply result (already computed above)
   const { characterUpdates, worldUpdates, diffs, questChanges, relationshipChanges } =
     outputFilter.status === "block"
       ? { characterUpdates: {}, worldUpdates: {}, diffs: [] as TurnDiff[], questChanges: [], relationshipChanges: [] }
-      : applyEvents(character, world, approvedEvents as unknown as ValidatedEvent[]);
+      : applyResult;
 
   // Insert turn
   const { data: turnRow, error: turnInsertError } = await supabase

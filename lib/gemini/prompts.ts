@@ -1,6 +1,8 @@
-import type { Character, WorldContext, Turn, Equipment, Item } from "@/types";
+import type { Character, WorldContext, Turn, Equipment, Item, CodexEntry } from "@/types";
 import { CHRONICLER_SYSTEM_PROMPT } from "@/lib/prompts";
 import type { ProposedEvent } from "@/lib/turn/validate";
+import type { Consequence } from "@/lib/turn/apply";
+import type { NpcVoice, Atmosphere } from "@/lib/agents/lorekeeper/handlers";
 
 /**
  * Prompt templates for Gemini turn generation
@@ -124,6 +126,100 @@ function formatApprovedEvents(events: ProposedEvent[]): string {
 }
 
 /**
+ * Format codex snippets for Chronicler context
+ */
+function formatCodexSnippets(snippets: CodexEntry[]): string {
+  if (!snippets || snippets.length === 0) return "";
+
+  const formatted = snippets.map(entry => 
+    `- ${entry.title} (${entry.category}): ${entry.text}`
+  ).join("\n");
+
+  return `
+RELEVANT LORE:
+${formatted}
+
+Use this lore to enrich your narration where appropriate. Don't force it if not relevant.
+`;
+}
+
+/**
+ * Format NPC voices for dialogue guidance
+ */
+function formatNpcVoices(voices: NpcVoice[]): string {
+  if (!voices || voices.length === 0) return "";
+
+  const formatted = voices.map(v => {
+    const traits = v.personality.join(", ");
+    const hints = v.dialogueHints.slice(0, 2).join("; ");
+    const speech = v.speechPattern ? ` (${v.speechPattern})` : "";
+    return `- ${v.name}${speech}: ${traits}. ${hints}`;
+  }).join("\n");
+
+  return `
+NPC VOICE GUIDE:
+${formatted}
+
+Use these personality traits and speech patterns when writing NPC dialogue.
+`;
+}
+
+/**
+ * Format atmosphere for scene description
+ */
+function formatAtmosphere(atmosphere: Atmosphere | null): string {
+  if (!atmosphere) return "";
+
+  return `
+SCENE ATMOSPHERE:
+Mood: ${atmosphere.mood}
+Descriptors: ${atmosphere.descriptors.join(", ")}
+Ambiance: ${atmosphere.ambiance}
+
+Weave these atmospheric elements into your narration naturally.
+`;
+}
+
+/**
+ * Format consequences for Chronicler context
+ */
+function formatConsequences(consequences: Consequence[]): string {
+  if (!consequences || consequences.length === 0) return "";
+
+  const formatted = consequences.map(c => {
+    switch (c.type) {
+      case "npc_died":
+        return `- ${c.npc} has DIED (${c.reason})`;
+      case "npc_defeated":
+        return `- ${c.npc} has been DEFEATED (${c.reason})`;
+      case "quest_completed":
+        return `- Quest "${c.questTitle}" COMPLETED`;
+      case "quest_started":
+        return `- New quest "${c.questTitle}" started`;
+      case "location_changed":
+        return `- Traveled from ${c.from} to ${c.to}`;
+      case "character_critical_hp":
+        return `- Character is CRITICALLY WOUNDED (${c.hp}/${c.maxHp} HP)`;
+      case "character_died":
+        return `- Character has DIED`;
+      case "item_acquired":
+        return `- Acquired: ${c.itemName}`;
+      case "gold_depleted":
+        return `- Gold depleted - character is now broke`;
+      default:
+        return `- ${(c as { type: string }).type}`;
+    }
+  }).join("\n");
+
+  return `
+IMPORTANT CONSEQUENCES TO NARRATE:
+${formatted}
+
+These are significant events that MUST be reflected in your narration.
+`;
+}
+
+/**
  * Roll outcome for skill checks
  */
 export interface RollOutcome {
@@ -137,7 +233,7 @@ export interface RollOutcome {
 
 /**
  * Build the complete turn prompt for Chronicler
- * Now accepts pre-approved events from Arbiter
+ * Now accepts pre-approved events from Arbiter plus lore context from Lorekeeper
  *
  * @param character - Current character state
  * @param world - Current world context
@@ -146,6 +242,10 @@ export interface RollOutcome {
  * @param rollOutcome - Optional skill check result to incorporate
  * @param approvedEvents - Pre-approved events from Arbiter to narrate
  * @param npcsPresent - NPCs present at the current location
+ * @param codexSnippets - Relevant lore from Lorekeeper
+ * @param consequences - Side effects from Apply State (NPC died, etc.)
+ * @param npcVoices - NPC voice data for dialogue
+ * @param atmosphere - Scene atmosphere descriptors
  * @returns Complete prompt string for Chronicler
  */
 export function buildTurnPrompt(
@@ -155,7 +255,11 @@ export function buildTurnPrompt(
   playerAction: string,
   rollOutcome?: RollOutcome,
   approvedEvents?: ProposedEvent[],
-  npcsPresent?: NPCForPrompt[]
+  npcsPresent?: NPCForPrompt[],
+  codexSnippets?: CodexEntry[],
+  consequences?: Consequence[],
+  npcVoices?: NpcVoice[],
+  atmosphere?: Atmosphere | null
 ): string {
   const lastTurns = recentTurns.slice(-100);
 
@@ -187,6 +291,18 @@ Do NOT propose additional events - these have already been validated.
 `;
   }
 
+  // Add lore context from Lorekeeper
+  const loreContext = formatCodexSnippets(codexSnippets || []);
+  
+  // Add consequences from Apply State
+  const consequencesContext = formatConsequences(consequences || []);
+
+  // Add NPC voice guidance
+  const voiceContext = formatNpcVoices(npcVoices || []);
+
+  // Add atmosphere descriptors
+  const atmosphereContext = formatAtmosphere(atmosphere || null);
+
   const userPrompt = `CURRENT LOCATION:
 ${world.poi} in ${world.region}
 ${world.description || ""}
@@ -196,7 +312,7 @@ ${world.nearbyPoi && world.nearbyPoi.length > 0 ? `\nNEARBY LOCATIONS:\n${world.
 
 NPCS PRESENT:
 ${formatNPCs(npcsPresent || [])}
-
+${voiceContext}${atmosphereContext}${loreContext}${consequencesContext}
 CHARACTER:
 ${character.name}${character.gender ? ` (${character.gender})` : ""}
 HP: ${character.hp}/${character.maxHp}

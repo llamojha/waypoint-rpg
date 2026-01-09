@@ -932,7 +932,12 @@ export default function App() {
       )}
 
       {/* Trace Modal */}
-      <TurnTrace isOpen={showTrace} onClose={() => setShowTrace(false)} />
+      <TurnTrace 
+        isOpen={showTrace} 
+        onClose={() => setShowTrace(false)} 
+        turn={gameState.turns[gameState.turns.length - 1] || null}
+        world={gameState.world}
+      />
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import type { ProposalResult } from "../tools/proposal-tools";
 import type { Character, WorldContext } from "@/types";
 import { runCodeValidation, CodeValidationContext } from "./code-validation";
-import { runLLMValidation, LLMValidationContext } from "./llm-validation";
 
 export interface ArbiterResult {
   proposal: ProposalResult;
@@ -56,7 +55,7 @@ function getProposalKey(p: ProposalResult): string {
 }
 
 /**
- * Run the full Arbiter pipeline: code validation → LLM validation
+ * Run the Arbiter - pure code validation only
  */
 export async function runArbiter(
   proposals: ProposalResult[],
@@ -66,7 +65,7 @@ export async function runArbiter(
   const approved: ProposalResult[] = [];
   const rejected: Array<{ proposal: ProposalResult; reason: string }> = [];
 
-  // Deduplicate proposals (same type + same key data)
+  // Deduplicate proposals
   const seen = new Set<string>();
   const uniqueProposals = proposals.filter(p => {
     const key = getProposalKey(p);
@@ -75,103 +74,31 @@ export async function runArbiter(
     return true;
   });
 
-  // Build validation contexts
   const codeCtx: CodeValidationContext = {
     character: ctx.character,
     world: ctx.world,
     validLocations: [ctx.world.poi, ...(ctx.world.nearbyPoi || [])],
   };
 
-  const llmCtx: LLMValidationContext = {
-    character: ctx.character,
-    world: ctx.world,
-    playerAction: ctx.playerAction,
-    rollOutcome: ctx.rollOutcome,
-  };
-
-  // Step 1: Code validation for all proposals
-  const codeValidated: Array<{ proposal: ProposalResult; passedCode: boolean; reason?: string }> = [];
-  
   for (const proposal of uniqueProposals) {
     // Always pass detect_intent through
     if (proposal.type === "detect_intent") {
-      codeValidated.push({ proposal, passedCode: true });
+      results.push({ proposal, approved: true, reason: "Intent detection always approved" });
+      approved.push(proposal);
       continue;
     }
 
     const codeResult = runCodeValidation(proposal, codeCtx);
-    
+
     if (!codeResult.valid) {
-      // Code validation failed - reject immediately
-      results.push({
-        proposal,
-        approved: false,
-        reason: codeResult.reason || "Failed code validation",
-      });
-      rejected.push({ proposal, reason: codeResult.reason || "Failed code validation" });
+      results.push({ proposal, approved: false, reason: codeResult.reason || "Failed validation" });
+      rejected.push({ proposal, reason: codeResult.reason || "Failed validation" });
     } else if (codeResult.modified) {
-      // Code validation modified the proposal
-      codeValidated.push({ 
-        proposal: codeResult.modified, 
-        passedCode: true,
-        reason: codeResult.reason,
-      });
+      results.push({ proposal: codeResult.modified, approved: true, reason: codeResult.reason || "Modified and approved", modified: codeResult.modified });
+      approved.push(codeResult.modified);
     } else {
-      // Code validation passed
-      codeValidated.push({ proposal, passedCode: true });
-    }
-  }
-
-  // Step 2: LLM validation for proposals that passed code validation
-  const proposalsForLLM = codeValidated
-    .filter(v => v.passedCode && v.proposal.type !== "detect_intent")
-    .map(v => v.proposal);
-
-  let llmResults: Array<{ eventIndex: number; approved: boolean; reason: string }> = [];
-  
-  if (proposalsForLLM.length > 0) {
-    llmResults = await runLLMValidation(proposalsForLLM, llmCtx);
-  }
-
-  // Step 3: Combine results
-  let llmIndex = 0;
-  for (const validated of codeValidated) {
-    if (validated.proposal.type === "detect_intent") {
-      // Always approve detect_intent
-      results.push({
-        proposal: validated.proposal,
-        approved: true,
-        reason: "Intent detection always approved",
-      });
-      approved.push(validated.proposal);
-      continue;
-    }
-
-    // Find LLM result for this proposal
-    const llmResult = llmResults.find(r => r.eventIndex === llmIndex);
-    llmIndex++;
-
-    if (llmResult && !llmResult.approved) {
-      // LLM rejected
-      results.push({
-        proposal: validated.proposal,
-        approved: false,
-        reason: llmResult.reason,
-      });
-      rejected.push({ proposal: validated.proposal, reason: llmResult.reason });
-    } else {
-      // Approved (either by LLM or default)
-      const reason = validated.reason 
-        ? `${validated.reason}; ${llmResult?.reason || "LLM approved"}`
-        : llmResult?.reason || "Approved";
-      
-      results.push({
-        proposal: validated.proposal,
-        approved: true,
-        reason,
-        modified: validated.reason ? validated.proposal : undefined,
-      });
-      approved.push(validated.proposal);
+      results.push({ proposal, approved: true, reason: "Approved" });
+      approved.push(proposal);
     }
   }
 
@@ -190,64 +117,22 @@ export function proposalsToEvents(proposals: ProposalResult[]): Array<{
     .map(p => {
       switch (p.type) {
         case "propose_stat_change":
-          return {
-            type: "stat_change",
-            stat: p.data.stat,
-            delta: p.data.delta,
-            reason: p.data.reason,
-          };
+          return { type: "stat_change", stat: p.data.stat, delta: p.data.delta, reason: p.data.reason };
         case "propose_inventory_add":
-          return {
-            type: "inventory_add",
-            item: {
-              name: p.data.item_name,
-              type: p.data.item_type,
-              description: p.data.description || "",
-            },
-            reason: p.data.reason,
-          };
+          return { type: "inventory_add", item: { name: p.data.item_name, type: p.data.item_type, description: p.data.description || "" }, reason: p.data.reason };
         case "propose_inventory_remove":
-          return {
-            type: "inventory_remove",
-            itemName: p.data.item_name,
-            reason: p.data.reason,
-          };
+          return { type: "inventory_remove", itemName: p.data.item_name, reason: p.data.reason };
         case "propose_relationship_change":
-          return {
-            type: "relationship_change",
-            npc: p.data.npc,
-            delta: p.data.delta,
-            reason: p.data.reason,
-          };
+          return { type: "relationship_change", npc: p.data.npc, delta: p.data.delta, reason: p.data.reason };
         case "propose_quest_progress":
-          return {
-            type: "quest_progress",
-            questId: p.data.quest_id,
-            progress: p.data.new_progress,
-            reason: p.data.reason,
-          };
+          return { type: "quest_progress", questId: p.data.quest_id, progress: p.data.new_progress, reason: p.data.reason };
         case "propose_quest_start":
-          return {
-            type: "quest_start",
-            questId: p.data.quest_id,
-            questTitle: p.data.quest_title,
-            reason: p.data.reason,
-          };
+          return { type: "quest_start", questId: p.data.quest_id, questTitle: p.data.quest_title, reason: p.data.reason };
         case "propose_npc_discovered":
-          return {
-            type: "relationship_change",
-            npc: p.data.name,
-            delta: 0,
-            reason: `Met ${p.data.name} (${p.data.role}) at ${p.data.location}`,
-          };
+          return { type: "relationship_change", npc: p.data.name, delta: 0, reason: `Met ${p.data.name} (${p.data.role}) at ${p.data.location}` };
         case "propose_location_change":
-          return {
-            type: "location_change",
-            location: p.data.location,
-            reason: p.data.reason,
-          };
+          return { type: "location_change", location: p.data.location, reason: p.data.reason };
         default: {
-          // Handle any unknown proposal types
           const unknownProposal = p as { type: string; data: Record<string, unknown> };
           return { type: "unknown", ...unknownProposal.data };
         }

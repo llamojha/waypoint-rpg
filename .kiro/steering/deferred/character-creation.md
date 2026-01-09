@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # Character Creation
 
 ## Design Philosophy: Pure MUD Style

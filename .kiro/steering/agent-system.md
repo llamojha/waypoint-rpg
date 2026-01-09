@@ -116,44 +116,81 @@ User Input
     │
     ▼
 ┌─────────────────┐
-│  Orchestrator   │ ◄── Detect intent, call read tools, output proposals
-│    (Hub)        │     Tools: get_power_word_tier(), detect_intent, propose_*
+│Content Sentinel │  ◄── Filters unsafe user input
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  Code: Mechanics│ ◄── Roll dice, calculate modifiers, resolve checks
-│     Layer       │     Pure code, no LLM
-└────────┬────────┘
-         │
-    ┌────┴────┬────────────┐
-    ▼         ▼            ▼
-┌────────┐ ┌────────┐ ┌──────────┐
-│Lore-   │ │World   │ │ Other    │  ◄── PARALLEL (spokes)
-│keeper  │ │Arbiter │ │Validators│      Read tools + validation
-└────┬───┘ └────┬───┘ └────┬─────┘
-     │          │          │
-     └──────────┴──────────┘
-                │
-                ▼
-┌─────────────────┐
-│  Code: Apply    │ ◄── Apply approved changes to DB
-│  State Changes  │     Pure code, no LLM
+│  Rune Marshal   │ ◄── Intent detection (skill, DC, power words)
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│   Chronicler    │ ◄── Generate narration from approved events
-│                 │     Read tools: get_npc_voice(), get_atmosphere()
+│  Orchestrator   │ ◄── Proposals (read tools + proposal tools)
+│                 │     Tools: get_power_word_tier(), propose_*
 └────────┬────────┘
          │
-         ▼
-┌─────────────────┐
-│Content Sentinel │ ◄── Safety filter (pure code)
-└────────┬────────┘
-         │
-    UI / Client
+    ┌────┴────┐
+    ▼         ▼
+┌────────┐ ┌──────────┐
+│Arbiter │ │Lorekeeper│  ◄── PARALLEL (validation + lore fetch)
+└────┬───┘ └────┬─────┘
+     │          │
+     └────┬─────┘
+          ▼
+   ┌─────────────┐
+   │  Collector  │  ◄── Gathers: approved events + lore context
+   └──────┬──────┘      Pure code, merges parallel outputs
+          │
+          ▼
+   ┌─────────────┐
+   │ Apply State │  ◄── DB writes, returns consequences
+   └──────┬──────┘      (NPC died, quest completed, etc.)
+          │
+          ▼
+   ┌─────────────┐
+   │  Collector  │  ◄── Merges: lore + events + consequences
+   └──────┬──────┘      Prepares full context for Chronicler
+          │
+          ▼
+   ┌─────────────┐
+   │ Chronicler  │  ◄── Narration with full context
+   └──────┬──────┘
+          │
+     UI / Client
 ```
+
+### Collector (Code Layer)
+
+The Collector is a code function (not an LLM agent) that coordinates the pipeline:
+
+1. **First pass**: Gathers outputs from parallel agents (Arbiter + Lorekeeper)
+2. **Second pass**: After Apply State, merges in consequences for Chronicler
+
+```typescript
+// Collector merges parallel results
+const [arbiterResult, lorekeeperResult] = await Promise.all([
+  runArbiter(proposals, ctx),
+  runLorekeeper(playerAction, world, characterId),
+]);
+
+const collectedContext = {
+  approvedEvents: arbiterResult.approved,
+  lore: lorekeeperResult,
+};
+
+// Apply state returns consequences
+const applyResult = applyEvents(character, world, collectedContext.approvedEvents);
+
+// Collector adds apply results for Chronicler
+const chroniclerContext = {
+  ...collectedContext,
+  consequences: applyResult.consequences, // "npc_died", "quest_completed", etc.
+  finalState: applyResult.updatedState,
+};
+```
+
+This ensures Chronicler knows the full picture including side effects (e.g., "NPC HP reached 0" → can narrate death).
 
 ## Agent Specifications
 

@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # Combat Mechanics
 
 ## Overview

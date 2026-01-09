@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # Image Generation
 
 ## Overview

@@ -5,6 +5,7 @@ import { READ_TOOLS } from "./tools/read-tools";
 import { PROPOSAL_TOOLS, ProposalResult, DetectIntentResult } from "./tools/proposal-tools";
 import { handleReadToolCall } from "./tools/read-handlers";
 import type { Character, WorldContext, Turn } from "@/types";
+import type { ActiveQuest, NpcQuest } from "./quest-agent";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
@@ -18,13 +19,19 @@ export interface OrchestratorOutput {
   sceneDirection?: string;
 }
 
+export interface QuestContext {
+  activeQuests: ActiveQuest[];
+  npcQuests: NpcQuest[];
+}
+
 /**
  * Build system prompt with injected context
  */
 function buildOrchestratorPrompt(
   character: Character,
   world: WorldContext,
-  recentTurns: Turn[]
+  recentTurns: Turn[],
+  questContext?: QuestContext
 ): string {
   const skillTreeStr = JSON.stringify(SKILL_TREE, null, 2);
   const characterStr = JSON.stringify({
@@ -49,6 +56,24 @@ function buildOrchestratorPrompt(
     `Player: ${t.playerAction}\nResult: ${t.narration?.slice(0, 200)}...`
   ).join("\n\n");
 
+  // Format quest context
+  let questStr = "";
+  if (questContext) {
+    if (questContext.activeQuests.length > 0) {
+      questStr += "\n## Active Quests\n";
+      for (const q of questContext.activeQuests) {
+        questStr += `- ${q.title} (step ${q.currentStep}/${q.totalProgress})\n`;
+        if (q.currentGoal) questStr += `  Current goal: "${q.currentGoal}"\n`;
+      }
+    }
+    if (questContext.npcQuests.length > 0) {
+      questStr += "\n## Available Quests from NPC\n";
+      for (const q of questContext.npcQuests) {
+        questStr += `- ${q.title}: ${q.description}\n`;
+      }
+    }
+  }
+
   return `You are the Orchestrator for Waypoint RPG. Your job is to:
 1. Detect player intent and determine if a skill check is needed
 2. Propose state changes based on the action
@@ -61,7 +86,7 @@ ${characterStr}
 
 ## Current Location
 ${worldStr}
-
+${questStr}
 ## Recent Events
 ${recentStr || "No recent events"}
 
@@ -69,6 +94,7 @@ ${recentStr || "No recent events"}
 - ALWAYS call detect_intent first to analyze the player's action
 - Then call relevant propose_* tools for ANY state changes that should happen
 - ${character.isMagicUnlocked ? "Magic is unlocked" : "Magic is NOT unlocked - deny magic skill attempts"}
+- If player action matches an active quest's current goal, propose quest_progress
 
 ## When to Use Each Tool
 
@@ -143,9 +169,10 @@ export async function runOrchestrator(
   world: WorldContext,
   recentTurns: Turn[],
   rollOutcome?: { skill: string; success: boolean; total: number; dc: number },
-  detectedIntent?: string
+  detectedIntent?: string,
+  questContext?: QuestContext
 ): Promise<OrchestratorOutput> {
-  const systemPrompt = buildOrchestratorPrompt(character, world, recentTurns);
+  const systemPrompt = buildOrchestratorPrompt(character, world, recentTurns, questContext);
   
   // Build user message with intent and optional roll outcome
   let userMessage = `${systemPrompt}\n\nPlayer action: "${playerAction}"`;

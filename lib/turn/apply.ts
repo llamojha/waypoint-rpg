@@ -36,7 +36,23 @@ export interface ApplyEventsResult {
     loot?: { gold?: number; items?: string[] };
     reason: string;
   }>;
+  /** Side effects for Chronicler narration (NPC died, quest completed, etc.) */
+  consequences: Consequence[];
 }
+
+/**
+ * Consequence types for Chronicler context
+ */
+export type Consequence =
+  | { type: "npc_died"; npc: string; reason: string }
+  | { type: "npc_defeated"; npc: string; reason: string }
+  | { type: "quest_completed"; questTitle: string; reason: string }
+  | { type: "quest_started"; questTitle: string; reason: string }
+  | { type: "location_changed"; from: string; to: string }
+  | { type: "character_critical_hp"; hp: number; maxHp: number }
+  | { type: "character_died"; reason: string }
+  | { type: "item_acquired"; itemName: string; reason: string }
+  | { type: "gold_depleted"; reason: string };
 
 /**
  * Handles stat_change events (hp, gold)
@@ -388,6 +404,7 @@ export function applyEvents(
   const relationshipChanges: ApplyEventsResult["relationshipChanges"] = [];
   const questChanges: ApplyEventsResult["questChanges"] = [];
   const combatEvents: ApplyEventsResult["combatEvents"] = [];
+  const consequences: Consequence[] = [];
 
   for (const event of events) {
     switch (event.type) {
@@ -407,6 +424,14 @@ export function applyEvents(
           characterUpdates,
           diffs
         );
+        // Add consequence for item acquisition
+        if ((event as InventoryAddEvent).item?.name) {
+          consequences.push({
+            type: "item_acquired",
+            itemName: (event as InventoryAddEvent).item.name,
+            reason: (event as InventoryAddEvent).reason || "",
+          });
+        }
         break;
 
       case "inventory_remove":
@@ -432,6 +457,12 @@ export function applyEvents(
 
       case "quest_start":
         applyQuestStart(event as QuestStartEvent, questChanges, diffs);
+        // Add consequence for quest start
+        consequences.push({
+          type: "quest_started",
+          questTitle: (event as QuestStartEvent).questTitle,
+          reason: (event as QuestStartEvent).reason,
+        });
         break;
 
       case "quest_progress":
@@ -445,6 +476,12 @@ export function applyEvents(
           worldUpdates,
           diffs
         );
+        // Add consequence for location change
+        consequences.push({
+          type: "location_changed",
+          from: world.poi,
+          to: (event as LocationChangeEvent).location,
+        });
         break;
 
       case "combat_damage":
@@ -453,8 +490,42 @@ export function applyEvents(
 
       case "combat_end":
         applyCombatEnd(event as CombatEndEvent, combatEvents, diffs);
+        // Add consequence for combat end
+        const combatEndEvent = event as CombatEndEvent;
+        if (combatEndEvent.outcome === "defeated") {
+          consequences.push({
+            type: "npc_defeated",
+            npc: combatEndEvent.target,
+            reason: combatEndEvent.reason,
+          });
+        }
         break;
     }
+  }
+
+  // Check for critical HP consequence
+  const finalHp = characterUpdates.hp ?? character.hp;
+  const maxHp = characterUpdates.maxHp ?? character.maxHp;
+  if (finalHp <= 0) {
+    consequences.push({
+      type: "character_died",
+      reason: "HP reached 0",
+    });
+  } else if (finalHp <= maxHp * 0.25) {
+    consequences.push({
+      type: "character_critical_hp",
+      hp: finalHp,
+      maxHp: maxHp,
+    });
+  }
+
+  // Check for gold depleted consequence
+  const finalGold = characterUpdates.gold ?? character.gold;
+  if (finalGold <= 0 && character.gold > 0) {
+    consequences.push({
+      type: "gold_depleted",
+      reason: "Ran out of gold",
+    });
   }
 
   return {
@@ -464,5 +535,6 @@ export function applyEvents(
     relationshipChanges,
     questChanges,
     combatEvents,
+    consequences,
   };
 }

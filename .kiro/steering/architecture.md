@@ -21,42 +21,58 @@ Player Input
     │
     ▼
 ┌─────────────────┐
+│Content Sentinel │  ◄── Filters unsafe user input
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Rune Marshal   │ ◄── Intent detection (skill, DC, power words)
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
 │  Orchestrator   │ ◄── LLM: Read tools + proposal tools
 │                 │     Outputs: intent, proposed_events
 └────────┬────────┘
          │
-         ▼
-┌─────────────────┐
-│  Code: Mechanics│ ◄── Pure code: dice rolls, modifiers
-│     Layer       │     Outputs: roll_outcome
-└────────┬────────┘
-         │
     ┌────┴────┐
     ▼         ▼
-┌────────┐ ┌────────┐
-│Lore-   │ │World   │  ◄── PARALLEL: LLM read tools + validation
-│keeper  │ │Arbiter │
-└────┬───┘ └────┬───┘
+┌────────┐ ┌──────────┐
+│Arbiter │ │Lorekeeper│  ◄── PARALLEL (validation + lore fetch)
+└────┬───┘ └────┬─────┘
      │          │
      └────┬─────┘
           ▼
-┌─────────────────┐
-│  Code: Apply    │ ◄── Pure code: DB writes for approved changes
-│  State Changes  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Chronicler    │ ◄── LLM: Read tools + narration
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│Content Sentinel │ ◄── Pure code: safety filtering
-└────────┬────────┘
-         │
-    UI / Client
+   ┌─────────────┐
+   │  Collector  │  ◄── Gathers: approved events + lore context
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ Apply State │  ◄── DB writes, returns consequences
+   └──────┬──────┘      (NPC died, quest completed, etc.)
+          │
+          ▼
+   ┌─────────────┐
+   │  Collector  │  ◄── Merges: lore + events + consequences
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ Chronicler  │  ◄── LLM: Narration with full context
+   └──────┬──────┘
+          │
+     UI / Client
 ```
+
+### Collector (Code Layer)
+
+The Collector is a pure code function that coordinates the pipeline:
+
+1. **First pass**: Gathers outputs from parallel agents (Arbiter + Lorekeeper)
+2. **Second pass**: After Apply State, merges in consequences for Chronicler
+
+This ensures Chronicler knows the full picture including side effects (e.g., "NPC HP reached 0" → can narrate death).
 
 ## Tool Categories
 

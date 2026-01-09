@@ -77,12 +77,13 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 
 ### Phase 4: Agent Pipeline (Current)
 
-| ID  | Spec Name                  | Estimate | Status  |
-| --- | -------------------------- | -------- | ------- |
-| 4.1 | `orchestrator-arbiter`     | 6-8h     | 📋 TODO |
-| 4.2 | `lorekeeper`               | 4-6h     | 📋 TODO |
-| 4.3 | `agent-pipeline`           | 4-6h     | 📋 TODO |
-| 4.4 | `conversation-compression` | 6-8h     | 📋 TODO |
+| ID  | Spec Name                  | Estimate | Status      |
+| --- | -------------------------- | -------- | ----------- |
+| 4.1 | `orchestrator-arbiter`     | 6-8h     | ✅ COMPLETE |
+| 4.2 | `lorekeeper`               | 4-6h     | ✅ COMPLETE |
+| 4.3 | `agent-pipeline`           | 4-6h     | ✅ COMPLETE |
+| 4.4 | `quest-agent`              | 6-8h     | 📋 TODO     |
+| 4.5 | `phase4-demo-testing`      | 2-3h     | 📋 TODO     |
 
 **🎮 CHECKPOINT 3**: Full agent architecture with proper validation.
 
@@ -104,34 +105,37 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - Returns canon snippets relevant to the specific intent
 - Runs in parallel with Arbiter
 
-**4.3 `agent-pipeline`**
-- Wire up hub-and-spoke flow with code layers:
-  1. Orchestrator (read tools + proposals) → 
-  2. Code: Mechanics Layer (dice, modifiers) →
-  3. [Lorekeeper, Arbiter] parallel (read tools + validation) → 
-  4. Code: Apply State (DB writes) →
-  5. Chronicler (read tools + narration)
-- Context injection: SKILL_TREE in Orchestrator prompt
-- Chronicler only narrates approved events
-- No more meta-commentary in narration
+**4.3 `agent-pipeline`** ✅
+- Arbiter revamped to pure code (removed LLM validation)
+- Retry loop: re-run Orchestrator on rejections (max 2 retries)
+- Lorekeeper enhanced with `get_npc_voice()`, `get_atmosphere()`
+- Collector passes enriched context (npcVoices, atmosphere) to Chronicler
+- Chronicler prompt updated to use voice/atmosphere data
 
-**4.4 `conversation-compression`**
-- Compress turn history when changing locations
-- Generate summaries for context management
-- Stay within token budget for long sessions
+**4.4 `quest-agent`**
+- Quest state tracking: `get_quest_state()`, `get_active_quests()`
+- Quest trigger detection from player actions
+- Validate quest progression (no skipping steps)
+
+**4.5 `phase4-demo-testing`**
+- Manual playthrough testing (20+ turns)
+- Verify retry loop triggers on invalid proposals
+- Verify NPC voice/atmosphere in narration
+- Verify quest/NPC interactions work correctly
+- Document any bugs found for fixing
 
 #### Checkpoint 3 Checklist:
 - [ ] Orchestrator uses read tools (`get_power_word_tier`, `get_skill_level`)
 - [ ] Orchestrator outputs proposals via tool calls (temp 0.1)
-- [ ] Code layer handles dice rolls and modifier calculation
-- [ ] SKILL_TREE injected in Orchestrator prompt
-- [ ] Lorekeeper + Arbiter run in parallel
-- [ ] Orchestrator collects responses and finalizes proposals
-- [ ] Arbiter validates/rejects/modifies events
-- [ ] Chronicler only narrates approved events (no meta-commentary)
+- [x] Code layer handles dice rolls and modifier calculation
+- [x] SKILL_TREE injected in Orchestrator prompt
+- [x] Lorekeeper + Arbiter run in parallel
+- [x] Arbiter validates/rejects/modifies events (pure code)
+- [x] Retry loop re-runs Orchestrator on rejections
+- [x] Chronicler receives NPC voice/atmosphere context
 - [ ] NPCs appear correctly at their locations
 - [ ] Invalid location changes rejected
-- [ ] Conversation compression working for long sessions
+- [ ] Quest agent tracks quest state
 - [ ] 50+ turns without context overflow
 
 ### Phase 5: Gameplay Systems
@@ -141,9 +145,8 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 | 5.1 | `inventory-equipment` | 4-6h     | 📋 TODO |
 | 5.2 | `skill-system`        | 6-8h     | 📋 TODO |
 | 5.3 | `combat-system`       | 8-10h    | 📋 TODO |
-| 5.4 | `quest-npc-system`    | 6-8h     | 📋 TODO |
-| 5.5 | `world-systems`       | 4-6h     | 📋 TODO |
-| 5.6 | `dm-chat`             | 3-5h     | 📋 TODO |
+| 5.4 | `world-systems`       | 4-6h     | 📋 TODO |
+| 5.5 | `dm-chat`             | 3-5h     | 📋 TODO |
 
 **🎮 CHECKPOINT 4**: Full gameplay systems.
 
@@ -163,10 +166,11 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 
 ### Phase 6: Final Polish
 
-| ID  | Spec Name    | Estimate | Status  |
-| --- | ------------ | -------- | ------- |
-| 6.1 | `mvp-polish` | 8-12h    | 📋 TODO |
-| 6.2 | `e2e-testing` | 6-10h   | 📋 TODO |
+| ID  | Spec Name                  | Estimate | Status  |
+| --- | -------------------------- | -------- | ------- |
+| 6.1 | `conversation-compression` | 6-8h     | 📋 TODO |
+| 6.2 | `mvp-polish`               | 8-12h    | 📋 TODO |
+| 6.3 | `e2e-testing`              | 6-10h    | 📋 TODO |
 
 **🎮 MVP COMPLETE**
 
