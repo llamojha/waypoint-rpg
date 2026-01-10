@@ -82,7 +82,7 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 | 4.1 | `orchestrator-arbiter`     | 6-8h     | ✅ COMPLETE |
 | 4.2 | `lorekeeper`               | 4-6h     | ✅ COMPLETE |
 | 4.3 | `agent-pipeline`           | 4-6h     | ✅ COMPLETE |
-| 4.4 | `quest-agent`              | 6-8h     | 📋 TODO     |
+| 4.4 | `quest-agent`              | 6-8h     | ✅ COMPLETE |
 | 4.5 | `phase4-demo-testing`      | 2-3h     | 📋 TODO     |
 
 **🎮 CHECKPOINT 3**: Full agent architecture with proper validation.
@@ -112,10 +112,11 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - Collector passes enriched context (npcVoices, atmosphere) to Chronicler
 - Chronicler prompt updated to use voice/atmosphere data
 
-**4.4 `quest-agent`**
-- Quest state tracking: `get_quest_state()`, `get_active_quests()`
-- Quest trigger detection from player actions
-- Validate quest progression (no skipping steps)
+**4.4 `quest-agent`** ✅
+- Quest context pre-fetched before Orchestrator runs
+- Provides active quests and NPC quest hooks to Orchestrator prompt
+- Orchestrator uses quest context to propose `quest_progress` or `quest_start`
+- Not a parallel spoke - feeds into Orchestrator as context injection
 
 **4.5 `phase4-demo-testing`**
 - Manual playthrough testing (20+ turns)
@@ -125,17 +126,17 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - Document any bugs found for fixing
 
 #### Checkpoint 3 Checklist:
-- [ ] Orchestrator uses read tools (`get_power_word_tier`, `get_skill_level`)
-- [ ] Orchestrator outputs proposals via tool calls (temp 0.1)
+- [x] Orchestrator uses read tools (`get_power_word_tier`, `get_skill_level`)
+- [x] Orchestrator outputs proposals via tool calls (temp 0.1)
 - [x] Code layer handles dice rolls and modifier calculation
 - [x] SKILL_TREE injected in Orchestrator prompt
 - [x] Lorekeeper + Arbiter run in parallel
 - [x] Arbiter validates/rejects/modifies events (pure code)
 - [x] Retry loop re-runs Orchestrator on rejections
 - [x] Chronicler receives NPC voice/atmosphere context
+- [x] Quest context pre-fetched and injected into Orchestrator
 - [ ] NPCs appear correctly at their locations
 - [ ] Invalid location changes rejected
-- [ ] Quest agent tracks quest state
 - [ ] 50+ turns without context overflow
 
 ### Phase 5: Gameplay Systems

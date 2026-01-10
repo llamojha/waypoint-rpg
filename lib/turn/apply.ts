@@ -218,7 +218,8 @@ function applyWorldUpdate(
 function applyRelationshipChange(
   event: RelationshipChangeEvent,
   relationshipChanges: ApplyEventsResult["relationshipChanges"],
-  diffs: TurnDiff[]
+  diffs: TurnDiff[],
+  knownNpcNames?: Set<string>
 ): void {
   // Safety check
   if (!event.npc) {
@@ -228,15 +229,33 @@ function applyRelationshipChange(
   // Cap delta to ±10 per turn (allows meaningful changes but prevents abuse)
   const cappedDelta = Math.max(-10, Math.min(10, event.delta || 0));
 
+  // Skip if no actual change
+  if (cappedDelta === 0) {
+    return;
+  }
+
+  // Check if we already have a relationship change for this NPC (dedupe)
+  const existingIdx = relationshipChanges.findIndex(
+    rc => rc.npc.toLowerCase() === event.npc.toLowerCase()
+  );
+  if (existingIdx >= 0) {
+    // Combine deltas instead of duplicating
+    relationshipChanges[existingIdx].delta += cappedDelta;
+    return;
+  }
+
   relationshipChanges.push({
     npc: event.npc,
     delta: cappedDelta,
     reason: event.reason || "",
   });
 
-  // Check if this is a new NPC discovery based on reason keywords
+  // Check if this NPC is already known to the player
+  const isAlreadyKnown = knownNpcNames?.has(event.npc.toLowerCase()) ?? false;
+
+  // Check if this is a new NPC discovery based on reason keywords (only if not already known)
   const reasonLower = (event.reason || "").toLowerCase();
-  const isNewNpcDiscovery =
+  const hasDiscoveryKeyword =
     reasonLower.includes("met") ||
     reasonLower.includes("meet") ||
     reasonLower.includes("encounter") ||
@@ -245,6 +264,8 @@ function applyRelationshipChange(
     reasonLower.includes("first") ||
     reasonLower.includes("new acquaintance") ||
     reasonLower.includes("initial");
+
+  const isNewNpcDiscovery = hasDiscoveryKeyword && !isAlreadyKnown;
 
   if (isNewNpcDiscovery) {
     // For new NPC discoveries, show as "NEW NPC" with a descriptor from the reason
@@ -396,7 +417,8 @@ function applyCombatEnd(
 export function applyEvents(
   character: Character,
   world: WorldContext,
-  events: ValidatedEvent[]
+  events: ValidatedEvent[],
+  knownNpcNames?: Set<string>
 ): ApplyEventsResult {
   const characterUpdates: Partial<Character> = {};
   const worldUpdates: Partial<WorldContext> = {};
@@ -451,7 +473,8 @@ export function applyEvents(
         applyRelationshipChange(
           event as RelationshipChangeEvent,
           relationshipChanges,
-          diffs
+          diffs,
+          knownNpcNames
         );
         break;
 

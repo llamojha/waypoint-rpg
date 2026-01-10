@@ -419,6 +419,7 @@ export default function App() {
               id: data.turn.id,
               mechanics: data.turn.mechanics,
               isStreaming: false,
+              trace: data.turn.trace,
             };
           }
           return { ...prev, turns };
@@ -440,6 +441,7 @@ export default function App() {
             diffs: data.turn.diffs || [],
             suggestedActions: data.turn.suggestedActions || [],
             mechanics: data.turn.mechanics || lastTurn.mechanics,
+            trace: data.turn.trace,
           };
         }
         return {
@@ -456,10 +458,10 @@ export default function App() {
 
       if (data.turn.diffs?.length > 0) {
         setDiffLog((prev) => [...prev, ...data.turn.diffs]);
-        const hasRelationshipChange = data.turn.diffs.some(
-          (d: { type: string }) => d.type === "relationship"
+        const hasNpcChange = data.turn.diffs.some(
+          (d: { type: string }) => d.type === "relationship" || d.type === "npc"
         );
-        if (hasRelationshipChange && gameState.character.id) {
+        if (hasNpcChange && gameState.character.id) {
           loadNpcs(gameState.character.id);
         }
       }
@@ -596,6 +598,7 @@ export default function App() {
                 suggestedActions: narrateData.turn.suggestedActions || [],
                 mechanics: narrateData.turn.mechanics,
                 isStreaming: false,
+                trace: narrateData.turn.trace,
               }
             : t
         ),

@@ -119,6 +119,15 @@ export interface TurnDiff {
   value?: string | number;
 }
 
+export interface AgentTrace {
+  agent: "sentinel" | "rune_marshal" | "orchestrator" | "arbiter" | "lorekeeper" | "quest_agent" | "collector" | "apply_state" | "chronicler";
+  status: "success" | "error" | "skipped";
+  durationMs?: number;
+  description: string;
+  details?: string[];
+  error?: string;
+}
+
 export interface Turn {
   id: string;
   timestamp: number;
@@ -136,6 +145,7 @@ export interface Turn {
   };
   suggestedActions: string[];
   diffs: TurnDiff[];
+  trace?: AgentTrace[];
 }
 
 export interface WorldContext {

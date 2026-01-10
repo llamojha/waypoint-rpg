@@ -162,8 +162,9 @@ export async function POST() {
       player_action: "Awaken",
       narration: OPENING_NARRATION,
       diffs: [
-        { type: "world", text: "Arrived at The Waystone", value: "Windhollow Vale" },
-        { type: "relationship", text: "Met Lenna", value: "Lenna" },
+        { type: "world", text: "New Region: Windhollow Vale" },
+        { type: "world", text: "New Location: The Waystone" },
+        { type: "relationship", text: "New Relationship: Lenna" },
       ],
       suggested_actions: OPENING_SUGGESTED_ACTIONS,
       mechanics: null,

@@ -94,8 +94,6 @@ export function handleReadToolCall(
   character: Character
 ): unknown {
   switch (toolName) {
-    case "get_power_word_tier":
-      return getPowerWordTier(args.word as string, args.skill as string);
     case "get_skill_level":
       return getSkillLevel(character, args.skill as string);
     default:

@@ -108,6 +108,9 @@ SET requires_roll=false for:
 ## Magic Denial
 ${character.isMagicUnlocked ? "Magic is unlocked - allow magic actions" : "Magic is NOT unlocked. If player attempts magic (spells, rituals, summoning), set denial_reason explaining magic must be unlocked first."}
 
+## NPC Travel Denial
+If player asks an NPC to travel, follow, or come with them, set denial_reason with an in-character response where the NPC (use their name from the action) politely declines, explaining they have duties or reasons to stay at their current location.
+
 Call detect_intent with your analysis.`;
 }
 

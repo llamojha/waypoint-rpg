@@ -105,9 +105,10 @@ ${JSON.stringify(recentTurns, null, 2)}
 | ---------------- | ---------- | -------------- | ---------- |
 | Orchestrator     | ✅ Yes     | ✅ Yes         | Receives results |
 | Lorekeeper       | ✅ Yes     | ❌ No          | Executes queries |
-| World Arbiter    | ✅ Yes     | ✅ Yes (validate) | Executes checks |
+| World Arbiter    | ❌ No      | ❌ No          | Pure code validation |
 | Chronicler       | ✅ Yes     | ❌ No (JSON mode) | Receives context |
 | Content Sentinel | ❌ No      | ❌ No          | Pure code |
+| Rune Marshal     | ❌ No      | ❌ No          | LLM intent detection |
 
 ## Agent Pipeline Flow
 
@@ -116,48 +117,74 @@ User Input
     │
     ▼
 ┌─────────────────┐
-│Content Sentinel │  ◄── Filters unsafe user input
+│Content Sentinel │  ◄── Pure code: filters unsafe user input
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  Rune Marshal   │ ◄── Intent detection (skill, DC, power words)
+│  Rune Marshal   │  ◄── LLM: Intent detection (skill, DC, power words)
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  Orchestrator   │ ◄── Proposals (read tools + proposal tools)
-│                 │     Tools: get_power_word_tier(), propose_*
+│  Quest Context  │  ◄── Code: DB query for active quests (pre-fetch)
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Orchestrator   │  ◄── LLM: Proposals (read tools + proposal tools)
+│                 │      Context: quest state, character, world
+│                 │      Tools: get_power_word_tier(), get_skill_level()
+│                 │      Output: propose_* tool calls
 └────────┬────────┘
          │
     ┌────┴────┐
     ▼         ▼
 ┌────────┐ ┌──────────┐
 │Arbiter │ │Lorekeeper│  ◄── PARALLEL (validation + lore fetch)
+│ (code) │ │  (LLM)   │
 └────┬───┘ └────┬─────┘
      │          │
      └────┬─────┘
           ▼
    ┌─────────────┐
-   │  Collector  │  ◄── Gathers: approved events + lore context
-   └──────┬──────┘      Pure code, merges parallel outputs
+   │  Collector  │  ◄── Code: Gathers approved events + lore context
+   └──────┬──────┘
           │
           ▼
    ┌─────────────┐
-   │ Apply State │  ◄── DB writes, returns consequences
-   └──────┬──────┘      (NPC died, quest completed, etc.)
+   │ Apply State │  ◄── Code: DB writes, returns consequences
+   └──────┬──────┘
           │
           ▼
    ┌─────────────┐
-   │  Collector  │  ◄── Merges: lore + events + consequences
-   └──────┬──────┘      Prepares full context for Chronicler
+   │  Collector  │  ◄── Code: Merges lore + events + consequences
+   └──────┬──────┘
           │
           ▼
    ┌─────────────┐
-   │ Chronicler  │  ◄── Narration with full context
+   │ Chronicler  │  ◄── LLM: Narration with full context
    └──────┬──────┘
           │
      UI / Client
+```
+
+### Quest Context (Pre-fetch)
+
+Quest context is fetched before the Orchestrator runs so it can:
+- Know if player action matches a quest goal → propose `quest_progress`
+- Know available NPC quests → propose `quest_start` when talking to quest-giver
+- Avoid proposing duplicate quests
+
+```typescript
+// Fetch quest context before Orchestrator
+const questContext = await runQuestAgent(characterId);
+
+// Inject into Orchestrator prompt
+const orchestratorResult = await runOrchestrator(
+  playerAction, character, world, recentTurns,
+  rollOutcome, detectedIntent, questContext  // ◄── quest context injected
+);
 ```
 
 ### Collector (Code Layer)

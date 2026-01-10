@@ -12,19 +12,36 @@ export interface CodeValidationContext {
   character: Character;
   world: WorldContext;
   validLocations: string[];
+  activeQuestIds?: string[];
+  availableQuestIds?: string[];
 }
 
 /**
- * Validate relationship change: ±2 per turn max, total -5 to +5
+ * Validate relationship change: NPC must be present, ±2 per turn max
  */
-function validateRelationshipCap(
-  proposal: ProposalResult
+function validateRelationshipChange(
+  proposal: ProposalResult,
+  ctx: CodeValidationContext
 ): ValidationResult {
   if (proposal.type !== "propose_relationship_change") {
     return { valid: true };
   }
 
-  const { delta } = proposal.data;
+  const { npc, delta } = proposal.data;
+  
+  // NPC must be present at current location (flexible matching for partial names)
+  const npcsPresent = ctx.world.entities || [];
+  const npcLower = npc.toLowerCase();
+  const npcPresent = npcsPresent.some(
+    e => e.toLowerCase().includes(npcLower) || npcLower.includes(e.toLowerCase())
+  );
+  
+  if (!npcPresent) {
+    return {
+      valid: false,
+      reason: `Cannot change relationship with "${npc}" - not present at current location`,
+    };
+  }
   
   // Cap delta to ±2 per turn
   if (Math.abs(delta) > 2) {
@@ -123,12 +140,52 @@ function validateItemBounds(proposal: ProposalResult): ValidationResult {
 }
 
 /**
- * Validate quest progression: can only increase by 1
+ * Validate quest start: quest must be in available quests from NPC
  */
-function validateQuestProgression(proposal: ProposalResult): ValidationResult {
+function validateQuestStart(
+  proposal: ProposalResult,
+  ctx: CodeValidationContext
+): ValidationResult {
+  if (proposal.type !== "propose_quest_start") return { valid: true };
+
+  const { quest_id, quest_title } = proposal.data;
+
+  // Must have available quests to start one
+  if (!ctx.availableQuestIds || ctx.availableQuestIds.length === 0) {
+    return {
+      valid: false,
+      reason: `No quests available from NPCs at this location`,
+    };
+  }
+
+  // Quest must be in available list (check by ID or title)
+  const questIdLower = (quest_id || "").toLowerCase();
+  const questTitleLower = (quest_title || "").toLowerCase();
+  
+  const isAvailable = ctx.availableQuestIds.some(
+    id => id.toLowerCase() === questIdLower || id.toLowerCase() === questTitleLower
+  );
+
+  if (!isAvailable) {
+    return {
+      valid: false,
+      reason: `Quest "${quest_title || quest_id}" is not available from NPCs here`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validate quest progression: quest must exist and progress must be valid
+ */
+function validateQuestProgression(
+  proposal: ProposalResult,
+  ctx: CodeValidationContext
+): ValidationResult {
   if (proposal.type !== "propose_quest_progress") return { valid: true };
 
-  const { new_progress } = proposal.data;
+  const { quest_id, new_progress } = proposal.data;
   
   // Progress must be positive
   if (new_progress < 0) {
@@ -138,13 +195,31 @@ function validateQuestProgression(proposal: ProposalResult): ValidationResult {
     };
   }
 
-  // Note: We can't check "no skipping steps" without knowing current progress
-  // That check happens in the API route with DB data
+  // Quest must exist in active quests
+  if (ctx.activeQuestIds && ctx.activeQuestIds.length > 0) {
+    const questExists = ctx.activeQuestIds.some(
+      id => id.toLowerCase() === (quest_id || "").toLowerCase()
+    );
+    if (!questExists) {
+      return {
+        valid: false,
+        reason: `Quest "${quest_id}" is not active`,
+      };
+    }
+  } else {
+    // No active quests at all
+    return {
+      valid: false,
+      reason: `No active quests - cannot progress "${quest_id}"`,
+    };
+  }
+
   return { valid: true };
 }
 
 /**
- * Validate location change: must be in nearbyPoi or current poi
+ * Validate location change: only allow travel to known POIs from nearbyPoi list
+ * No invented sub-locations allowed
  */
 function validateLocationChange(
   proposal: ProposalResult,
@@ -154,16 +229,25 @@ function validateLocationChange(
 
   const { location } = proposal.data;
   const locationLower = location.toLowerCase();
+  const currentPoiLower = ctx.world.poi.toLowerCase();
 
-  // Check if location is valid
-  const isValid = ctx.validLocations.some(
+  // Reject if trying to move to current location (no-op)
+  if (locationLower === currentPoiLower) {
+    return {
+      valid: false,
+      reason: `Already at "${location}"`,
+    };
+  }
+
+  // Location must be in valid list (nearbyPoi or current poi)
+  const isKnownPoi = ctx.validLocations.some(
     loc => loc.toLowerCase() === locationLower
   );
 
-  if (!isValid) {
+  if (!isKnownPoi) {
     return {
       valid: false,
-      reason: `Cannot travel to "${location}" - not accessible from current location. Valid: ${ctx.validLocations.join(", ")}`,
+      reason: `"${location}" is not a known location. Valid: ${ctx.validLocations.join(", ")}`,
     };
   }
 
@@ -207,11 +291,12 @@ export function runCodeValidation(
   }
 
   const validators = [
-    () => validateRelationshipCap(proposal),
+    () => validateRelationshipChange(proposal, ctx),
     () => validateHpBounds(proposal, ctx),
     () => validateGoldBounds(proposal, ctx),
     () => validateItemBounds(proposal),
-    () => validateQuestProgression(proposal),
+    () => validateQuestStart(proposal, ctx),
+    () => validateQuestProgression(proposal, ctx),
     () => validateLocationChange(proposal, ctx),
     () => validateInventoryRemove(proposal, ctx),
   ];

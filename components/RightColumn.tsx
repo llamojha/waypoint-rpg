@@ -136,7 +136,7 @@ export const RightColumn: React.FC<Props> = ({ world, diffs, npcs }) => {
               : "text-ink-light hover:text-gold"
           }`}
         >
-          <Scroll size={12} /> Recent Updates
+          <Scroll size={12} /> Updates
         </button>
         <button
           onClick={() => setActiveTab("news")}
@@ -146,7 +146,7 @@ export const RightColumn: React.FC<Props> = ({ world, diffs, npcs }) => {
               : "text-ink-light hover:text-gold"
           }`}
         >
-          <MessageCircle size={12} /> World News
+          <MessageCircle size={12} /> News
         </button>
       </div>
 

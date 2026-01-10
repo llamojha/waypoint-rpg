@@ -13,13 +13,12 @@ import { generateTurn } from "@/lib/gemini/client";
 import { buildTurnPrompt } from "@/lib/gemini/prompts";
 import { applyEvents } from "@/lib/turn/apply";
 import { filterInput, filterOutput, FALLBACK_NARRATION } from "@/lib/safety/sentinel";
-import type { Turn, TurnDiff, Character, WorldContext } from "@/types";
+import type { Turn, TurnDiff, Character, WorldContext, AgentTrace } from "@/types";
 import type { ValidatedEvent } from "@/lib/turn/validate";
 
 interface TurnRequest {
   characterId: string;
   playerAction?: string;
-  roll?: boolean;
   rollOnly?: boolean;  // If true, just roll dice and return result (no narration)
   narrate?: boolean;   // If true, generate narration for already-rolled turn
   turnId?: string;
@@ -32,6 +31,7 @@ interface TurnResponse {
     diffs: TurnDiff[];
     suggestedActions: string[];
     mechanics?: Turn["mechanics"];
+    trace?: AgentTrace[];
   };
   updatedCharacter?: Partial<Character>;
   updatedWorld?: Partial<WorldContext>;
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as TurnRequest;
-    const { characterId, playerAction, roll, rollOnly, narrate, turnId } = body;
+    const { characterId, playerAction, rollOnly, narrate, turnId } = body;
 
     if (!characterId || typeof characterId !== "string") {
       return NextResponse.json({ error: "characterId is required" }, { status: 400 });
@@ -131,11 +131,28 @@ export async function POST(request: NextRequest) {
 
     const world = dbToWorld(worldRow);
 
-    // Load recent turns
+    // Load known NPC names for this character
+    const { data: knownNpcRows } = await supabase
+      .from("waypoint_character_npcs")
+      .select("waypoint_npcs(name)")
+      .eq("character_id", characterId);
+    
+    const knownNpcNames = new Set<string>(
+      (knownNpcRows || [])
+        .map((row) => {
+          const npcs = row.waypoint_npcs as { name: string } | { name: string }[] | null;
+          if (Array.isArray(npcs)) return npcs[0]?.name?.toLowerCase();
+          return npcs?.name?.toLowerCase();
+        })
+        .filter((name): name is string => typeof name === "string")
+    );
+
+    // Load recent turns (only completed turns with narration)
     const { data: turnRows } = await supabase
       .from("waypoint_turns")
       .select("*")
       .eq("character_id", characterId)
+      .not("narration", "is", null)
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -143,17 +160,12 @@ export async function POST(request: NextRequest) {
 
     // ROLL ONLY: Just roll dice and return result (no narration)
     if (rollOnly && turnId) {
-      return handleRollResolution(supabase, turnId, character, world, recentTurns, true);
+      return handleRollResolution(supabase, turnId, character, world, recentTurns, true, knownNpcNames);
     }
 
     // NARRATE: Generate narration for already-rolled turn
     if (narrate && turnId) {
-      return handleRollResolution(supabase, turnId, character, world, recentTurns, false);
-    }
-
-    // LEGACY: roll && turnId (for backwards compatibility)
-    if (roll && turnId) {
-      return handleRollResolution(supabase, turnId, character, world, recentTurns, false);
+      return handleRollResolution(supabase, turnId, character, world, recentTurns, false, knownNpcNames);
     }
 
     // NEW TURN: Validate playerAction
@@ -161,14 +173,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "playerAction is required" }, { status: 400 });
     }
 
+    // Initialize trace collection
+    const traces: AgentTrace[] = [];
+
     // Safety filter on input
+    const sentinelStart = Date.now();
     const inputFilter = filterInput(playerAction);
+    traces.push({
+      agent: "sentinel",
+      status: inputFilter.status === "block" ? "error" : "success",
+      durationMs: Date.now() - sentinelStart,
+      description: inputFilter.status === "block" 
+        ? `Blocked unsafe input: "${playerAction.slice(0, 30)}..."`
+        : `Input passed safety check`,
+      details: [`Scanned ${playerAction.length} characters`, `Result: ${inputFilter.status.toUpperCase()}`],
+    });
+
     if (inputFilter.status === "block") {
       return NextResponse.json({ error: inputFilter.output }, { status: 400 });
     }
 
     // === RUNE MARSHAL (intent detection only) ===
+    const runeMarshalStart = Date.now();
     const intent = await runRuneMarshal(playerAction, character, world);
+    traces.push({
+      agent: "rune_marshal",
+      status: "success",
+      durationMs: Date.now() - runeMarshalStart,
+      description: intent.requires_roll 
+        ? `Detected ${intent.primary_skill} check (DC ${intent.dc})`
+        : `No skill check required - routine action`,
+      details: [
+        `Primary skill: ${intent.primary_skill}`,
+        intent.requires_roll ? `Difficulty: DC ${intent.dc}` : `Routine action`,
+        intent.power_words?.length ? `Power words: ${intent.power_words.join(", ")}` : `No power words detected`,
+        intent.bonus ? `Bonus: +${intent.bonus}` : null,
+      ].filter(Boolean) as string[],
+    });
 
     // Handle denied actions (e.g., magic when not unlocked)
     if (intent.denial_reason) {
@@ -195,6 +236,7 @@ export async function POST(request: NextRequest) {
           narration: intent.denial_reason,
           diffs: [],
           suggestedActions: ["Look around", "Try something else"],
+          trace: traces,
         },
       });
     }
@@ -237,20 +279,50 @@ export async function POST(request: NextRequest) {
           diffs: [],
           suggestedActions: [],
           mechanics,
+          trace: traces,
         },
         pendingRoll: true,
       });
     }
 
     // === QUEST AGENT: Gather quest context ===
+    const questAgentStart = Date.now();
     const questAgentResult = await runQuestAgent(characterId);
+    const activeQuestNames = questAgentResult.activeQuests.map(q => q.title).slice(0, 3);
+    traces.push({
+      agent: "quest_agent",
+      status: "success",
+      durationMs: Date.now() - questAgentStart,
+      description: questAgentResult.activeQuests.length > 0
+        ? `Found ${questAgentResult.activeQuests.length} active quest(s)`
+        : `No active quests`,
+      details: [
+        ...activeQuestNames.map(name => `Active: "${name}"`),
+        questAgentResult.npcQuests.length > 0 ? `${questAgentResult.npcQuests.length} NPC quest hooks available` : null,
+      ].filter(Boolean) as string[],
+    });
+
     const questContext: QuestContext = {
       activeQuests: questAgentResult.activeQuests,
       npcQuests: questAgentResult.npcQuests,
     };
 
     // === NO ROLL NEEDED - Run Orchestrator with quest context ===
+    const orchestratorStart = Date.now();
     const orchestratorResult = await runOrchestrator(playerAction, character, world, recentTurns, undefined, intent.intent, questContext);
+    const proposalTypes = orchestratorResult.proposals.map(p => p.type);
+    traces.push({
+      agent: "orchestrator",
+      status: "success",
+      durationMs: Date.now() - orchestratorStart,
+      description: `Generated ${orchestratorResult.proposals.length} proposal(s)`,
+      details: [
+        ...(orchestratorResult.traceDetails || []),
+        ...(proposalTypes.length > 0 
+          ? proposalTypes.map(t => `→ ${t.replace(/_/g, ' ')}`)
+          : [`No state changes proposed`]),
+      ],
+    });
     
     return completeTurnPipeline(
       supabase,
@@ -262,7 +334,9 @@ export async function POST(request: NextRequest) {
       orchestratorResult.proposals,
       undefined,
       0,
-      questContext
+      questContext,
+      knownNpcNames,
+      traces
     );
   } catch (error) {
     console.error("Turn processing error:", error);
@@ -281,7 +355,8 @@ async function handleRollResolution(
   character: Character,
   world: WorldContext,
   recentTurns: Turn[],
-  rollOnly: boolean = false
+  rollOnly: boolean = false,
+  knownNpcNames: Set<string> = new Set()
 ) {
   // Load pending turn
   const { data: turnRow, error: turnError } = await supabase
@@ -372,7 +447,8 @@ async function handleRollResolution(
       character,
       world,
       recentTurns,
-      updatedMechanics
+      updatedMechanics,
+      knownNpcNames
     );
   }
 
@@ -384,7 +460,8 @@ async function handleRollResolution(
     character,
     world,
     recentTurns,
-    mechanics
+    mechanics,
+    knownNpcNames
   );
 }
 
@@ -399,9 +476,12 @@ async function continueWithNarration(
   character: Character,
   world: WorldContext,
   recentTurns: Turn[],
-  mechanics: NonNullable<Turn["mechanics"]> & { detectedIntent?: string }
+  mechanics: NonNullable<Turn["mechanics"]> & { detectedIntent?: string },
+  knownNpcNames: Set<string> = new Set()
 ) {
   const MAX_RETRIES = 2;
+  const traces: AgentTrace[] = [];
+  
   const rollOutcome = {
     skill: mechanics.skill,
     success: mechanics.outcome === "success",
@@ -410,7 +490,22 @@ async function continueWithNarration(
   };
 
   // === QUEST AGENT: Gather quest context ===
+  const questAgentStart = Date.now();
   const questAgentResult = await runQuestAgent(character.id!);
+  const activeQuestNames = questAgentResult.activeQuests.map(q => q.title).slice(0, 3);
+  traces.push({
+    agent: "quest_agent",
+    status: "success",
+    durationMs: Date.now() - questAgentStart,
+    description: questAgentResult.activeQuests.length > 0
+      ? `Found ${questAgentResult.activeQuests.length} active quest(s)`
+      : `No active quests`,
+    details: [
+      ...activeQuestNames.map(name => `Active: "${name}"`),
+      questAgentResult.npcQuests.length > 0 ? `${questAgentResult.npcQuests.length} NPC quest hooks available` : null,
+    ].filter(Boolean) as string[],
+  });
+  
   const questContext: QuestContext = {
     activeQuests: questAgentResult.activeQuests,
     npcQuests: questAgentResult.npcQuests,
@@ -426,6 +521,7 @@ async function continueWithNarration(
       ? `Previous proposals rejected: ${arbiterResult.rejected.map(r => `${r.proposal.type} - ${r.reason}`).join("; ")}. Please adjust.`
       : mechanics.detectedIntent;
 
+    const orchestratorStart = Date.now();
     const orchestratorResult = await runOrchestrator(
       playerAction,
       character,
@@ -436,35 +532,110 @@ async function continueWithNarration(
       questContext
     );
     proposals = orchestratorResult.proposals;
+    
+    if (retry === 0) {
+      const proposalTypes = proposals.map(p => p.type);
+      traces.push({
+        agent: "orchestrator",
+        status: "success",
+        durationMs: Date.now() - orchestratorStart,
+        description: `Generated ${proposals.length} proposal(s) after ${mechanics.outcome} roll`,
+        details: [
+          ...(orchestratorResult.traceDetails || []),
+          ...(proposalTypes.length > 0 
+            ? proposalTypes.map(t => `→ ${t.replace(/_/g, ' ')}`)
+            : [`No state changes proposed`]),
+        ],
+      });
+    }
 
     // === PARALLEL: ARBITER + LOREKEEPER ===
+    const parallelStart = Date.now();
+    const activeQuestIds = questContext?.activeQuests.map(q => q.id) || [];
+    const availableQuestIds = questContext?.npcQuests.map(q => q.id) || [];
     [arbiterResult, lorekeeperResult] = await Promise.all([
       runArbiter(proposals, {
         character,
         world,
         playerAction,
         rollOutcome,
+        activeQuestIds,
+        availableQuestIds,
       }),
       runLorekeeper(playerAction, world, character.id!),
     ]);
 
     // If no rejections or max retries reached, break
-    if (arbiterResult.rejected.length === 0 || retry === MAX_RETRIES) break;
+    if (arbiterResult.rejected.length === 0 || retry === MAX_RETRIES) {
+      const parallelDuration = Date.now() - parallelStart;
+      const npcNames = lorekeeperResult.npcsPresent?.map(n => n.name) || [];
+      traces.push({
+        agent: "arbiter",
+        status: arbiterResult.rejected.length > 0 ? "error" : "success",
+        durationMs: parallelDuration,
+        description: arbiterResult.rejected.length > 0
+          ? `Rejected ${arbiterResult.rejected.length} proposal(s), approved ${arbiterResult.approved.length}`
+          : `Validated all ${arbiterResult.approved.length} proposal(s)`,
+        details: [
+          ...arbiterResult.approved.map(p => `✓ Approved: ${p.type.replace(/_/g, ' ')}`),
+          ...arbiterResult.rejected.map(r => `✗ Rejected: ${r.proposal.type.replace(/_/g, ' ')} - ${r.reason}`),
+        ],
+      });
+      traces.push({
+        agent: "lorekeeper",
+        status: "success",
+        durationMs: parallelDuration,
+        description: `Fetched context for ${world.poi}`,
+        details: [
+          npcNames.length > 0 ? `NPCs present: ${npcNames.join(", ")}` : `No NPCs at this location`,
+          lorekeeperResult.codexSnippets?.length ? `Found ${lorekeeperResult.codexSnippets.length} codex entries` : `No relevant lore`,
+        ],
+      });
+      break;
+    }
   }
 
   // === COLLECTOR: First pass - merge parallel outputs ===
+  const collectorStart = Date.now();
   const collected = collectParallelOutputs(arbiterResult!, lorekeeperResult!);
+  traces.push({
+    agent: "collector",
+    status: "success",
+    durationMs: Date.now() - collectorStart,
+    description: `Merged arbiter and lorekeeper outputs`,
+    details: [
+      `${collected.arbiter.approved.length} approved events ready`,
+      collected.lore.npcsPresent?.length ? `${collected.lore.npcsPresent.length} NPC(s) in context` : `No NPCs in context`,
+    ],
+  });
 
   // Convert approved proposals to events for applyEvents
   const approvedEvents = proposalsToEvents(collected.arbiter.approved);
 
   // === APPLY STATE ===
-  const applyResult = applyEvents(character, world, approvedEvents as unknown as ValidatedEvent[]);
+  const applyStart = Date.now();
+  const applyResult = applyEvents(character, world, approvedEvents as unknown as ValidatedEvent[], knownNpcNames);
+  const diffDescriptions = applyResult.diffs.map(d => {
+    if (d.value !== undefined) {
+      return `${d.type}: ${d.text} (${d.value})`;
+    }
+    return `${d.type}: ${d.text}`;
+  });
+  traces.push({
+    agent: "apply_state",
+    status: "success",
+    durationMs: Date.now() - applyStart,
+    description: applyResult.diffs.length > 0
+      ? `Applied ${applyResult.diffs.length} state change(s)`
+      : `No state changes to apply`,
+    details: diffDescriptions.length > 0 ? diffDescriptions : [`World state unchanged`],
+  });
 
   // === COLLECTOR: Second pass - build Chronicler context ===
   const chroniclerContext = buildChroniclerContext(collected, applyResult);
 
   // === CHRONICLER ===
+  const chroniclerStart = Date.now();
   const prompt = buildTurnPrompt(
     character,
     world,
@@ -493,6 +664,17 @@ async function continueWithNarration(
   );
 
   const geminiResponse = await generateTurn(prompt);
+  traces.push({
+    agent: "chronicler",
+    status: "success",
+    durationMs: Date.now() - chroniclerStart,
+    description: `Generated ${geminiResponse.narration.length} character narration`,
+    details: [
+      `Called Gemini API for narrative generation`,
+      `Output: ${geminiResponse.narration.slice(0, 60)}...`,
+      `Suggested ${geminiResponse.suggested_actions.length} follow-up action(s)`,
+    ],
+  });
 
   // Safety filter on output
   const outputFilter = filterOutput(geminiResponse.narration);
@@ -546,6 +728,7 @@ async function continueWithNarration(
       diffs,
       suggestedActions: outputFilter.status === "block" ? ["Look around", "Wait"] : geminiResponse.suggested_actions,
       mechanics: cleanMechanics,
+      trace: traces,
     },
   };
 
@@ -569,20 +752,58 @@ async function completeTurnPipeline(
   proposals: ProposalResult[],
   rollOutcome?: { skill: string; success: boolean; total: number; dc: number },
   retryCount: number = 0,
-  questContext?: QuestContext
+  questContext?: QuestContext,
+  knownNpcNames: Set<string> = new Set(),
+  existingTraces: AgentTrace[] = []
 ) {
   const MAX_RETRIES = 2;
+  const traces: AgentTrace[] = [...existingTraces];
 
   // === PARALLEL: ARBITER + LOREKEEPER ===
+  const parallelStart = Date.now();
+  const activeQuestIds = questContext?.activeQuests.map(q => q.id) || [];
+  const availableQuestIds = questContext?.npcQuests.map(q => q.id) || [];
   const [arbiterResult, lorekeeperResult] = await Promise.all([
     runArbiter(proposals, {
       character,
       world,
       playerAction,
       rollOutcome,
+      activeQuestIds,
+      availableQuestIds,
     }),
     runLorekeeper(playerAction, world, characterId),
   ]);
+  const parallelDuration = Date.now() - parallelStart;
+
+  // Add arbiter trace
+  const rejectedTypes = arbiterResult.rejected.map(r => r.proposal.type);
+  traces.push({
+    agent: "arbiter",
+    status: arbiterResult.rejected.length > 0 ? "error" : "success",
+    durationMs: parallelDuration,
+    description: arbiterResult.rejected.length > 0
+      ? `Rejected ${arbiterResult.rejected.length} proposal(s), approved ${arbiterResult.approved.length}`
+      : `Validated all ${arbiterResult.approved.length} proposal(s)`,
+    details: [
+      ...arbiterResult.approved.map(p => `✓ Approved: ${p.type.replace(/_/g, ' ')}`),
+      ...arbiterResult.rejected.map(r => `✗ Rejected: ${r.proposal.type.replace(/_/g, ' ')} - ${r.reason}`),
+    ],
+  });
+
+  // Add lorekeeper trace
+  const npcNames = lorekeeperResult.npcsPresent?.map(n => n.name) || [];
+  traces.push({
+    agent: "lorekeeper",
+    status: "success",
+    durationMs: parallelDuration,
+    description: `Fetched context for ${world.poi}`,
+    details: [
+      npcNames.length > 0 ? `NPCs present: ${npcNames.join(", ")}` : `No NPCs at this location`,
+      lorekeeperResult.codexSnippets?.length ? `Found ${lorekeeperResult.codexSnippets.length} codex entries` : `No relevant lore`,
+      lorekeeperResult.atmosphere ? `Atmosphere: ${lorekeeperResult.atmosphere.mood || 'neutral'}` : null,
+    ].filter(Boolean) as string[],
+  });
 
   // === RETRY LOOP: If any rejections, re-run Orchestrator with context ===
   if (arbiterResult.rejected.length > 0 && retryCount < MAX_RETRIES) {
@@ -612,23 +833,53 @@ async function completeTurnPipeline(
       retryResult.proposals,
       rollOutcome,
       retryCount + 1,
-      questContext
+      questContext,
+      knownNpcNames,
+      traces
     );
   }
 
   // === COLLECTOR: First pass - merge parallel outputs ===
+  const collectorStart = Date.now();
   const collected = collectParallelOutputs(arbiterResult, lorekeeperResult);
+  traces.push({
+    agent: "collector",
+    status: "success",
+    durationMs: Date.now() - collectorStart,
+    description: `Merged arbiter and lorekeeper outputs`,
+    details: [
+      `${collected.arbiter.approved.length} approved events ready`,
+      collected.lore.npcsPresent?.length ? `${collected.lore.npcsPresent.length} NPC(s) in context` : `No NPCs in context`,
+    ],
+  });
 
   // Convert approved proposals to events for applyEvents
   const approvedEvents = proposalsToEvents(collected.arbiter.approved);
 
   // === APPLY STATE ===
-  const applyResult = applyEvents(character, world, approvedEvents as unknown as ValidatedEvent[]);
+  const applyStart = Date.now();
+  const applyResult = applyEvents(character, world, approvedEvents as unknown as ValidatedEvent[], knownNpcNames);
+  const diffDescriptions = applyResult.diffs.map(d => {
+    if (d.value !== undefined) {
+      return `${d.type}: ${d.text} (${d.value})`;
+    }
+    return `${d.type}: ${d.text}`;
+  });
+  traces.push({
+    agent: "apply_state",
+    status: "success",
+    durationMs: Date.now() - applyStart,
+    description: applyResult.diffs.length > 0
+      ? `Applied ${applyResult.diffs.length} state change(s)`
+      : `No state changes to apply`,
+    details: diffDescriptions.length > 0 ? diffDescriptions : [`World state unchanged`],
+  });
 
   // === COLLECTOR: Second pass - build Chronicler context ===
   const chroniclerContext = buildChroniclerContext(collected, applyResult);
 
   // === CHRONICLER ===
+  const chroniclerStart = Date.now();
   const prompt = buildTurnPrompt(
     character,
     world,
@@ -657,6 +908,17 @@ async function completeTurnPipeline(
   );
 
   const geminiResponse = await generateTurn(prompt);
+  traces.push({
+    agent: "chronicler",
+    status: "success",
+    durationMs: Date.now() - chroniclerStart,
+    description: `Generated ${geminiResponse.narration.length} character narration`,
+    details: [
+      `Called Gemini API for narrative generation`,
+      `Output: ${geminiResponse.narration.slice(0, 60)}...`,
+      `Suggested ${geminiResponse.suggested_actions.length} follow-up action(s)`,
+    ],
+  });
 
   // Safety filter on output
   const outputFilter = filterOutput(geminiResponse.narration);
@@ -668,7 +930,7 @@ async function completeTurnPipeline(
       ? { characterUpdates: {}, worldUpdates: {}, diffs: [] as TurnDiff[], questChanges: [], relationshipChanges: [] }
       : applyResult;
 
-  // Insert turn
+  // Insert turn (traces only in response, not persisted)
   const { data: turnRow, error: turnInsertError } = await supabase
     .from("waypoint_turns")
     .insert({
@@ -701,6 +963,7 @@ async function completeTurnPipeline(
       narration: finalNarration,
       diffs,
       suggestedActions: outputFilter.status === "block" ? ["Look around", "Wait"] : geminiResponse.suggested_actions,
+      trace: traces,
     },
   };
 
@@ -749,6 +1012,18 @@ async function updateWorldState(
   if (updates.nearbyPoi !== undefined) dbUpdates.nearby_poi = updates.nearbyPoi;
   if (updates.entities !== undefined) dbUpdates.entities = updates.entities;
   if (updates.memory !== undefined) dbUpdates.memories = updates.memory;
+
+  // If location changed and entities weren't explicitly set, sync with NPCs at that location
+  if (updates.poi && updates.entities === undefined) {
+    const { data: npcsAtLocation } = await supabase
+      .from("waypoint_npcs")
+      .select("name")
+      .eq("location", updates.poi);
+    
+    const npcNames = (npcsAtLocation || []).map(n => n.name);
+    dbUpdates.entities = npcNames;
+    updates.entities = npcNames;
+  }
 
   await supabase.from("waypoint_world_state").update(dbUpdates).eq("character_id", characterId);
 

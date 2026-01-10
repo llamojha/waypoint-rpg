@@ -205,10 +205,11 @@ export async function POST(request: NextRequest) {
         });
     }
 
-    // Create opening turn with narration (includes Lenna discovery diff)
+    // Create opening turn with narration (includes discovery diffs)
     const openingDiffs = [
-      { type: "world", text: "Arrived at The Waystone", value: "Windhollow Vale" },
-      { type: "relationship", text: "Met Lenna", value: "Lenna" },
+      { type: "world", text: "New Region: Windhollow Vale" },
+      { type: "world", text: "New Location: The Waystone" },
+      { type: "relationship", text: "New Relationship: Lenna" },
     ];
 
     const { error: turnError } = await supabase
