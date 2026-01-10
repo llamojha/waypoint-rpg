@@ -77,13 +77,13 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 
 ### Phase 4: Agent Pipeline (Current)
 
-| ID  | Spec Name                  | Estimate | Status      |
-| --- | -------------------------- | -------- | ----------- |
-| 4.1 | `orchestrator-arbiter`     | 6-8h     | ✅ COMPLETE |
-| 4.2 | `lorekeeper`               | 4-6h     | ✅ COMPLETE |
-| 4.3 | `agent-pipeline`           | 4-6h     | ✅ COMPLETE |
-| 4.4 | `quest-agent`              | 6-8h     | ✅ COMPLETE |
-| 4.5 | `phase4-demo-testing`      | 2-3h     | 📋 TODO     |
+| ID  | Spec Name                  | Status      |
+| --- | -------------------------- | ----------- |
+| 4.1 | `orchestrator-arbiter`     | ✅ COMPLETE |
+| 4.2 | `lorekeeper`               | ✅ COMPLETE |
+| 4.3 | `agent-pipeline`           | ✅ COMPLETE |
+| 4.4 | `quest-agent`              | ✅ COMPLETE |
+| 4.5 | `phase4-demo-testing`      | 📋 TODO     |
 
 **🎮 CHECKPOINT 3**: Full agent architecture with proper validation.
 
@@ -141,17 +141,27 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 
 ### Phase 5: Gameplay Systems
 
-| ID  | Spec Name             | Estimate | Status  |
-| --- | --------------------- | -------- | ------- |
-| 5.1 | `inventory-equipment` | 4-6h     | 📋 TODO |
-| 5.2 | `skill-system`        | 6-8h     | 📋 TODO |
-| 5.3 | `combat-system`       | 8-10h    | 📋 TODO |
-| 5.4 | `world-systems`       | 4-6h     | 📋 TODO |
-| 5.5 | `dm-chat`             | 3-5h     | 📋 TODO |
+| ID  | Spec Name             | Status  |
+| --- | --------------------- | ------- |
+| 5.0 | `automated-testing`   | 📋 TODO |
+| 5.1 | `inventory-equipment` | 📋 TODO |
+| 5.2 | `skill-system`        | 📋 TODO |
+| 5.3 | `combat-system`       | 📋 TODO |
+| 5.4 | `world-systems`       | 📋 TODO |
+| 5.5 | `dm-chat`             | 📋 TODO |
+
+**5.0 `automated-testing`** (First item - gate for Phase 5)
+- API-level integration tests hitting `/api/turn` endpoint
+- Test scenarios from `docs/phase4-demo-testing.md`
+- Assert on trace structure, mechanics, state changes (not narration text)
+- Run via separate CI job (long runtime due to LLM calls)
+- Consider: GitHub Actions with manual trigger, or separate test runner
+- Mock LLM option for fast CI, real LLM for nightly/manual runs
 
 **🎮 CHECKPOINT 4**: Full gameplay systems.
 
 #### Checkpoint 4 Checklist:
+- [ ] Automated tests passing in CI
 - [ ] Equip/unequip items from inventory UI
 - [ ] Item stats affect combat (weapon damage, armor AC)
 - [ ] Skills gain XP from use
@@ -167,11 +177,20 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 
 ### Phase 6: Final Polish
 
-| ID  | Spec Name                  | Estimate | Status  |
-| --- | -------------------------- | -------- | ------- |
-| 6.1 | `conversation-compression` | 6-8h     | 📋 TODO |
-| 6.2 | `mvp-polish`               | 8-12h    | 📋 TODO |
-| 6.3 | `e2e-testing`              | 6-10h    | 📋 TODO |
+| ID  | Spec Name                  | Status  |
+| --- | -------------------------- | ------- |
+| 6.1 | `conversation-compression` | 📋 TODO |
+| 6.2 | `security-review`          | 📋 TODO |
+| 6.3 | `mvp-polish`               | 📋 TODO |
+| 6.4 | `e2e-testing`              | 📋 TODO |
+
+**6.2 `security-review`**
+- Add auth checks to all API endpoints (turn, character, world, etc.)
+- Verify user owns character before allowing mutations
+- Review RLS policies on all Supabase tables
+- Audit `createAdminClient` usage (should be minimal)
+- Rate limiting on LLM-calling endpoints
+- Input sanitization review
 
 **🎮 MVP COMPLETE**
 
@@ -183,6 +202,8 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - [ ] Performance acceptable (<3s turn response)
 - [ ] All UI elements accessible
 - [ ] Edge cases handled (empty inventory, 0 HP, etc.)
+- [ ] Auth on all API endpoints verified
+- [ ] RLS policies reviewed
 - [ ] E2E tests pass for demo path
 - [ ] E2E tests validate edge cases
 
@@ -194,52 +215,47 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 Phase 0-3: ✅ COMPLETE (Demo Ready)
          │
          ▼
-    4.1 orchestrator-arbiter
+    4.1 orchestrator-arbiter ✅
          │
          ▼
-    4.2 lorekeeper
+    4.2 lorekeeper ✅
          │
          ▼
-    4.3 agent-pipeline
+    4.3 agent-pipeline ✅
          │
          ▼
-    4.4 conversation-compression
+    4.4 quest-agent ✅
+         │
+         ▼
+    4.5 phase4-demo-testing
          │
     🎮 CHECKPOINT 3
          │
          ▼
+    5.0 automated-testing (gate)
+         │
     ┌────┼────┬────┬────┬────┐
     ▼    ▼    ▼    ▼    ▼    ▼
-   5.1  5.2  5.3  5.4  5.5  5.6  (parallel)
+   5.1  5.2  5.3  5.4  5.5  (parallel)
     └────┴────┴────┼────┴────┘
                    ▼
-              6.1 mvp-polish
-                   │
-                   ▼
-              6.2 e2e-testing
-                   │
-              🎮 MVP COMPLETE
+    🎮 CHECKPOINT 4
+         │
+    ┌────┴────┬────┬────┐
+    ▼         ▼    ▼    ▼
+   6.1       6.2  6.3  6.4
+    └────┬────┴────┴────┘
+         │
+    🎮 MVP COMPLETE
 ```
-
----
-
-## Remaining Work Summary
-
-| Phase | Specs | Hours | Focus |
-|-------|-------|-------|-------|
-| 4 Agent Pipeline | 4 | 20-28h | Proper validation & context |
-| 5 Gameplay | 6 | 31-43h | Full game systems |
-| 6 Polish | 2 | 14-22h | Bug fixes, UX & E2E tests |
-| **Total** | **12** | **~65-93h** | |
 
 ---
 
 ## Next Actions
 
-1. Start 4.1 `orchestrator-arbiter` - Foundation for all event validation
-2. Then 4.2 `lorekeeper` - Feeds canon/NPC data to arbiter
-3. Then 4.3 `agent-pipeline` - Wire agents together
-4. Then 4.4 `conversation-compression` - Manage context window
+1. Complete 4.5 `phase4-demo-testing` - Manual testing with debug export
+2. Start 5.0 `automated-testing` - CI pipeline for turn tests
+3. Phase 5 gameplay specs can run in parallel after testing gate
 
 ---
 

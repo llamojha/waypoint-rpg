@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { X, Cpu, ShieldCheck, Database, Terminal, Scroll, BookOpen, Swords, Shield, Layers, PenTool, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import React, { useState } from "react";
+import { X, Cpu, ShieldCheck, Database, Terminal, Scroll, BookOpen, Swords, Shield, Layers, PenTool, CheckCircle, AlertCircle, Clock, Copy, Check } from "lucide-react";
 import type { Turn, WorldContext, TurnDiff, AgentTrace } from "@/types";
 
 interface Props {
@@ -23,7 +23,80 @@ const AGENT_CONFIG: Record<AgentTrace["agent"], { icon: React.ElementType; title
   chronicler: { icon: PenTool, title: "Chronicler", color: "text-gold dark:text-gold" },
 };
 
+function formatPipelineDebug(turn: Turn | null | undefined, world: WorldContext | null | undefined): string {
+  const lines: string[] = ["=== WAYPOINT AGENT PIPELINE DEBUG ===", ""];
+  
+  // Context
+  lines.push("## CONTEXT");
+  lines.push(`Location: ${world?.poi || "?"} (${world?.region || "?"})`);
+  lines.push(`Time: Day ${world?.time?.day || 1}, ${world?.time?.phase || "?"}`);
+  lines.push(`Weather: ${world?.weather || "?"}`);
+  if (world?.entities?.length) lines.push(`Entities: ${world.entities.join(", ")}`);
+  lines.push("");
+  
+  // Player Action
+  lines.push("## PLAYER ACTION");
+  lines.push(turn?.playerAction || "(none)");
+  lines.push("");
+  
+  // Mechanics
+  if (turn?.mechanics) {
+    const m = turn.mechanics;
+    lines.push("## MECHANICS");
+    lines.push(`Skill: ${m.skill} | DC: ${m.dc} | Mod: ${m.modifier ?? 0}`);
+    if (m.rolled !== undefined) {
+      lines.push(`Roll: ${m.rolled} + ${m.modifier ?? 0} = ${m.total} → ${m.outcome?.toUpperCase()}`);
+    }
+    lines.push("");
+  }
+  
+  // Agent Traces
+  if (turn?.trace?.length) {
+    lines.push("## AGENT PIPELINE");
+    for (const t of turn.trace) {
+      const dur = t.durationMs !== undefined ? ` (${t.durationMs}ms)` : "";
+      lines.push(`[${t.agent.toUpperCase()}] ${t.status.toUpperCase()}${dur}`);
+      lines.push(`  ${t.description}`);
+      if (t.details?.length) {
+        for (const d of t.details) lines.push(`    - ${d}`);
+      }
+      if (t.error) lines.push(`  ERROR: ${t.error}`);
+    }
+    lines.push("");
+  }
+  
+  // Diffs
+  if (turn?.diffs?.length) {
+    lines.push("## STATE CHANGES");
+    for (const d of turn.diffs) {
+      lines.push(`[${d.type.toUpperCase()}] ${d.text}${d.value !== undefined ? ` (${d.value})` : ""}`);
+    }
+    lines.push("");
+  }
+  
+  // Narration
+  lines.push("## NARRATION");
+  lines.push(turn?.narration || "(none)");
+  lines.push("");
+  
+  // Suggested Actions
+  if (turn?.suggestedActions?.length) {
+    lines.push("## SUGGESTED ACTIONS");
+    lines.push(turn.suggestedActions.join(" | "));
+  }
+  
+  return lines.join("\n");
+}
+
 export const TurnTrace: React.FC<Props> = ({ isOpen, onClose, turn, world }) => {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = async () => {
+    const text = formatPipelineDebug(turn, world);
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   if (!isOpen) return null;
 
   const mechanics = turn?.mechanics;
@@ -37,12 +110,21 @@ export const TurnTrace: React.FC<Props> = ({ isOpen, onClose, turn, world }) => 
           <h2 className="text-sm font-bold text-ink dark:text-ink font-mono flex items-center gap-2 uppercase tracking-widest">
             <Terminal size={16} className="text-gold" /> Agent Pipeline
           </h2>
-          <button
-            onClick={onClose}
-            className="text-parchment-500 dark:text-parchment-400 hover:text-parchment-800 dark:hover:text-parchment-100 transition-colors"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopy}
+              className="text-parchment-500 dark:text-parchment-400 hover:text-gold transition-colors"
+              title="Copy debug output"
+            >
+              {copied ? <Check size={18} className="text-forest" /> : <Copy size={18} />}
+            </button>
+            <button
+              onClick={onClose}
+              className="text-parchment-500 dark:text-parchment-400 hover:text-parchment-800 dark:hover:text-parchment-100 transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4 font-mono text-xs bg-parchment-50 dark:bg-[#1a120b] text-ink dark:text-ink custom-scrollbar">
