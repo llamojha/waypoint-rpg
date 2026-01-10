@@ -156,6 +156,27 @@ Agents receive static context via prompt (not tool calls):
 
 Note: Character no longer has stats (STR/DEX/etc.), level, xp, race, class, or background.
 
+## Shared World Model
+
+> **See `docs/shared-world-vision.md`** for full details on the shared world vision.
+
+Waypoint is a **shared persistent world** with **instanced interactions**:
+
+| Layer | Shared or Instanced |
+|-------|---------------------|
+| World state (epoch, events, major changes) | **Shared** |
+| NPCs (existence, base personality, location) | **Shared** |
+| Locations (existence, description, discoveries) | **Shared** |
+| NPC conversations | **Instanced** (per character) |
+| Quest progress | **Instanced** (per character) |
+| Combat encounters | **Instanced** (per character) |
+
+This means:
+- Players exist in the same world and see the same NPCs/locations
+- Individual interactions (conversations, quests, combat) don't block other players
+- Major world changes propagate to all players via World News
+- No locking or queues for NPC interactions
+
 ## Anti-Patterns to Avoid
 
 - LLM directly setting HP, gold, inventory

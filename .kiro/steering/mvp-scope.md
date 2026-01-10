@@ -62,7 +62,9 @@
 
 ## Shared World Features (MVP)
 
-### News System ("World Newspaper")
+### World News System
+
+> **Future enhancements**: See `docs/shared-world-vision.md` for expanded World News vision including epoch events, NPC quests, player achievements, and rumors.
 
 When players discover significant content, it propagates to all players:
 
@@ -109,6 +111,8 @@ When players discover significant content, it propagates to all players:
 ## Post-MVP Considerations
 
 ### Living World (Future)
+
+> **See `docs/shared-world-vision.md`** for the full shared world vision including epoch time model, community events, and social hubs.
 
 Features to explore after MVP stability:
 

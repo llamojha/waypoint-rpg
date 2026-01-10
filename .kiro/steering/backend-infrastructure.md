@@ -131,6 +131,8 @@ CREATE TABLE waypoint_turns (
 );
 
 -- World state (per character)
+-- NOTE: time_day/time_phase will migrate to epoch system post-MVP.
+-- See docs/shared-world-vision.md for epoch time model.
 CREATE TABLE waypoint_world_state (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   character_id UUID REFERENCES waypoint_characters(id) UNIQUE NOT NULL,

@@ -289,6 +289,8 @@ Features to consider after MVP is stable and launched.
 
 ### Phase 8: Living World (Future)
 
+> **See `docs/shared-world-vision.md`** for the full shared world vision including epoch time model, instanced interactions within shared world, and community events.
+
 | ID  | Spec Name              | Estimate | Priority |
 | --- | ---------------------- | -------- | -------- |
 | 8.1 | `world-events`         | 8-10h    | Low      |
@@ -296,6 +298,8 @@ Features to consider after MVP is stable and launched.
 | 8.3 | `faction-system`       | 10-12h   | Low      |
 
 ### Phase 9: Social Features (Future)
+
+> **See `docs/shared-world-vision.md`** for social hubs, shared presence, and communication roadmap.
 
 | ID  | Spec Name              | Estimate | Priority |
 | --- | ---------------------- | -------- | -------- |
