@@ -773,22 +773,36 @@ const MagicTab = () => (
     </span>
   </div>
 );
-const QuestsTab = ({ quests }: { quests: Quest[] }) => (
-  <div className="space-y-4 animate-fade-in pl-2">
-    {quests.map((quest) => (
-      <div
-        key={quest.id}
-        className="bg-parchment-100 p-3 rounded-sm border border-parchment-400 shadow-sm"
-      >
-        <div className="font-bold text-sm text-ink">{quest.title}</div>
-        <div className="text-xs text-ink-light mt-1">{quest.description}</div>
-        <div className="mt-2 text-[10px] uppercase font-bold text-burgundy">
-          Leads: {quest.leads.length}
+const QuestsTab = ({ quests }: { quests: Quest[] }) => {
+  const [expandedQuest, setExpandedQuest] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-4 animate-fade-in pl-2">
+      {quests.map((quest) => (
+        <div
+          key={quest.id}
+          className="bg-parchment-100 p-3 rounded-sm border border-parchment-400 shadow-sm cursor-pointer hover:border-gold transition-colors"
+          onClick={() => setExpandedQuest(expandedQuest === quest.id ? null : quest.id)}
+        >
+          <div className="font-bold text-sm text-ink">{quest.title}</div>
+          <div className="text-xs text-ink-light mt-1">{quest.description}</div>
+          {quest.leads.length > 0 && (
+            <div className="mt-2 text-[10px] uppercase font-bold text-burgundy">
+              {expandedQuest === quest.id ? "Leads:" : `${quest.leads.length} lead${quest.leads.length > 1 ? "s" : ""}`}
+            </div>
+          )}
+          {expandedQuest === quest.id && quest.leads.length > 0 && (
+            <ul className="mt-2 space-y-1 text-xs text-ink-light list-disc list-inside">
+              {quest.leads.map((lead, i) => (
+                <li key={i}>{lead}</li>
+              ))}
+            </ul>
+          )}
         </div>
-      </div>
-    ))}
-  </div>
-);
+      ))}
+    </div>
+  );
+};
 
 const SocialTab = ({ npcs }: { npcs: NPC[] }) => {
   const [selectedNpc, setSelectedNpc] = useState<NPC | null>(null);

@@ -40,6 +40,18 @@ export const ITEM_BOUNDS = {
   legendary: { maxDamage: 20, maxAC: 4, maxValue: 5000 },
 } as const;
 
+/**
+ * Gold gain bounds by source type
+ * Used by Arbiter to validate gold proposals and prevent exploits
+ */
+export const GOLD_BOUNDS = {
+  combat_loot: { max: 25 },
+  quest_reward: { max: 100 },
+  npc_gift: { max: 5 },
+  found_loot: { max: 20 },
+  hard_cap: { max: 100 },
+} as const;
+
 export const SKILL_TREE: SkillPillar[] = [
   {
     pillar: "Combat",

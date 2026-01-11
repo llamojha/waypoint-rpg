@@ -27,6 +27,7 @@ export interface ArbiterContext {
   };
   activeQuestIds?: string[];
   availableQuestIds?: string[];
+  availableQuestTitles?: string[];
 }
 
 /** Generate a unique key for a proposal to detect duplicates */
@@ -82,6 +83,8 @@ export async function runArbiter(
     validLocations: [ctx.world.poi, ...(ctx.world.nearbyPoi || [])],
     activeQuestIds: ctx.activeQuestIds,
     availableQuestIds: ctx.availableQuestIds,
+    availableQuestTitles: ctx.availableQuestTitles,
+    playerAction: ctx.playerAction,
   };
 
   for (const proposal of uniqueProposals) {

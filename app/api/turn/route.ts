@@ -59,6 +59,34 @@ function dbToTurn(row: {
   };
 }
 
+/**
+ * Format a proposal for trace display with meaningful details
+ */
+function formatProposalForTrace(p: ProposalResult): string {
+  switch (p.type) {
+    case "propose_stat_change":
+      const sign = p.data.delta > 0 ? "+" : "";
+      return `${p.data.stat.toUpperCase()} ${sign}${p.data.delta}`;
+    case "propose_inventory_add":
+      return `+Item: ${p.data.item_name}`;
+    case "propose_inventory_remove":
+      return `-Item: ${p.data.item_name}`;
+    case "propose_relationship_change":
+      const relSign = p.data.delta > 0 ? "+" : "";
+      return `${p.data.npc} ${relSign}${p.data.delta}`;
+    case "propose_location_change":
+      return `Travel to: ${p.data.location}`;
+    case "propose_quest_start":
+      return `Start quest: ${p.data.quest_title || p.data.quest_id}`;
+    case "propose_quest_progress":
+      return `Quest progress: ${p.data.quest_id} → step ${p.data.new_progress}`;
+    case "propose_npc_discovered":
+      return `New NPC: ${p.data.name} (${p.data.role})`;
+    case "detect_intent":
+      return `Intent: ${p.data.primary_skill}${p.data.requires_roll ? ` DC ${p.data.dc}` : ''}`;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -204,6 +232,7 @@ export async function POST(request: NextRequest) {
         ? `Detected ${intent.primary_skill} check (DC ${intent.dc})`
         : `No skill check required - routine action`,
       details: [
+        `Intent: ${intent.intent}`,
         `Primary skill: ${intent.primary_skill}`,
         intent.requires_roll ? `Difficulty: DC ${intent.dc}` : `Routine action`,
         intent.power_words?.length ? `Power words: ${intent.power_words.join(", ")}` : `No power words detected`,
@@ -286,8 +315,15 @@ export async function POST(request: NextRequest) {
     }
 
     // === QUEST AGENT: Gather quest context ===
+    // Parse NPC name from player action to check for available quests
+    const actionLower = playerAction.toLowerCase();
+    const mentionedNpc = world.entities?.find(npc => 
+      actionLower.includes(npc.toLowerCase()) || 
+      actionLower.includes(npc.split(" ")[0].toLowerCase()) // Match first name too
+    );
+    
     const questAgentStart = Date.now();
-    const questAgentResult = await runQuestAgent(characterId);
+    const questAgentResult = await runQuestAgent(characterId, mentionedNpc);
     const activeQuestNames = questAgentResult.activeQuests.map(q => q.title).slice(0, 3);
     traces.push({
       agent: "quest_agent",
@@ -298,6 +334,7 @@ export async function POST(request: NextRequest) {
         : `No active quests`,
       details: [
         ...activeQuestNames.map(name => `Active: "${name}"`),
+        mentionedNpc ? `Checking quests from: ${mentionedNpc}` : null,
         questAgentResult.npcQuests.length > 0 ? `${questAgentResult.npcQuests.length} NPC quest hooks available` : null,
       ].filter(Boolean) as string[],
     });
@@ -308,18 +345,33 @@ export async function POST(request: NextRequest) {
     };
 
     // === NO ROLL NEEDED - Run Orchestrator with quest context ===
+    // Skip Orchestrator for pure observation actions - go straight to Chronicler
+    const isObservationOnly = /^(i )?(look|examine|observe|survey|scan|check out|see|watch|gaze|glance)\b.*\b(around|area|surroundings|room|place|here)?\b/i.test(playerAction.trim());
+    
     const orchestratorStart = Date.now();
-    const orchestratorResult = await runOrchestrator(playerAction, character, world, recentTurns, undefined, intent.intent, questContext);
-    const proposalTypes = orchestratorResult.proposals.map(p => p.type);
+    let orchestratorResult;
+    
+    if (isObservationOnly) {
+      // Skip LLM call - no proposals needed for observation
+      orchestratorResult = {
+        intent: { primary_skill: "Perception", requires_roll: false },
+        proposals: [],
+        traceDetails: ["Observation action - skipped proposal generation"],
+      };
+    } else {
+      orchestratorResult = await runOrchestrator(playerAction, character, world, recentTurns, undefined, intent.intent, questContext);
+    }
+    
+    const proposalsList = orchestratorResult.proposals;
     traces.push({
       agent: "orchestrator",
       status: "success",
       durationMs: Date.now() - orchestratorStart,
-      description: `Generated ${orchestratorResult.proposals.length} proposal(s)`,
+      description: `Generated ${proposalsList.length} proposal(s)`,
       details: [
         ...(orchestratorResult.traceDetails || []),
-        ...(proposalTypes.length > 0 
-          ? proposalTypes.map(t => `→ ${t.replace(/_/g, ' ')}`)
+        ...(proposalsList.length > 0 
+          ? proposalsList.map(p => `→ ${formatProposalForTrace(p)}`)
           : [`No state changes proposed`]),
       ],
     });
@@ -490,8 +542,15 @@ async function continueWithNarration(
   };
 
   // === QUEST AGENT: Gather quest context ===
+  // Parse NPC name from player action to check for available quests
+  const actionLower = playerAction.toLowerCase();
+  const mentionedNpc = world.entities?.find(npc => 
+    actionLower.includes(npc.toLowerCase()) || 
+    actionLower.includes(npc.split(" ")[0].toLowerCase()) // Match first name too
+  );
+  
   const questAgentStart = Date.now();
-  const questAgentResult = await runQuestAgent(character.id!);
+  const questAgentResult = await runQuestAgent(character.id!, mentionedNpc);
   const activeQuestNames = questAgentResult.activeQuests.map(q => q.title).slice(0, 3);
   traces.push({
     agent: "quest_agent",
@@ -502,6 +561,7 @@ async function continueWithNarration(
       : `No active quests`,
     details: [
       ...activeQuestNames.map(name => `Active: "${name}"`),
+      mentionedNpc ? `Checking quests from: ${mentionedNpc}` : null,
       questAgentResult.npcQuests.length > 0 ? `${questAgentResult.npcQuests.length} NPC quest hooks available` : null,
     ].filter(Boolean) as string[],
   });
@@ -534,7 +594,6 @@ async function continueWithNarration(
     proposals = orchestratorResult.proposals;
     
     if (retry === 0) {
-      const proposalTypes = proposals.map(p => p.type);
       traces.push({
         agent: "orchestrator",
         status: "success",
@@ -542,10 +601,21 @@ async function continueWithNarration(
         description: `Generated ${proposals.length} proposal(s) after ${mechanics.outcome} roll`,
         details: [
           ...(orchestratorResult.traceDetails || []),
-          ...(proposalTypes.length > 0 
-            ? proposalTypes.map(t => `→ ${t.replace(/_/g, ' ')}`)
+          ...(proposals.length > 0 
+            ? proposals.map(p => `→ ${formatProposalForTrace(p)}`)
             : [`No state changes proposed`]),
         ],
+      });
+    } else {
+      // Log retry attempts
+      traces.push({
+        agent: "orchestrator",
+        status: "success",
+        durationMs: Date.now() - orchestratorStart,
+        description: `Retry ${retry}: Generated ${proposals.length} proposal(s)`,
+        details: proposals.length > 0 
+          ? proposals.map(p => `→ ${formatProposalForTrace(p)}`)
+          : [`No state changes proposed`],
       });
     }
 
@@ -553,6 +623,7 @@ async function continueWithNarration(
     const parallelStart = Date.now();
     const activeQuestIds = questContext?.activeQuests.map(q => q.id) || [];
     const availableQuestIds = questContext?.npcQuests.map(q => q.id) || [];
+    const availableQuestTitles = questContext?.npcQuests.map(q => q.title) || [];
     [arbiterResult, lorekeeperResult] = await Promise.all([
       runArbiter(proposals, {
         character,
@@ -561,12 +632,36 @@ async function continueWithNarration(
         rollOutcome,
         activeQuestIds,
         availableQuestIds,
+        availableQuestTitles,
       }),
       runLorekeeper(playerAction, world, character.id!),
     ]);
 
-    // If no rejections or max retries reached, break
-    if (arbiterResult.rejected.length === 0 || retry === MAX_RETRIES) {
+    // Smart retry logic: categorize rejections
+    const unfixablePatterns = [
+      /not present/i,
+      /not at.*location/i,
+      /invalid location/i,
+      /not in inventory/i,
+      /not active/i,
+      /no.*quests/i,
+      /already at/i,
+    ];
+    
+    const hasUnfixableRejections = arbiterResult.rejected.some(r => 
+      unfixablePatterns.some(pattern => pattern.test(r.reason))
+    );
+    
+    const hasFixableRejections = arbiterResult.rejected.some(r =>
+      /capped|too high|too large|exceeds/i.test(r.reason)
+    );
+
+    // If no rejections, all unfixable, or max retries reached, break
+    const shouldSkipRetry = arbiterResult.rejected.length === 0 
+      || (hasUnfixableRejections && !hasFixableRejections)
+      || retry === MAX_RETRIES;
+      
+    if (shouldSkipRetry) {
       const parallelDuration = Date.now() - parallelStart;
       const npcNames = lorekeeperResult.npcsPresent?.map(n => n.name) || [];
       traces.push({
@@ -577,8 +672,8 @@ async function continueWithNarration(
           ? `Rejected ${arbiterResult.rejected.length} proposal(s), approved ${arbiterResult.approved.length}`
           : `Validated all ${arbiterResult.approved.length} proposal(s)`,
         details: [
-          ...arbiterResult.approved.map(p => `✓ Approved: ${p.type.replace(/_/g, ' ')}`),
-          ...arbiterResult.rejected.map(r => `✗ Rejected: ${r.proposal.type.replace(/_/g, ' ')} - ${r.reason}`),
+          ...arbiterResult.approved.map(p => `✓ ${formatProposalForTrace(p)}`),
+          ...arbiterResult.rejected.map(r => `✗ ${formatProposalForTrace(r.proposal)} - ${r.reason}`),
         ],
       });
       traces.push({
@@ -589,7 +684,8 @@ async function continueWithNarration(
         details: [
           npcNames.length > 0 ? `NPCs present: ${npcNames.join(", ")}` : `No NPCs at this location`,
           lorekeeperResult.codexSnippets?.length ? `Found ${lorekeeperResult.codexSnippets.length} codex entries` : `No relevant lore`,
-        ],
+          lorekeeperResult.atmosphere ? `Atmosphere: ${lorekeeperResult.atmosphere.mood}` : null,
+        ].filter(Boolean) as string[],
       });
       break;
     }
@@ -763,6 +859,7 @@ async function completeTurnPipeline(
   const parallelStart = Date.now();
   const activeQuestIds = questContext?.activeQuests.map(q => q.id) || [];
   const availableQuestIds = questContext?.npcQuests.map(q => q.id) || [];
+  const availableQuestTitles = questContext?.npcQuests.map(q => q.title) || [];
   const [arbiterResult, lorekeeperResult] = await Promise.all([
     runArbiter(proposals, {
       character,
@@ -771,13 +868,13 @@ async function completeTurnPipeline(
       rollOutcome,
       activeQuestIds,
       availableQuestIds,
+      availableQuestTitles,
     }),
     runLorekeeper(playerAction, world, characterId),
   ]);
   const parallelDuration = Date.now() - parallelStart;
 
   // Add arbiter trace
-  const rejectedTypes = arbiterResult.rejected.map(r => r.proposal.type);
   traces.push({
     agent: "arbiter",
     status: arbiterResult.rejected.length > 0 ? "error" : "success",
@@ -786,8 +883,8 @@ async function completeTurnPipeline(
       ? `Rejected ${arbiterResult.rejected.length} proposal(s), approved ${arbiterResult.approved.length}`
       : `Validated all ${arbiterResult.approved.length} proposal(s)`,
     details: [
-      ...arbiterResult.approved.map(p => `✓ Approved: ${p.type.replace(/_/g, ' ')}`),
-      ...arbiterResult.rejected.map(r => `✗ Rejected: ${r.proposal.type.replace(/_/g, ' ')} - ${r.reason}`),
+      ...arbiterResult.approved.map(p => `✓ ${formatProposalForTrace(p)}`),
+      ...arbiterResult.rejected.map(r => `✗ ${formatProposalForTrace(r.proposal)} - ${r.reason}`),
     ],
   });
 

@@ -75,8 +75,8 @@ function buildOrchestratorPrompt(
 
   // Format entities (NPCs present)
   const entitiesStr = world.entities?.length > 0
-    ? `\n## NPCs Present (use EXACT names for relationship changes)\n${world.entities.map(e => `- ${e}`).join("\n")}`
-    : "";
+    ? `\n## NPCs Present at ${world.poi} (ONLY these NPCs can be interacted with)\n${world.entities.map(e => `- ${e}`).join("\n")}\n\nCRITICAL: You can ONLY propose relationship changes or interactions with NPCs listed above. Do NOT reference or interact with NPCs not in this list - they are not at this location.`
+    : "\n## NPCs Present\nNone - no NPCs at this location to interact with.";
 
   return `You are the Orchestrator for Waypoint RPG. Your job is to propose state changes based on the player's action.
 
@@ -120,10 +120,24 @@ ${recentStr || "No recent events"}
 - HP damage: small=-1 to -5, medium=-6 to -10, severe=-11 to -15
 - HP healing: potions=2d4, rest=1d6, full rest=full
 - Gold spent: drinks=-2 to -5, meals=-5 to -15, items=-10 to -100
-- Gold gained: small task=5-15, job=20-50, treasure=50-200
+- Gold gained: ONLY from actual in-world sources:
+  * Looting defeated enemies or containers the DM described
+  * NPC explicitly giving gold as payment/reward
+  * Quest completion rewards
+  * Selling items to merchants
+- Do NOT give gold just because player CLAIMS to have found it
+- Player declarations like "I found gold" or "I have gold" are NOT valid sources
 
 ### propose_inventory_add
-- When player finds, receives, or buys an item
+- ONLY from actual in-world sources:
+  * Looting containers/enemies that exist in the scene
+  * NPC explicitly giving an item
+  * Purchasing from a merchant
+  * Quest rewards
+- Do NOT add items just because player CLAIMS to have found/received them
+- Player declarations like "I found a sword" or "I have a bag" are NOT valid - the world must provide it
+- Do NOT add items for "look around" or observation actions
+- Do NOT add "starter gear" - character already has their equipment
 - Include rarity: common (mundane), uncommon (quality), rare (magical), legendary (unique)
 - Always provide description
 
@@ -152,18 +166,35 @@ ${recentStr || "No recent events"}
 - Progress increments by 1 per step
 
 ### propose_location_change
-- ONLY when player explicitly travels to a different POI
-- Location MUST be EXACTLY one from nearbyPoi list: ${world.nearbyPoi?.join(", ") || "none"}
+- ONLY when player explicitly travels to a DIFFERENT POI (e.g., "I go to X", "I travel to X", "I head to X")
+- NEVER propose the current location "${world.poi}" - player is already there
+- The location field must be the DESTINATION, not where the player currently is
+- Location MUST match one from nearbyPoi list: ${world.nearbyPoi?.join(", ") || "none"}
+- Match player's destination to the closest name in nearbyPoi (e.g., "waystone" → "The Waystone")
 - Do NOT invent sub-locations (no "Helga's Hut", "Captain's Hall", etc.)
 - Movement within current POI does NOT require location change
+- "Look around", "examine area", "explore here" are NOT location changes
 
 ### propose_npc_discovered
 - When player meets a NEW NPC not seen before
 - Include role and personality traits
 
+## When NO Proposals Are Needed
+Some actions are pure observation and require NO state changes:
+- "Look around" / "examine the area" → NO proposals (Chronicler will describe the scene)
+- "I go inside" / entering a building → NO proposals (still same POI)
+- "What do I see?" → NO proposals
+- Observing without interacting → NO proposals
+- Listening to ambient sounds → NO proposals
+- Walking within the current location → NO proposals
+For these, simply do not call any propose_* tools.
+
+CRITICAL: "Look around" NEVER results in gaining items. Looking is observation only.
+
 ## Output
 - Only propose changes that DIRECTLY result from the player's action
-- Do NOT anticipate or pre-propose future interactions`;
+- Do NOT anticipate or pre-propose future interactions
+- If the action is pure observation, call NO proposal tools`;
 }
 
 /**

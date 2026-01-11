@@ -287,27 +287,11 @@ export default function App() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      // Reload all game data
-      setGameState((prev) => ({
-        ...prev,
-        character: data.character,
-        world: data.world || prev.world,
-        turns: [],
-        quests: [],
-        npcs: [],
-      }));
-      setDiffLog([]);
-
-      // Reload turns, quests, npcs, locations, world
-      await loadWorldState(data.character.id);
-      await loadTurns(data.character.id);
-      await loadQuests(data.character.id);
-      await loadNpcs(data.character.id);
-      await loadLocations(data.character.id);
+      // Force full page reload to clear all stale state
+      window.location.reload();
     } catch (err) {
       console.error("Failed to reset:", err);
       setError(err instanceof Error ? err.message : "Failed to reset");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -463,6 +447,12 @@ export default function App() {
         );
         if (hasNpcChange && gameState.character.id) {
           loadNpcs(gameState.character.id);
+        }
+        const hasQuestChange = data.turn.diffs.some(
+          (d: { type: string }) => d.type === "quest"
+        );
+        if (hasQuestChange && gameState.character.id) {
+          loadQuests(gameState.character.id);
         }
       }
 

@@ -76,19 +76,20 @@ ${JSON.stringify(SKILL_TREE, null, 2)}
 
 ## Location
 - ${world.poi} in ${world.region}
+- NPCs present: ${world.entities?.join(", ") || "none"}
 
 ## Rules for requires_roll
 
-SET requires_roll=true ONLY for:
-- Combat attacks against enemies
-- Stealth/sneaking past guards or enemies
+SET requires_roll=true ONLY for actions with REAL RISK or OPPOSITION:
+- Combat attacks against enemies or hostile NPCs
+- Stealth/sneaking past guards or enemies who are ACTIVELY watching
 - Picking locks, disarming traps
-- Persuading hostile or reluctant NPCs
-- Climbing dangerous surfaces
-- Searching for well-hidden things
-- Athletic feats with risk of failure
+- Persuading HOSTILE or RELUCTANT NPCs (not friendly ones)
+- Climbing dangerous surfaces with risk of falling
+- Searching for well-hidden or concealed things
+- Athletic feats with meaningful risk of failure
 
-SET requires_roll=false for:
+SET requires_roll=false for ALL of these (NO EXCEPTIONS):
 - Walking/traveling to a location
 - Talking to friendly NPCs
 - Looking around casually
@@ -97,6 +98,25 @@ SET requires_roll=false for:
 - Simple movement without obstacles
 - Entering buildings or rooms
 - Asking questions
+- Simple social gestures with willing participants (holding hands, hugging, waving, shaking hands)
+- Giving or receiving items from willing NPCs
+- Friendly conversations
+- Sitting, standing, or changing posture
+- Picking up unguarded items
+- Opening unlocked doors
+
+## CRITICAL: Social Interactions with Friendly NPCs
+Social interactions with FRIENDLY or NEUTRAL NPCs do NOT require rolls:
+- Holding someone's hand (if they're willing) → NO ROLL
+- Hugging a friend → NO ROLL  
+- Asking for directions → NO ROLL
+- Chatting casually → NO ROLL
+- Giving a gift → NO ROLL
+
+Only require a roll for social actions if:
+- The NPC is HOSTILE or RELUCTANT
+- You're trying to DECEIVE or MANIPULATE
+- There's actual RISK of failure with consequences
 
 ## DC Guidelines (only if requires_roll=true)
 - 8: trivial (climb a ladder)

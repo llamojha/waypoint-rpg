@@ -1,6 +1,6 @@
 import type { Character, WorldContext } from "@/types";
 import type { ProposalResult } from "../tools/proposal-tools";
-import { ITEM_BOUNDS } from "@/constants";
+import { ITEM_BOUNDS, GOLD_BOUNDS } from "@/constants";
 
 export interface ValidationResult {
   valid: boolean;
@@ -14,6 +14,8 @@ export interface CodeValidationContext {
   validLocations: string[];
   activeQuestIds?: string[];
   availableQuestIds?: string[];
+  availableQuestTitles?: string[];
+  playerAction?: string;
 }
 
 /**
@@ -60,7 +62,7 @@ function validateRelationshipChange(
 }
 
 /**
- * Validate HP bounds: 0 to maxHp
+ * Validate HP bounds: 0 to maxHp, reject delta=0
  */
 function validateHpBounds(
   proposal: ProposalResult,
@@ -70,6 +72,12 @@ function validateHpBounds(
   if (proposal.data.stat !== "hp") return { valid: true };
 
   const { delta } = proposal.data;
+
+  // Reject no-op changes
+  if (delta === 0) {
+    return { valid: false, reason: "HP delta is 0 - proposal should not be generated for no change" };
+  }
+
   const newHp = ctx.character.hp + delta;
 
   // Cap to valid range
@@ -101,7 +109,57 @@ function validateHpBounds(
 }
 
 /**
- * Validate gold bounds: >= 0
+ * Validate HP loss context: only allow HP loss for physical danger
+ * Rejects HP loss for social failures, conversation mishaps, etc.
+ */
+function validateHpLossContext(
+  proposal: ProposalResult,
+  ctx: CodeValidationContext
+): ValidationResult {
+  if (proposal.type !== "propose_stat_change") return { valid: true };
+  if (proposal.data.stat !== "hp") return { valid: true };
+  
+  const { delta, reason } = proposal.data;
+  
+  // Only validate HP loss (negative delta)
+  if (delta >= 0) return { valid: true };
+  
+  const reasonLower = (reason || "").toLowerCase();
+  const actionLower = (ctx.playerAction || "").toLowerCase();
+  
+  // Keywords indicating physical danger (HP loss allowed)
+  const physicalDangerKeywords = [
+    // Combat
+    "attack", "combat", "fight", "battle", "strike", "hit", "slash", "stab",
+    "punch", "kick", "damage", "wound", "injure", "hurt",
+    "backstab", "headbutt", "bodyslam", "grapple", "throw", "shove",
+    "cleave", "smash", "bash", "pummel", "bludgeon",
+    // Traps and hazards
+    "trap", "spike", "poison", "acid", "fire", "burn", "fall", "fell",
+    "crash", "collapse", "crush", "explosion", "blast",
+    // Environmental
+    "drown", "suffocate", "freeze", "heat", "cold", "storm",
+    // Creatures
+    "bite", "claw", "maul", "sting", "venom",
+  ];
+  
+  // Check if reason or action contains physical danger keywords
+  const hasPhysicalDanger = physicalDangerKeywords.some(
+    keyword => reasonLower.includes(keyword) || actionLower.includes(keyword)
+  );
+  
+  if (!hasPhysicalDanger) {
+    return {
+      valid: false,
+      reason: `HP loss rejected: no physical danger detected in action "${ctx.playerAction?.slice(0, 50)}"`,
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Validate gold bounds: >= 0, reject delta=0
  */
 function validateGoldBounds(
   proposal: ProposalResult,
@@ -111,12 +169,63 @@ function validateGoldBounds(
   if (proposal.data.stat !== "gold") return { valid: true };
 
   const { delta } = proposal.data;
+
+  // Reject no-op changes
+  if (delta === 0) {
+    return { valid: false, reason: "Gold delta is 0 - proposal should not be generated for no change" };
+  }
+
   const newGold = ctx.character.gold + delta;
 
   if (newGold < 0) {
     return {
       valid: false,
       reason: `Insufficient gold: have ${ctx.character.gold}, need ${-delta}`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validate gold gains against economy bounds
+ * Only validates positive deltas (gains), losses are handled by validateGoldBounds
+ */
+function validateGoldGain(
+  proposal: ProposalResult,
+  ctx: CodeValidationContext
+): ValidationResult {
+  if (proposal.type !== "propose_stat_change") return { valid: true };
+  if (proposal.data.stat !== "gold") return { valid: true };
+
+  const { delta, reason } = proposal.data;
+  
+  // Only validate gains (positive delta)
+  if (delta <= 0) return { valid: true };
+
+  const reasonLower = (reason || "").toLowerCase();
+  
+  // Determine source type from reason keywords
+  let maxGain: number = GOLD_BOUNDS.hard_cap.max;
+  
+  if (/quest|reward|complet|finish|bounty/.test(reasonLower)) {
+    maxGain = GOLD_BOUNDS.quest_reward.max;
+  } else if (/loot|defeat|kill|combat|slay|victor|enemy|monster/.test(reasonLower)) {
+    maxGain = GOLD_BOUNDS.combat_loot.max;
+  } else if (/gift|give|tip|thank|grat|help|donat/.test(reasonLower)) {
+    maxGain = GOLD_BOUNDS.npc_gift.max;
+  } else if (/found|chest|search|discover|hidden|treasure|stash/.test(reasonLower)) {
+    maxGain = GOLD_BOUNDS.found_loot.max;
+  }
+
+  if (delta > maxGain) {
+    return {
+      valid: true,
+      modified: {
+        ...proposal,
+        data: { ...proposal.data, delta: maxGain },
+      } as ProposalResult,
+      reason: `Gold gain capped from ${delta} to ${maxGain} (source: ${reasonLower.slice(0, 30)})`,
     };
   }
 
@@ -151,7 +260,8 @@ function validateQuestStart(
   const { quest_id, quest_title } = proposal.data;
 
   // Must have available quests to start one
-  if (!ctx.availableQuestIds || ctx.availableQuestIds.length === 0) {
+  if ((!ctx.availableQuestIds || ctx.availableQuestIds.length === 0) &&
+      (!ctx.availableQuestTitles || ctx.availableQuestTitles.length === 0)) {
     return {
       valid: false,
       reason: `No quests available from NPCs at this location`,
@@ -162,11 +272,15 @@ function validateQuestStart(
   const questIdLower = (quest_id || "").toLowerCase();
   const questTitleLower = (quest_title || "").toLowerCase();
   
-  const isAvailable = ctx.availableQuestIds.some(
-    id => id.toLowerCase() === questIdLower || id.toLowerCase() === questTitleLower
-  );
+  const isAvailableById = ctx.availableQuestIds?.some(
+    id => id.toLowerCase() === questIdLower
+  ) || false;
+  
+  const isAvailableByTitle = ctx.availableQuestTitles?.some(
+    title => title.toLowerCase() === questTitleLower
+  ) || false;
 
-  if (!isAvailable) {
+  if (!isAvailableById && !isAvailableByTitle) {
     return {
       valid: false,
       reason: `Quest "${quest_title || quest_id}" is not available from NPCs here`,
@@ -293,7 +407,9 @@ export function runCodeValidation(
   const validators = [
     () => validateRelationshipChange(proposal, ctx),
     () => validateHpBounds(proposal, ctx),
+    () => validateHpLossContext(proposal, ctx),
     () => validateGoldBounds(proposal, ctx),
+    () => validateGoldGain(proposal, ctx),
     () => validateItemBounds(proposal),
     () => validateQuestStart(proposal, ctx),
     () => validateQuestProgression(proposal, ctx),

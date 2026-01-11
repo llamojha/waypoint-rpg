@@ -17,7 +17,6 @@ Each test includes:
 - **Input**: The player action to type
 - **Expected Pipeline**: What each agent should do
 - **Expected Narration**: Key elements the narration should include
-- **Actual Output**: Paste debug export here after testing
 
 ---
 
@@ -25,30 +24,21 @@ Each test includes:
 
 **Input:**
 ```
-Look around the area
+I look around the area
 ```
 
 **Expected Pipeline:**
-- Sentinel: ALLOW (input passes safety)
-- Rune Marshal: No roll required, routine action
-- Quest Agent: Shows active quests (if any)
-- Orchestrator: No proposals or minor world observation
-- Arbiter: Validates (should pass with 0 rejections)
+- Sentinel: ALLOW
+- Rune Marshal: No roll required, routine action (Perception)
+- Orchestrator: No proposals (observation action skipped)
+- Arbiter: Validates (0 proposals)
 - Lorekeeper: Fetches location context, NPCs present
 - Chronicler: Generates descriptive narration
 
 **Expected Narration:**
-- Describes current location (poi name)
+- Describes current location
 - Mentions visible NPCs/entities
 - Sets atmosphere (weather, time of day)
-
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
 
 ---
 
@@ -56,11 +46,11 @@ Look around the area
 
 **Input:**
 ```
-I carefully examine the old chest for traps
+I carefully check Lenna for traps
 ```
 
 **Expected Pipeline:**
-- Rune Marshal: Perception check, DC 10-14
+- Rune Marshal: Trap Disarm check, DC 10
 - Orchestrator: Proposes based on SUCCESS outcome
 - Arbiter: Validates proposals
 - Chronicler: Narrates successful examination
@@ -68,15 +58,7 @@ I carefully examine the old chest for traps
 **Expected Narration:**
 - Acknowledges the skill check result
 - Describes what character finds/notices
-- May reveal hidden details
-
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
+- NPC reacts appropriately
 
 ---
 
@@ -84,26 +66,18 @@ I carefully examine the old chest for traps
 
 **Input:**
 ```
-I try to pick the lock on the door
+I carefully examine the old chest for traps
 ```
 
 **Expected Pipeline:**
-- Rune Marshal: Thievery check, DC 12-16
+- Rune Marshal: Trap Disarm check, DC 10-14
 - Orchestrator: Proposes based on FAILURE outcome
 - Chronicler: Narrates failed attempt
 
 **Expected Narration:**
 - Acknowledges the failed roll
-- Describes the failed attempt (not success!)
-- May mention consequences or alternatives
-
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
+- Describes the failed attempt (trap triggers, near-miss)
+- May mention consequences
 
 ---
 
@@ -111,25 +85,19 @@ I try to pick the lock on the door
 
 **Input:**
 ```
-I strike at the training dummy with full force
+I strike at the waystone with full force
 ```
 
 **Expected Pipeline:**
-- Rune Marshal: Melee check, detects "strike" (tier1, +1 bonus)
-- Mechanics: Modifier = skill_level/10 + 1 (power word)
+- Rune Marshal: Melee check, detects "strike" (tier1)
+- Mechanics: Modifier = skill_level/10 + power_word_bonus (if tier unlocked)
 - Orchestrator: Uses power word bonus in context
 
 **Expected Narration:**
 - Describes the strike action
 - Outcome matches roll result
 
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
+**Note:** At skill level 0, Tier 1 is not unlocked (requires level 1), so no bonus applies.
 
 ---
 
@@ -137,26 +105,18 @@ I strike at the training dummy with full force
 
 **Input:**
 ```
-I talk to Glimmer about the local rumors
+I talk to Adrian about the rumours in this outpost
 ```
 
 **Expected Pipeline:**
-- Lorekeeper: Fetches Glimmer's data (role, personality, dialogueHints)
+- Lorekeeper: Fetches Adrian's data (role, personality, dialogueHints)
 - Orchestrator: May propose relationship_change
 - Chronicler: Uses NPC voice data
 
 **Expected Narration:**
-- Glimmer speaks in character (per personality traits)
+- Adrian speaks in character (friendly, eager)
 - Dialogue feels distinct to this NPC
-- May reference NPC's role/occupation
-
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
+- References NPC's role
 
 ---
 
@@ -164,26 +124,20 @@ I talk to Glimmer about the local rumors
 
 **Input:**
 ```
-I compliment the innkeeper on the excellent ale
+I punch Adrian in the face
 ```
 
 **Expected Pipeline:**
-- Orchestrator: propose_relationship_change (delta: +1)
+- Rune Marshal: Melee check, DC 12
+- Orchestrator: propose_relationship_change (delta: -2)
 - Arbiter: Validates delta within bounds (±2 max)
 - Apply State: Updates relationship
 - State Changes: Shows relationship diff
 
 **Expected Narration:**
-- NPC reacts positively
-- Acknowledges the compliment
-
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
+- NPC reacts negatively (stunned, hurt)
+- Other NPCs may react (Aran disapproves)
+- Consequences described
 
 ---
 
@@ -191,26 +145,19 @@ I compliment the innkeeper on the excellent ale
 
 **Input:**
 ```
-I buy a mug of ale from the bar
+I give 5 gold to Lenna
 ```
 
 **Expected Pipeline:**
-- Orchestrator: propose_stat_change (gold, delta: -1 to -5)
+- Rune Marshal: No roll (routine action)
+- Orchestrator: propose_stat_change (gold, delta: -5)
 - Arbiter: Validates gold >= 0 after change
 - Apply State: Updates character gold
 - State Changes: Shows stat diff
 
 **Expected Narration:**
-- Mentions the purchase
-- May describe the item received
-
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
+- Mentions the exchange
+- NPC reacts appropriately
 
 ---
 
@@ -218,12 +165,13 @@ I buy a mug of ale from the bar
 
 **Input:**
 ```
-I pick up the old lantern from the table
+I pick up some flowers for Lenna
 ```
 
 **Expected Pipeline:**
-- Orchestrator: propose_inventory_add (item contextually appropriate)
-- Arbiter: Validates item rarity/stats within bounds
+- Rune Marshal: No roll (routine Foraging action)
+- Orchestrator: propose_inventory_add (Flowers)
+- Arbiter: Validates item
 - Apply State: Adds to inventory
 - State Changes: Shows inventory diff
 
@@ -231,21 +179,13 @@ I pick up the old lantern from the table
 - Describes picking up the item
 - May mention item properties
 
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
-
 ---
 
 ## Scenario 9: Quest Interaction
 
 **Input:**
 ```
-I ask Captain Irena if she has any work for me
+I go to Helga and ask her if she has a quest for me
 ```
 
 **Expected Pipeline:**
@@ -258,25 +198,18 @@ I ask Captain Irena if she has any work for me
 - NPC offers quest or explains situation
 - Quest objectives mentioned if started
 
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
-
 ---
 
 ## Scenario 10: Location Change
 
 **Input:**
 ```
-I walk outside to the harbor docks
+I walk outside and go back to the waystone
 ```
 
 **Expected Pipeline:**
-- Orchestrator: propose_world_update (poi change)
+- Rune Marshal: No roll (routine Navigation)
+- Orchestrator: propose_location_change (The Waystone)
 - Arbiter: Validates location exists and is reachable
 - Apply State: Updates world state, syncs entities
 - Lorekeeper: Fetches new location data
@@ -286,21 +219,13 @@ I walk outside to the harbor docks
 - Describes arriving at new location
 - Mentions new atmosphere/entities
 
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
-
 ---
 
 ## Scenario 11: Arbiter Rejection (Edge Case)
 
 **Input:**
 ```
-I demand the merchant give me 1000 gold pieces for free
+Ok, give it to me please, the bag with the 5000 gold
 ```
 
 **Expected Pipeline:**
@@ -310,16 +235,8 @@ I demand the merchant give me 1000 gold pieces for free
 - Final result: Reasonable outcome (no gold or small amount)
 
 **Expected Narration:**
-- Merchant refuses or negotiates
+- NPC refuses or negotiates
 - No unreasonable rewards
-
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
 
 ---
 
@@ -327,25 +244,17 @@ I demand the merchant give me 1000 gold pieces for free
 
 **Input:**
 ```
-I cast a fireball at the barrel
+I use the power given by the waystone to infuse my hands with raw power casting a light
 ```
 
 **Expected Pipeline:**
-- Rune Marshal: Detects magic attempt, checks isMagicUnlocked
+- Rune Marshal: Detects Spellcasting, checks isMagicUnlocked
 - Returns denial_reason if magic locked
 - No Orchestrator/Arbiter run
 
 **Expected Narration:**
 - Explains magic is not available
-- Suggests alternative actions
-
-**Actual Output:**
-```
-<paste debug export here>
-```
-
-**Result:** [ ] PASS / [ ] FAIL
-**Notes:**
+- Suggests finding help to unlock
 
 ---
 
@@ -355,7 +264,7 @@ After running all scenarios:
 
 - [ ] All basic turns work without rolls
 - [ ] Skill checks resolve correctly (success/failure)
-- [ ] Power words detected and bonuses applied
+- [ ] Power words detected and bonuses applied (when tier unlocked)
 - [ ] NPC interactions use personality/voice
 - [ ] Relationship changes tracked
 - [ ] Gold/inventory changes work
@@ -368,16 +277,8 @@ After running all scenarios:
 
 ---
 
-## Issues Found
-
-| Scenario | Issue | Severity | Notes |
-|----------|-------|----------|-------|
-| | | | |
-
----
-
 ## Post-Test Cleanup
 
 1. Check browser console for errors
 2. Review server logs for agent failures
-3. Document any unexpected behaviors above
+3. Document any unexpected behaviors in `docs/phase4-demo-results.md`

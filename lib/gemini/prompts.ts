@@ -52,6 +52,8 @@ function formatConditions(conditions: Character["conditions"]): string {
 
 /**
  * Format recent turns for context
+ * Only include player actions with brief outcome indicator, not full narration,
+ * to prevent the LLM from copying location-specific details from previous turns
  */
 function formatRecentTurns(turns: Turn[]): string {
   if (turns.length === 0) return "This is the beginning of your adventure.";
@@ -59,12 +61,10 @@ function formatRecentTurns(turns: Turn[]): string {
   return turns
     .map((turn, index) => {
       const turnNum = turns.length - index;
-      const narration = turn.narration || "";
-      return `Turn ${turnNum}:
-Action: ${turn.playerAction || "Unknown"}
-Result: ${narration.slice(0, 500)}${narration.length > 500 ? "..." : ""}`;
+      const outcome = turn.mechanics?.outcome || "ok";
+      return `Turn ${turnNum}: "${turn.playerAction || "Unknown"}" → ${outcome}`;
     })
-    .join("\n\n");
+    .join("\n");
 }
 
 /**
@@ -263,6 +263,12 @@ export function buildTurnPrompt(
 ): string {
   const lastTurns = recentTurns.slice(-100);
 
+  // Detect if player just arrived at this location
+  const hasLocationChange = approvedEvents?.some(e => e.type === "location_change") ||
+    consequences?.some(c => c.type === "location_changed");
+  const isFirstTurn = recentTurns.length === 0;
+  const isNewLocation = isFirstTurn || hasLocationChange;
+
   let rollContext = "";
   if (rollOutcome) {
     rollContext = `
@@ -309,6 +315,9 @@ ${world.description || ""}
 Time: Day ${world.time.day}, ${world.time.phase}
 Weather: ${world.weather}
 ${world.nearbyPoi && world.nearbyPoi.length > 0 ? `\nNEARBY LOCATIONS:\n${world.nearbyPoi.map(p => `- ${p}`).join('\n')}` : ''}
+
+SCENE CONTEXT:
+${isNewLocation ? "Player just ARRIVED at this location - describe the scene and surroundings." : "Player has been here for multiple turns - focus on the action, don't re-describe the location unless they moved to a new area within it."}
 
 NPCS PRESENT:
 ${formatNPCs(npcsPresent || [])}
