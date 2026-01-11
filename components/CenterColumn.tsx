@@ -238,7 +238,7 @@ const TurnEntry: React.FC<{
         <div className="relative">
           {turn.playerAction && (
             <div className="flex justify-center my-6 opacity-30 text-gold-dim">
-              <span className="font-display text-xl">~ ⚜ ~</span>
+              <span className="font-display text-xl flex items-center gap-2"><span className="translate-y-[7px]">~</span><span>⚜</span><span className="translate-y-[7px]">~</span></span>
             </div>
           )}
 

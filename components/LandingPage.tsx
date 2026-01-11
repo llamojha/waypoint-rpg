@@ -2,24 +2,13 @@
 
 import React, { useState } from "react";
 import {
-  Compass,
   Users,
   Sword,
-  MessageSquare,
-  Play,
-  Star,
   ChevronRight,
-  Globe,
-  Shield,
-  Scroll,
-  Map,
   CheckCircle2,
   Feather,
-  Dna,
   BookOpen,
-  Clock,
 } from "lucide-react";
-import { UNKNOWN_IMG } from "@/constants";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/lib/auth";
 import { canUserPlay, isWaitlistMode } from "@/lib/supabase/user-profile";
@@ -69,7 +58,7 @@ export const LandingPage: React.FC<Props> = ({ onStart, lang, setLang }) => {
         {/* CoreSystems removed as requested */}
         <AvatarGrid />
         <Testimonials />
-        <VideoEmbed />
+        <SkillsShowcase />
         <ChatDemo />
         <FAQList />
         <FinalCTA onStart={handleStartClick} isWaitlist={showWaitlistButton} />
@@ -380,35 +369,68 @@ const ReviewCard = ({ text, author, color, img }: any) => (
 );
 
 /* -------------------------------------------------------------------------
-   6. Demo Video Embed
+   6. Skills Showcase (replaces Video Embed)
 ------------------------------------------------------------------------- */
-const VideoEmbed = () => (
-  <section className="px-4 max-w-4xl mx-auto">
-    <div className="rounded-sm p-2 bg-parchment-200 border border-parchment-400 shadow-xl relative panel-texture">
-      <div className="aspect-video bg-black/90 relative rounded-sm overflow-hidden flex items-center justify-center group cursor-pointer">
-        <div className="absolute inset-0 bg-[url('/video_watchtower_bg_watercolour.png')] bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity duration-500"></div>
-        <div className="w-20 h-20 rounded-full bg-parchment-100/10 backdrop-blur-sm border-2 border-parchment-100 flex items-center justify-center z-10 group-hover:scale-110 transition-transform">
-          <Play
-            className="fill-parchment-100 text-parchment-100 ml-1"
-            size={32}
-          />
+const SkillsShowcase = () => {
+  const skills = [
+    { name: "Melee", tier1: ["strike", "slash", "thrust"], tier2: ["cleave", "feint", "lunge"], tier3: ["disarm", "riposte", "execution"] },
+    { name: "Sneaking", tier1: ["sneak", "creep", "slip"], tier2: ["shadow", "stalk", "ghost"], tier3: ["vanish", "silent step", "unseen"] },
+    { name: "Persuasion", tier1: ["persuade", "convince", "appeal"], tier2: ["negotiate", "reassure", "reason"], tier3: ["compel", "sway", "convert"] },
+    { name: "Perception", tier1: ["notice", "spot", "listen"], tier2: ["scan", "search", "scrutinize"], tier3: ["pinpoint", "true sight"] },
+    { name: "Tracking", tier1: ["track", "follow", "trail"], tier2: ["pursue", "backtrack", "read spoor"], tier3: ["predict route", "reconstruct path"] },
+    { name: "Barter", tier1: ["haggle", "bargain", "barter"], tier2: ["leverage", "bundle deal", "undercut"], tier3: ["perfect deal", "market play", "price crush"] },
+  ];
+
+  return (
+    <section className="px-4 max-w-5xl mx-auto">
+      <div className="text-center mb-10">
+        <h3 className="text-3xl font-display text-ink mb-3">
+          Skills, Not Classes
+        </h3>
+        <p className="text-lg text-ink-light font-serif italic max-w-2xl mx-auto mb-6">
+          Your character emerges from your choices. Use "strike" in combat, gain Melee XP. 
+          "Convince" an NPC, level Persuasion. You become what you practice.
+        </p>
+        <div className="bg-parchment-200 border-2 border-parchment-800 rounded-sm p-4 max-w-2xl mx-auto">
+          <div className="flex items-center justify-center gap-3 text-sm">
+            <div className="flex gap-1">
+              <span className="px-2 py-0.5 text-ink text-[10px] rounded-sm font-mono">Tier 1</span>
+              <span className="px-2 py-0.5 text-gold text-[10px] rounded-sm font-mono">Tier 2</span>
+              <span className="px-2 py-0.5 text-burgundy text-[10px] rounded-sm font-mono">Tier 3</span>
+            </div>
+            <span className="text-ink-light font-serif">
+              Power words unlock as you level. Higher tiers grant bigger bonuses to your rolls.
+            </span>
+          </div>
         </div>
-        <span className="absolute bottom-4 text-parchment-100 font-bold font-small-caps tracking-widest text-sm uppercase">
-          Watch Gameplay: A World That Remembers
-        </span>
-        {/* Corner Flourishes */}
-        <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-gold pointer-events-none z-20"></div>
-        <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-gold pointer-events-none z-20"></div>
-        <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-gold pointer-events-none z-20"></div>
-        <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-gold pointer-events-none z-20"></div>
       </div>
-    </div>
-    <p className="text-center mt-4 text-sm font-sans font-bold text-ink-light uppercase tracking-wide">
-      See skills leveling through actions, world updates logged each turn, and
-      rumors turning into canon.
-    </p>
-  </section>
-);
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {skills.map((skill) => (
+          <div
+            key={skill.name}
+            className="bg-parchment-200 border-2 border-parchment-800 p-4 rounded-sm"
+          >
+            <div className="text-sm font-bold text-ink mb-2 text-center border-b border-parchment-400 pb-2">
+              {skill.name}
+            </div>
+            <div className="flex flex-wrap justify-center gap-1">
+              {skill.tier1.map((word) => (
+                <span key={word} className="text-[10px] px-1.5 py-0.5 rounded-sm font-mono text-ink">{word}</span>
+              ))}
+              {skill.tier2.map((word) => (
+                <span key={word} className="text-[10px] px-1.5 py-0.5 rounded-sm font-mono text-gold">{word}</span>
+              ))}
+              {skill.tier3.map((word) => (
+                <span key={word} className="text-[10px] px-1.5 py-0.5 rounded-sm font-mono text-burgundy">{word}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+};
 
 /* -------------------------------------------------------------------------
    7. "How It Works" Chat Transcript (Updated to match Game UI)
@@ -442,7 +464,7 @@ const ChatDemo = () => (
         {/* Turn 1: DM */}
         <div className="relative animate-fade-in">
           <div className="flex justify-center my-4 opacity-30 text-gold-dim">
-            <span className="font-display text-xl">~ ⚜ ~</span>
+            <span className="font-display text-xl flex items-center gap-2"><span className="translate-y-[7px]">~</span><span>⚜</span><span className="translate-y-[7px]">~</span></span>
           </div>
           <div className="narration-text text-ink text-justify relative z-10 drop-cap">
             Wind moans through the broken arrow slits. A lone lantern burns on
@@ -474,7 +496,7 @@ const ChatDemo = () => (
           style={{ animationDelay: "1s" }}
         >
           <div className="flex justify-center my-4 opacity-30 text-gold-dim">
-            <span className="font-display text-xl">~ ⚜ ~</span>
+            <span className="font-display text-xl flex items-center gap-2"><span className="translate-y-[7px]">~</span><span>⚜</span><span className="translate-y-[7px]">~</span></span>
           </div>
 
           {/* Mechanics Breakdown (Skill Check with Power Word) */}
@@ -567,7 +589,7 @@ const ChatDemo = () => (
           style={{ animationDelay: "3s" }}
         >
           <div className="flex justify-center my-4 opacity-30 text-gold-dim">
-            <span className="font-display text-xl">~ ⚜ ~</span>
+            <span className="font-display text-xl flex items-center gap-2"><span className="translate-y-[7px]">~</span><span>⚜</span><span className="translate-y-[7px]">~</span></span>
           </div>
 
           <div className="narration-text text-ink text-justify relative z-10 mb-4">
@@ -692,11 +714,11 @@ const FinalCTA = ({ onStart, isWaitlist }: { onStart: () => void; isWaitlist: bo
 
     <div className="relative z-10 max-w-3xl mx-auto">
       <h2 className="text-4xl md:text-5xl font-display text-ink mb-4">
-        Done Waiting Two Weeks Between Sessions?
+        Your Story Awaits
       </h2>
       <p className="text-xl text-ink-light font-serif italic mb-10">
-        The campfire is lit. The map is waiting. Bring friends, or go alone .
-        and leave a mark on a world that remembers.
+        No DM required. Take any action you can imagine. The game resolves the outcome, 
+        records what changed, and carries the consequences forward.
       </p>
 
       <div className="flex flex-col items-center gap-6">
@@ -711,7 +733,7 @@ const FinalCTA = ({ onStart, isWaitlist }: { onStart: () => void; isWaitlist: bo
             Join 123,360 Adventurers
           </div>
           <div className="text-[10px] font-bold text-ink-faint uppercase tracking-widest opacity-60">
-            No DM. No prep. Just your choices, and the consequences.
+            Play anytime. Your choices become lore.
           </div>
         </div>
       </div>
