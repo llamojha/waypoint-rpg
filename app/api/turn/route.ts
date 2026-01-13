@@ -622,6 +622,7 @@ async function continueWithNarration(
     // === PARALLEL: ARBITER + LOREKEEPER ===
     const parallelStart = Date.now();
     const activeQuestIds = questContext?.activeQuests.map(q => q.id) || [];
+    const activeQuestTitles = questContext?.activeQuests.map(q => q.title) || [];
     const availableQuestIds = questContext?.npcQuests.map(q => q.id) || [];
     const availableQuestTitles = questContext?.npcQuests.map(q => q.title) || [];
     [arbiterResult, lorekeeperResult] = await Promise.all([
@@ -631,6 +632,7 @@ async function continueWithNarration(
         playerAction,
         rollOutcome,
         activeQuestIds,
+        activeQuestTitles,
         availableQuestIds,
         availableQuestTitles,
       }),
@@ -850,28 +852,52 @@ async function completeTurnPipeline(
   retryCount: number = 0,
   questContext?: QuestContext,
   knownNpcNames: Set<string> = new Set(),
-  existingTraces: AgentTrace[] = []
+  existingTraces: AgentTrace[] = [],
+  cachedLorekeeperResult?: Awaited<ReturnType<typeof runLorekeeper>>
 ) {
   const MAX_RETRIES = 2;
   const traces: AgentTrace[] = [...existingTraces];
 
   // === PARALLEL: ARBITER + LOREKEEPER ===
+  // Only run Lorekeeper on first attempt - reuse cached result on retries
   const parallelStart = Date.now();
   const activeQuestIds = questContext?.activeQuests.map(q => q.id) || [];
+  const activeQuestTitles = questContext?.activeQuests.map(q => q.title) || [];
   const availableQuestIds = questContext?.npcQuests.map(q => q.id) || [];
   const availableQuestTitles = questContext?.npcQuests.map(q => q.title) || [];
-  const [arbiterResult, lorekeeperResult] = await Promise.all([
-    runArbiter(proposals, {
+  
+  let arbiterResult;
+  let lorekeeperResult;
+  
+  if (cachedLorekeeperResult) {
+    // Retry: only run Arbiter, reuse Lorekeeper result
+    arbiterResult = await runArbiter(proposals, {
       character,
       world,
       playerAction,
       rollOutcome,
       activeQuestIds,
+      activeQuestTitles,
       availableQuestIds,
       availableQuestTitles,
-    }),
-    runLorekeeper(playerAction, world, characterId),
-  ]);
+    });
+    lorekeeperResult = cachedLorekeeperResult;
+  } else {
+    // First attempt: run both in parallel
+    [arbiterResult, lorekeeperResult] = await Promise.all([
+      runArbiter(proposals, {
+        character,
+        world,
+        playerAction,
+        rollOutcome,
+        activeQuestIds,
+        activeQuestTitles,
+        availableQuestIds,
+        availableQuestTitles,
+      }),
+      runLorekeeper(playerAction, world, characterId),
+    ]);
+  }
   const parallelDuration = Date.now() - parallelStart;
 
   // Add arbiter trace
@@ -888,22 +914,49 @@ async function completeTurnPipeline(
     ],
   });
 
-  // Add lorekeeper trace
-  const npcNames = lorekeeperResult.npcsPresent?.map(n => n.name) || [];
-  traces.push({
-    agent: "lorekeeper",
-    status: "success",
-    durationMs: parallelDuration,
-    description: `Fetched context for ${world.poi}`,
-    details: [
-      npcNames.length > 0 ? `NPCs present: ${npcNames.join(", ")}` : `No NPCs at this location`,
-      lorekeeperResult.codexSnippets?.length ? `Found ${lorekeeperResult.codexSnippets.length} codex entries` : `No relevant lore`,
-      lorekeeperResult.atmosphere ? `Atmosphere: ${lorekeeperResult.atmosphere.mood || 'neutral'}` : null,
-    ].filter(Boolean) as string[],
-  });
+  // Add lorekeeper trace only on first run (not on retries)
+  if (!cachedLorekeeperResult) {
+    const npcNames = lorekeeperResult.npcsPresent?.map(n => n.name) || [];
+    traces.push({
+      agent: "lorekeeper",
+      status: "success",
+      durationMs: parallelDuration,
+      description: `Fetched context for ${world.poi}`,
+      details: [
+        npcNames.length > 0 ? `NPCs present: ${npcNames.join(", ")}` : `No NPCs at this location`,
+        lorekeeperResult.codexSnippets?.length ? `Found ${lorekeeperResult.codexSnippets.length} codex entries` : `No relevant lore`,
+        lorekeeperResult.atmosphere ? `Atmosphere: ${lorekeeperResult.atmosphere.mood || 'neutral'}` : null,
+      ].filter(Boolean) as string[],
+    });
+  }
 
-  // === RETRY LOOP: If any rejections, re-run Orchestrator with context ===
-  if (arbiterResult.rejected.length > 0 && retryCount < MAX_RETRIES) {
+  // === RETRY LOOP: If fixable rejections, re-run Orchestrator with context ===
+  // Smart retry logic: only retry for fixable rejections (e.g., "capped", "too high")
+  // Don't retry for unfixable rejections (e.g., "not present", "already at", "not active")
+  const unfixablePatterns = [
+    /not present/i,
+    /not at.*location/i,
+    /invalid location/i,
+    /not in inventory/i,
+    /not active/i,
+    /no.*quests/i,
+    /already at/i,
+  ];
+  
+  const hasUnfixableRejections = arbiterResult.rejected.some(r => 
+    unfixablePatterns.some(pattern => pattern.test(r.reason))
+  );
+  
+  const hasFixableRejections = arbiterResult.rejected.some(r =>
+    /capped|too high|too large|exceeds/i.test(r.reason)
+  );
+
+  const shouldRetry = arbiterResult.rejected.length > 0 
+    && retryCount < MAX_RETRIES
+    && hasFixableRejections
+    && !hasUnfixableRejections;
+
+  if (shouldRetry) {
     const rejectionContext = arbiterResult.rejected
       .map(r => `Rejected: ${r.proposal.type} - ${r.reason}`)
       .join("; ");
@@ -919,7 +972,7 @@ async function completeTurnPipeline(
       questContext
     );
 
-    // Recursive call with incremented retry count
+    // Recursive call with incremented retry count and cached Lorekeeper result
     return completeTurnPipeline(
       supabase,
       characterId,
@@ -932,7 +985,8 @@ async function completeTurnPipeline(
       retryCount + 1,
       questContext,
       knownNpcNames,
-      traces
+      traces,
+      lorekeeperResult  // Pass cached result to avoid re-running Lorekeeper
     );
   }
 

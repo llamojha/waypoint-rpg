@@ -13,6 +13,7 @@ export interface CodeValidationContext {
   world: WorldContext;
   validLocations: string[];
   activeQuestIds?: string[];
+  activeQuestTitles?: string[];
   availableQuestIds?: string[];
   availableQuestTitles?: string[];
   playerAction?: string;
@@ -309,12 +310,16 @@ function validateQuestProgression(
     };
   }
 
-  // Quest must exist in active quests
+  // Quest must exist in active quests (check both ID and title)
   if (ctx.activeQuestIds && ctx.activeQuestIds.length > 0) {
-    const questExists = ctx.activeQuestIds.some(
-      id => id.toLowerCase() === (quest_id || "").toLowerCase()
+    const questIdLower = (quest_id || "").toLowerCase();
+    const matchesId = ctx.activeQuestIds.some(
+      id => id.toLowerCase() === questIdLower
     );
-    if (!questExists) {
+    const matchesTitle = ctx.activeQuestTitles?.some(
+      title => title.toLowerCase() === questIdLower
+    );
+    if (!matchesId && !matchesTitle) {
       return {
         valid: false,
         reason: `Quest "${quest_id}" is not active`,

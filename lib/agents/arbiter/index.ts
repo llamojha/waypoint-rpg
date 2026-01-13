@@ -26,6 +26,7 @@ export interface ArbiterContext {
     dc: number;
   };
   activeQuestIds?: string[];
+  activeQuestTitles?: string[];
   availableQuestIds?: string[];
   availableQuestTitles?: string[];
 }
@@ -82,6 +83,7 @@ export async function runArbiter(
     world: ctx.world,
     validLocations: [ctx.world.poi, ...(ctx.world.nearbyPoi || [])],
     activeQuestIds: ctx.activeQuestIds,
+    activeQuestTitles: ctx.activeQuestTitles,
     availableQuestIds: ctx.availableQuestIds,
     availableQuestTitles: ctx.availableQuestTitles,
     playerAction: ctx.playerAction,

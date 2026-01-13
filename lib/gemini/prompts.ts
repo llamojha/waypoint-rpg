@@ -306,8 +306,9 @@ Do NOT propose additional events - these have already been validated.
   // Add NPC voice guidance
   const voiceContext = formatNpcVoices(npcVoices || []);
 
-  // Add atmosphere descriptors
-  const atmosphereContext = formatAtmosphere(atmosphere || null);
+  // Add atmosphere descriptors ONLY for new locations
+  // When player has been at a location, don't re-describe the atmosphere
+  const atmosphereContext = isNewLocation ? formatAtmosphere(atmosphere || null) : "";
 
   const userPrompt = `CURRENT LOCATION:
 ${world.poi} in ${world.region}
@@ -317,7 +318,7 @@ Weather: ${world.weather}
 ${world.nearbyPoi && world.nearbyPoi.length > 0 ? `\nNEARBY LOCATIONS:\n${world.nearbyPoi.map(p => `- ${p}`).join('\n')}` : ''}
 
 SCENE CONTEXT:
-${isNewLocation ? "Player just ARRIVED at this location - describe the scene and surroundings." : "Player has been here for multiple turns - focus on the action, don't re-describe the location unless they moved to a new area within it."}
+${isNewLocation ? "Player just ARRIVED at this location - describe the scene and surroundings as they take it in for the first time." : "Player has been here - DO NOT describe the location or surroundings. Focus ONLY on the action and dialogue. Start with the character's action or NPC response, not environmental description."}
 
 NPCS PRESENT:
 ${formatNPCs(npcsPresent || [])}

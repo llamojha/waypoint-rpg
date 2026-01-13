@@ -162,7 +162,11 @@ ${recentStr || "No recent events"}
 - Player must actively agree/accept (e.g., "I'll help", "I accept", "Yes")
 
 ### propose_quest_progress
-- When player completes a quest step
+- ONLY when player's action DIRECTLY accomplishes the "Current goal" shown for that quest
+- Check the goal type: exploration goals require traveling, dialogue goals require specific conversations, fetch goals require obtaining items
+- Do NOT propose progress just because player is talking to an NPC - the action must match the SPECIFIC goal
+- Example: If goal is "Travel to Nomante Outpost", only propose progress when player actually travels there
+- Example: If goal is "Speak with Captain Aran", only propose progress when player talks to that specific NPC
 - Progress increments by 1 per step
 
 ### propose_location_change
