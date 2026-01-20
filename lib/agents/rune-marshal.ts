@@ -8,8 +8,12 @@ const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 /** Magic skill names for denial detection */
 const MAGIC_SKILLS = ["Spellcasting", "Rituals", "Wards", "Summoning"];
 
+/** Action types for proposal constraints */
+export type ActionType = "passive" | "travel" | "social" | "combat" | "object";
+
 export interface RuneMarshalOutput {
   intent: string;  // What the player is trying to do
+  action_type: ActionType;  // Classification for proposal constraints
   primary_skill: string;
   power_words: string[];
   tier: number;
@@ -21,13 +25,18 @@ export interface RuneMarshalOutput {
 
 const DETECT_INTENT_TOOL = {
   name: "detect_intent",
-  description: "Analyze player action to determine intent, skill, and if roll is needed",
+  description: "Analyze player action to determine intent, skill, action type, and if roll is needed",
   parameters: {
     type: Type.OBJECT,
     properties: {
       intent: {
         type: Type.STRING,
         description: "Brief description of what the player is trying to do (e.g., 'travel to captain hall', 'sneak past guards', 'attack the goblin')",
+      },
+      action_type: {
+        type: Type.STRING,
+        enum: ["passive", "travel", "social", "combat", "object"],
+        description: "Classification of action: passive (observation/conversation), travel (moving locations), social (NPC interaction), combat (fighting), object (using/manipulating items)",
       },
       primary_skill: {
         type: Type.STRING,
@@ -60,12 +69,12 @@ const DETECT_INTENT_TOOL = {
         description: "If action should be denied, explain why",
       },
     },
-    required: ["intent", "primary_skill", "requires_roll"],
+    required: ["intent", "action_type", "primary_skill", "requires_roll"],
   },
 };
 
 function buildPrompt(character: Character, world: WorldContext): string {
-  return `You are the Rune Marshal for Waypoint RPG. Analyze player actions to detect intent.
+  return `You are the Rune Marshal for Waypoint RPG. Analyze player actions to detect intent and classify action type.
 
 ## SKILL_TREE (for power word detection)
 ${JSON.stringify(SKILL_TREE, null, 2)}
@@ -77,6 +86,18 @@ ${JSON.stringify(SKILL_TREE, null, 2)}
 ## Location
 - ${world.poi} in ${world.region}
 - NPCs present: ${world.entities?.join(", ") || "none"}
+
+## Action Type Classification (REQUIRED)
+
+Classify every action into ONE of these types:
+
+| Type | Description | Examples |
+|------|-------------|----------|
+| passive | Observation, conversation, questions, looking around | "What should we do?", "Look around", "Hello", "Tell me about..." |
+| travel | Moving to a different location | "I go to X", "Travel to X", "Head to the market" |
+| social | Meaningful NPC interaction (helping, thanking, insulting) | "I thank Lenna", "I help the merchant", "I insult him" |
+| combat | Fighting, attacking, defending | "I attack", "I strike the goblin", "I defend myself" |
+| object | Using/manipulating items, buying, selling, opening things | "I open the chest", "I buy the sword", "I pull the lever" |
 
 ## Rules for requires_roll
 
@@ -105,19 +126,6 @@ SET requires_roll=false for ALL of these (NO EXCEPTIONS):
 - Picking up unguarded items
 - Opening unlocked doors
 
-## CRITICAL: Social Interactions with Friendly NPCs
-Social interactions with FRIENDLY or NEUTRAL NPCs do NOT require rolls:
-- Holding someone's hand (if they're willing) → NO ROLL
-- Hugging a friend → NO ROLL  
-- Asking for directions → NO ROLL
-- Chatting casually → NO ROLL
-- Giving a gift → NO ROLL
-
-Only require a roll for social actions if:
-- The NPC is HOSTILE or RELUCTANT
-- You're trying to DECEIVE or MANIPULATE
-- There's actual RISK of failure with consequences
-
 ## DC Guidelines (only if requires_roll=true)
 - 8: trivial (climb a ladder)
 - 10: easy (pick a simple lock)
@@ -131,7 +139,58 @@ ${character.isMagicUnlocked ? "Magic is unlocked - allow magic actions" : "Magic
 ## NPC Travel Denial
 If player asks an NPC to travel, follow, or come with them, set denial_reason with an in-character response where the NPC (use their name from the action) politely declines, explaining they have duties or reasons to stay at their current location.
 
-Call detect_intent with your analysis.`;
+Call detect_intent with your analysis.
+
+## Success Examples
+
+### Example 1: Combat action
+Player: "I strike at the bandit with my sword"
+Good output:
+- intent: "attack bandit with sword"
+- action_type: "combat"
+- primary_skill: "Melee"
+- requires_roll: true
+- dc: 12
+
+### Example 2: Travel action
+Player: "I walk to the market square"
+Good output:
+- intent: "travel to market square"
+- action_type: "travel"
+- primary_skill: "Navigation"
+- requires_roll: false
+
+### Example 3: Social interaction
+Player: "I thank Lenna for her help"
+Good output:
+- intent: "thank Lenna"
+- action_type: "social"
+- primary_skill: "Persuasion"
+- requires_roll: false
+
+### Example 4: Passive observation
+Player: "I look around the tavern"
+Good output:
+- intent: "observe tavern"
+- action_type: "passive"
+- primary_skill: "Perception"
+- requires_roll: false
+
+### Example 5: Passive conversation
+Player: "What should we do next?"
+Good output:
+- intent: "ask for suggestions"
+- action_type: "passive"
+- primary_skill: "Persuasion"
+- requires_roll: false
+
+### Example 6: Object manipulation
+Player: "I open the chest"
+Good output:
+- intent: "open chest"
+- action_type: "object"
+- primary_skill: "Perception"
+- requires_roll: false`;
 }
 
 export async function runRuneMarshal(
@@ -162,9 +221,12 @@ export async function runRuneMarshal(
         // Check for magic denial
         const skill = args.primary_skill as string;
         const intent = (args.intent as string) || playerAction;
+        const actionType = (args.action_type as ActionType) || "passive";
+        
         if (!character.isMagicUnlocked && MAGIC_SKILLS.includes(skill)) {
           return {
             intent,
+            action_type: actionType,
             primary_skill: skill,
             power_words: [],
             tier: 0,
@@ -176,6 +238,7 @@ export async function runRuneMarshal(
 
         return {
           intent: (args.intent as string) || playerAction,
+          action_type: actionType,
           primary_skill: skill,
           power_words: (args.power_words as string[]) || [],
           tier: (args.tier as number) || 0,
@@ -190,9 +253,10 @@ export async function runRuneMarshal(
     console.error("Rune Marshal LLM error:", error);
   }
 
-  // Fallback - no roll needed
+  // Fallback - default to passive (safest, no proposals allowed)
   return {
     intent: playerAction,
+    action_type: "passive",
     primary_skill: "Perception",
     power_words: [],
     tier: 0,

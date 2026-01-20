@@ -6,6 +6,57 @@ Google Gemini (`gemini-2.5-flash-lite` primary, `gemini-3-flash-preview` optiona
 
 **SDK**: `@google/genai`
 
+## Core Principle: Never Lose Context
+
+**Waypoint maintains complete conversation history. We NEVER trim, summarize, or forget.**
+
+Unlike competitors who limit context to 5-8 messages for cost savings, we leverage Gemini's 1M token context window to maintain full narrative history. This is our competitive advantage - narrative quality that others cannot match.
+
+| Competitor Practice | Waypoint Approach |
+|--------------------|-------------------|
+| 5-8 recent messages | Full turn history |
+| Memory compression | No compression |
+| Atomic fact extraction | Complete narration |
+| Context budgets | Use full 1M tokens |
+
+## Prompt Engineering Requirements
+
+### Success Examples (REQUIRED)
+
+**Every agent prompt MUST include a "Success Examples" section** showing what good output looks like. This is non-negotiable for all new prompts.
+
+Prompts that only list restrictions ("don't do X", "never do Y") without positive examples lead to inconsistent LLM behavior. Success examples provide:
+- Clear model of expected output format
+- Concrete guidance on decision-making
+- Reduced ambiguity in edge cases
+
+**Required format:**
+
+```
+## Success Examples
+
+### Example 1: [Scenario name]
+Player: "[example input]"
+Good output:
+- [expected tool call or output]
+- [reasoning if helpful]
+
+### Example 2: [Scenario name]
+...
+```
+
+**Minimum requirements:**
+- At least 3-4 examples per prompt
+- Cover common cases AND edge cases
+- Show both "do something" and "do nothing" scenarios where applicable
+- Include expected tool calls with realistic parameters
+
+See existing prompts for reference:
+- `lib/agents/orchestrator.ts` - 6 examples
+- `lib/agents/rune-marshal.ts` - 6 examples
+- `lib/prompts/turn.ts` (Chronicler) - 4 examples
+- `lib/agents/lorekeeper/index.ts` - 4 examples
+
 ## Hybrid Architecture: LLM + Code
 
 Waypoint uses a hybrid approach where LLMs handle judgment/creativity and code handles deterministic operations:

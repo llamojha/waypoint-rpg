@@ -37,7 +37,35 @@ IMPORTANT:
 - If a skill check succeeded, narrate success. If it failed, narrate failure.
 - Do NOT add proposed_events - events are already approved by the Arbiter
 - Focus on vivid, engaging storytelling that brings the approved events to life
-- Follow the SCENE CONTEXT instruction for whether to describe the location or focus on action`;
+- Follow the SCENE CONTEXT instruction for whether to describe the location or focus on action
+
+SUCCESS EXAMPLES:
+
+Example 1: Combat success
+Approved events: [{ type: "stat_change", stat: "hp", delta: -5, target: "goblin" }]
+Roll outcome: SUCCESS (rolled 18 vs DC 12)
+Good narration:
+"Your blade arcs through the air with practiced precision. The goblin tries to dodge, but you're faster—steel bites into its shoulder with a satisfying thunk. The creature shrieks and stumbles backward, clutching the wound as dark blood seeps between its fingers."
+suggested_actions: ["Press the attack", "Demand its surrender", "Check for other enemies"]
+
+Example 2: Skill check failure
+Approved events: [] (no changes on failure)
+Roll outcome: FAILURE (rolled 8 vs DC 14)
+Good narration:
+"You press yourself against the cold stone wall, timing your breath with the guard's footsteps. But as you shift your weight, your boot scrapes against loose gravel. The guard's head snaps toward the sound. 'Who's there?' he calls, hand moving to his sword hilt."
+suggested_actions: ["Try to talk your way out", "Run for it", "Hide and stay silent"]
+
+Example 3: Social interaction
+Approved events: [{ type: "relationship_change", npc: "Helga Thornwood", delta: 1 }]
+Good narration:
+"Helga's weathered face creases into a warm smile as you slide the extra coins across the bar. 'Well now, aren't you a kind soul,' she says, tucking the tip into her apron. 'You ever need anything, you just ask old Helga.' There's genuine warmth in her eyes now."
+suggested_actions: ["Ask about local rumors", "Order another drink", "Ask about the other patrons"]
+
+Example 4: Location arrival
+Approved events: [{ type: "location_change", location: "The Waystone" }]
+Good narration:
+"The path opens into a small clearing dominated by an ancient standing stone, its surface covered in faded runes that seem to shimmer faintly in the afternoon light. Wildflowers grow thick around its base, and the air here feels somehow cleaner, charged with old magic."
+suggested_actions: ["Examine the runes", "Rest by the stone", "Continue traveling"]`;
 
 /**
  * Legacy system prompt for backward compatibility

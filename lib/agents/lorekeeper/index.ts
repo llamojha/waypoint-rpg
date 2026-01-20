@@ -78,7 +78,25 @@ Analyze the player's action and identify any keywords that might have relevant l
 If the action mentions or implies something that might have lore, call search_codex with relevant keywords.
 If the action is mundane (walking, resting, simple conversation), you may skip the search.
 
-Only search for what's actually relevant - don't search for everything.`;
+Only search for what's actually relevant - don't search for everything.
+
+## Success Examples
+
+### Example 1: Action mentions a faction
+Player: "I ask about the Shadow Guild"
+Good output: search_codex({ keywords: ["Shadow Guild", "guild"], limit: 2 })
+
+### Example 2: Creature encounter
+Player: "I ready my weapon as the dire wolf approaches"
+Good output: search_codex({ keywords: ["dire wolf", "wolves"], limit: 2 })
+
+### Example 3: Location-specific lore
+Player: "I examine the ancient ruins"
+Good output: search_codex({ keywords: ["ruins", "ancient", world.poi], limit: 3 })
+
+### Example 4: Mundane action (NO search needed)
+Player: "I sit down and rest"
+Good output: (no search_codex call - action is mundane)`;
 }
 
 /**
@@ -96,16 +114,16 @@ export async function runLorekeeper(
   // Ensure codex cache is loaded
   await loadCodexCache();
 
-  // Step 1: CODE LAYER - Auto-fetch NPCs and location details
+  // Step 1: CODE LAYER - Auto-fetch NPCs and location details (uses region cache if available)
   const [npcsPresent, locationDetails] = await Promise.all([
-    getNpcsAtLocation(world.poi),
-    getLocationDetails(world.poi),
+    getNpcsAtLocation(world.poi, world.region),
+    getLocationDetails(world.poi, world.region),
   ]);
 
-  // Fetch NPC voices for all present NPCs
+  // Fetch NPC voices for all present NPCs (uses region cache if available)
   const npcVoices: NpcVoice[] = [];
   for (const npc of npcsPresent) {
-    const voice = await getNpcVoice(npc.name);
+    const voice = await getNpcVoice(npc.name, world.region);
     if (voice) npcVoices.push(voice);
   }
 

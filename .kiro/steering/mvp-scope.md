@@ -1,5 +1,14 @@
 # MVP Scope & Acceptance Criteria
 
+## Core Differentiator: Never Lose Context
+
+**Waypoint maintains complete conversation history. We NEVER trim, summarize, or forget.**
+
+This is our competitive advantage over other AI RPGs:
+- Competitors limit to 5-8 messages to save costs
+- We leverage Gemini's 1M token context for full narrative history
+- Result: Story coherence and character development that others cannot match
+
 ## In Scope (MVP)
 
 ### Character System

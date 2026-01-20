@@ -1,16 +1,30 @@
 import { GoogleGenAI, FunctionCallingConfigMode } from "@google/genai";
-import type { Content, Part } from "@google/genai";
+import type { Content, Part, FunctionDeclaration } from "@google/genai";
 import { READ_TOOLS } from "./tools/read-tools";
 import { PROPOSAL_TOOLS, ProposalResult, DetectIntentResult } from "./tools/proposal-tools";
 import { handleReadToolCall } from "./tools/read-handlers";
 import type { Character, WorldContext, Turn } from "@/types";
 import type { ActiveQuest, NpcQuest } from "./quest-agent";
+import type { ActionType } from "./rune-marshal";
+import { getConstraintDescription } from "@/lib/rules/proposal-constraints";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 
 /** Magic skill names for denial detection */
 const MAGIC_SKILLS = ["Spellcasting", "Rituals", "Wards", "Summoning"];
+
+/** Get human-readable requirement for a goal type */
+function getGoalTypeRequirement(goalType: string): string {
+  switch (goalType) {
+    case "exploration": return "propose_location_change to the destination";
+    case "dialogue": return "propose_relationship_change with the NPC mentioned in goal";
+    case "fetch": return "propose_inventory_add of the item mentioned in goal";
+    case "combat": return "defeat an enemy (combat action)";
+    case "discover": return "propose_npc_discovered or propose_location_change";
+    default: return "complete the goal action";
+  }
+}
 
 export interface OrchestratorOutput {
   intent: DetectIntentResult;
@@ -31,7 +45,9 @@ function buildOrchestratorPrompt(
   character: Character,
   world: WorldContext,
   recentTurns: Turn[],
-  questContext?: QuestContext
+  questContext?: QuestContext,
+  actionType?: ActionType,
+  allowedToolNames?: string[]
 ): string {
   const characterStr = JSON.stringify({
     name: character.name,
@@ -55,14 +71,19 @@ function buildOrchestratorPrompt(
     `Player: ${t.playerAction}\nResult: ${t.narration?.slice(0, 200)}...`
   ).join("\n\n");
 
-  // Format quest context
+  // Format quest context with goal type requirements
   let questStr = "";
   if (questContext) {
     if (questContext.activeQuests.length > 0) {
       questStr += "\n## Active Quests\n";
       for (const q of questContext.activeQuests) {
+        const goalType = q.goalType || "dialogue";
+        const requirement = getGoalTypeRequirement(goalType);
         questStr += `- ${q.title} (step ${q.currentStep}/${q.totalProgress})\n`;
-        if (q.currentGoal) questStr += `  Current goal: "${q.currentGoal}"\n`;
+        if (q.currentGoal) {
+          questStr += `  Current goal: "${q.currentGoal}" [${goalType}]\n`;
+          questStr += `  REQUIRES: ${requirement}\n`;
+        }
       }
     }
     if (questContext.npcQuests.length > 0) {
@@ -78,8 +99,24 @@ function buildOrchestratorPrompt(
     ? `\n## NPCs Present at ${world.poi} (ONLY these NPCs can be interacted with)\n${world.entities.map(e => `- ${e}`).join("\n")}\n\nCRITICAL: You can ONLY propose relationship changes or interactions with NPCs listed above. Do NOT reference or interact with NPCs not in this list - they are not at this location.`
     : "\n## NPCs Present\nNone - no NPCs at this location to interact with.";
 
-  return `You are the Orchestrator for Waypoint RPG. Your job is to propose state changes based on the player's action.
+  // Build constraint explanation if action type is provided
+  let constraintStr = "";
+  if (actionType && allowedToolNames) {
+    const constraintDesc = getConstraintDescription(actionType);
+    if (allowedToolNames.length === 0) {
+      constraintStr = `\n## ACTION CONSTRAINT: ${actionType.toUpperCase()}
+${constraintDesc}
+You have NO proposal tools available for this action. Do not attempt to propose any state changes.`;
+    } else {
+      constraintStr = `\n## ACTION CONSTRAINT: ${actionType.toUpperCase()}
+${constraintDesc}
+Available tools: ${allowedToolNames.join(", ")}
+You may ONLY use the tools listed above. Any other proposals will be rejected.`;
+    }
+  }
 
+  return `You are the Orchestrator for Waypoint RPG. Your job is to propose state changes based on the player's action.
+${constraintStr}
 ## Current Character
 ${characterStr}
 
@@ -148,12 +185,14 @@ ${recentStr || "No recent events"}
 ### propose_relationship_change
 - ONLY when player directly interacts with an NPC (conversation, help, conflict)
 - Use the EXACT full name from "NPCs Present" list (e.g., "Aran Nomante" not "Aran")
+- Delta must be non-zero: +1, +2, -1, or -2 (NEVER 0)
 - Small talk, minor help: +1
 - Meaningful assistance, shared moment: +2
 - Insult, minor offense: -1
 - Betrayal, serious harm: -2
 - First meeting with interaction: include "met" in reason
 - Do NOT propose for NPCs the player hasn't interacted with yet
+- Do NOT propose if player is just asking a question without meaningful interaction
 
 ### propose_quest_start
 - ONLY when player explicitly accepts a quest from "Available Quests from NPC" list
@@ -184,26 +223,84 @@ ${recentStr || "No recent events"}
 - Include role and personality traits
 
 ## When NO Proposals Are Needed
-Some actions are pure observation and require NO state changes:
+Some actions are pure observation or conversation and require NO state changes:
 - "Look around" / "examine the area" → NO proposals (Chronicler will describe the scene)
 - "I go inside" / entering a building → NO proposals (still same POI)
 - "What do I see?" → NO proposals
 - Observing without interacting → NO proposals
 - Listening to ambient sounds → NO proposals
 - Walking within the current location → NO proposals
-For these, simply do not call any propose_* tools.
+- Asking questions like "What should we do?" / "What's next?" → NO proposals (just conversation)
+- Asking for suggestions or advice → NO proposals
+- General conversation that doesn't involve action → NO proposals
+- Casual small talk or greetings → NO proposals
+For these, simply do not call any propose_* tools. Let the Chronicler handle the response.
 
-CRITICAL: "Look around" NEVER results in gaining items. Looking is observation only.
+CRITICAL - READ CAREFULLY:
+- "Look around" NEVER results in gaining items. Looking is observation only.
+- Conversational questions NEVER result in location changes. The player must explicitly say they want to travel.
+- NEVER propose multiple location changes in one turn - player can only go to ONE place.
+- Simple questions like "What should we do?" require ZERO proposals - no relationship change, no quest progress, nothing.
+- Relationship changes require MEANINGFUL interaction (helping, insulting, sharing secrets) - NOT just talking.
+- NEVER propose quest progress for quests that aren't in the "Active Quests" list above.
+- If "Active Quests" shows "No active quests", do NOT propose any quest_progress.
 
 ## Output
 - Only propose changes that DIRECTLY result from the player's action
 - Do NOT anticipate or pre-propose future interactions
-- If the action is pure observation, call NO proposal tools`;
+- If the action is pure observation or conversation, call NO proposal tools
+- When in doubt, propose NOTHING - the Chronicler will still generate appropriate narration
+
+## Success Examples
+
+### Example 1: Combat action (with roll)
+Player: "I swing my sword at the goblin"
+Good output:
+- detect_intent: { primary_skill: "Melee", requires_roll: true, dc: 12 }
+- (after SUCCESS roll) propose_stat_change: { stat: "hp", delta: -4, target: "goblin", reason: "sword strike connected" }
+
+### Example 2: Social interaction with NPC
+Player: "I thank Helga for the warm meal and leave a generous tip"
+Good output:
+- detect_intent: { primary_skill: "Persuasion", requires_roll: false }
+- propose_stat_change: { stat: "gold", delta: -5, reason: "generous tip for Helga" }
+- propose_relationship_change: { npc: "Helga Thornwood", delta: 1, reason: "showed gratitude with generous tip" }
+
+### Example 3: Travel to new location
+Player: "I head to the Waystone"
+Good output:
+- detect_intent: { primary_skill: "Navigation", requires_roll: false }
+- propose_location_change: { location: "The Waystone", reason: "player traveled to the Waystone" }
+
+### Example 4: Quest progress
+Active quest: "Find the Lost Amulet" - Current goal: "Search the old ruins"
+Player: "I search through the rubble in the ruins"
+Good output:
+- detect_intent: { primary_skill: "Perception", requires_roll: true, dc: 12 }
+- (after SUCCESS) propose_inventory_add: { item_name: "Lost Amulet", item_type: "quest", rarity: "rare", reason: "found in ruins rubble" }
+- propose_quest_progress: { quest_id: "find-lost-amulet", new_progress: 2, reason: "found the amulet" }
+
+### Example 5: Pure observation (NO proposals)
+Player: "I look around the tavern"
+Good output:
+- detect_intent: { primary_skill: "Perception", requires_roll: false }
+- (NO other proposals - Chronicler will describe the scene)
+
+### Example 6: Conversation question (NO proposals)
+Player: "What should we do next?"
+Good output:
+- detect_intent: { primary_skill: "Persuasion", requires_roll: false }
+- (NO other proposals - this is just dialogue)`;
 }
 
 /**
  * Run the Orchestrator agent
  * Handles read tool calls in a loop, collects proposal tool calls
+ * 
+ * @param allowedProposalTools - If provided, only these proposal tools are available.
+ *                               If empty array, no proposals can be made.
+ *                               If undefined, all proposal tools are available (legacy behavior).
+ * @param actionType - The classified action type for prompt context
  */
 export async function runOrchestrator(
   playerAction: string,
@@ -212,9 +309,16 @@ export async function runOrchestrator(
   recentTurns: Turn[],
   rollOutcome?: { skill: string; success: boolean; total: number; dc: number },
   detectedIntent?: string,
-  questContext?: QuestContext
+  questContext?: QuestContext,
+  allowedProposalTools?: FunctionDeclaration[],
+  actionType?: ActionType
 ): Promise<OrchestratorOutput> {
-  const systemPrompt = buildOrchestratorPrompt(character, world, recentTurns, questContext);
+  // Get allowed tool names for prompt context
+  const allowedToolNames = allowedProposalTools?.map(t => t.name).filter((n): n is string => !!n);
+  
+  const systemPrompt = buildOrchestratorPrompt(
+    character, world, recentTurns, questContext, actionType, allowedToolNames
+  );
   
   // Build user message with intent and optional roll outcome
   let userMessage = `${systemPrompt}\n\nPlayer action: "${playerAction}"`;
@@ -228,9 +332,17 @@ export async function runOrchestrator(
 - Base proposals on this outcome. If failed, limit positive outcomes.`;
   }
   
-  // Remove detect_intent from tools since Rune Marshal already did that
-  const proposalTools = PROPOSAL_TOOLS.filter(t => t.name !== "detect_intent");
-  const allTools = [...READ_TOOLS, ...proposalTools];
+  // Use constrained tools if provided, otherwise use all proposal tools (legacy)
+  let proposalTools: FunctionDeclaration[];
+  if (allowedProposalTools !== undefined) {
+    proposalTools = allowedProposalTools;
+  } else {
+    // Legacy behavior: all proposal tools except detect_intent
+    proposalTools = PROPOSAL_TOOLS.filter(t => t.name !== "detect_intent") as FunctionDeclaration[];
+  }
+  
+  // If no proposal tools allowed, still need to run for read tools
+  const allTools = [...READ_TOOLS, ...proposalTools] as FunctionDeclaration[];
   
   const messages: Content[] = [
     { role: "user", parts: [{ text: userMessage }] },

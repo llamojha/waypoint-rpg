@@ -52,8 +52,7 @@ function formatConditions(conditions: Character["conditions"]): string {
 
 /**
  * Format recent turns for context
- * Only include player actions with brief outcome indicator, not full narration,
- * to prevent the LLM from copying location-specific details from previous turns
+ * Include full narration so Chronicler can maintain narrative continuity
  */
 function formatRecentTurns(turns: Turn[]): string {
   if (turns.length === 0) return "This is the beginning of your adventure.";
@@ -62,9 +61,10 @@ function formatRecentTurns(turns: Turn[]): string {
     .map((turn, index) => {
       const turnNum = turns.length - index;
       const outcome = turn.mechanics?.outcome || "ok";
-      return `Turn ${turnNum}: "${turn.playerAction || "Unknown"}" → ${outcome}`;
+      const narration = turn.narration ? `\n   Narration: ${turn.narration}` : "";
+      return `Turn ${turnNum}: Player: "${turn.playerAction || "Unknown"}" (${outcome})${narration}`;
     })
-    .join("\n");
+    .join("\n\n");
 }
 
 /**

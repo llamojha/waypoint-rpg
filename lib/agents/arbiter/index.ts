@@ -1,6 +1,7 @@
 import type { ProposalResult } from "../tools/proposal-tools";
 import type { Character, WorldContext } from "@/types";
 import { runCodeValidation, CodeValidationContext } from "./code-validation";
+import type { QuestGoalType } from "@/lib/rules/types";
 
 export interface ArbiterResult {
   proposal: ProposalResult;
@@ -27,6 +28,7 @@ export interface ArbiterContext {
   };
   activeQuestIds?: string[];
   activeQuestTitles?: string[];
+  activeQuestGoals?: Array<{ id: string; title: string; goalType: QuestGoalType; currentGoal: string }>;
   availableQuestIds?: string[];
   availableQuestTitles?: string[];
 }
@@ -84,9 +86,11 @@ export async function runArbiter(
     validLocations: [ctx.world.poi, ...(ctx.world.nearbyPoi || [])],
     activeQuestIds: ctx.activeQuestIds,
     activeQuestTitles: ctx.activeQuestTitles,
+    activeQuestGoals: ctx.activeQuestGoals,
     availableQuestIds: ctx.availableQuestIds,
     availableQuestTitles: ctx.availableQuestTitles,
     playerAction: ctx.playerAction,
+    otherProposals: uniqueProposals, // Pass all proposals for cross-validation
   };
 
   for (const proposal of uniqueProposals) {

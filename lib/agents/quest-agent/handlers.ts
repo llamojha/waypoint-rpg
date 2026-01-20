@@ -26,6 +26,8 @@ export interface ActiveQuest {
   totalProgress: number;
   currentStep: number;
   currentGoal: string | null;
+  /** Goal type for the current step (exploration, dialogue, fetch, combat, discover) */
+  goalType: "dialogue" | "exploration" | "combat" | "fetch" | "deliver" | "discover";
   steps: QuestStep[];
   rewards: QuestRewards;
   giverNpc: string | null;
@@ -95,7 +97,9 @@ export async function getActiveQuests(characterId: string): Promise<ActiveQuest[
       };
       const steps = quest.steps || [];
       const currentStep = row.progress + 1;
-      const currentGoal = steps.find((s) => s.step === currentStep)?.goal || null;
+      const currentStepData = steps.find((s) => s.step === currentStep);
+      const currentGoal = currentStepData?.goal || null;
+      const goalType = currentStepData?.type || "dialogue";
 
       return {
         id: quest.id,
@@ -105,6 +109,7 @@ export async function getActiveQuests(characterId: string): Promise<ActiveQuest[
         totalProgress: quest.total_progress,
         currentStep,
         currentGoal,
+        goalType,
         steps,
         rewards: quest.rewards || {},
         giverNpc: quest.giver_npc,
