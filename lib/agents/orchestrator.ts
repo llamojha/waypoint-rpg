@@ -420,13 +420,18 @@ export async function runOrchestrator(
       }
       traceDetails.push(detail);
 
-      // If we had read tools but NO proposals, continue to get proposals
-      // If we got proposals (with or without read tools), we're done
+      // If we got proposals, we're done
       if (proposalNames.length > 0) {
-        // Got proposals, we're done
         break;
-      } else if (hasReadTools && functionResponseParts.length > 0) {
-        // Only read tools, continue conversation to get proposals
+      }
+      
+      // If no proposal tools available, don't loop waiting for proposals
+      if (proposalTools.length === 0) {
+        break;
+      }
+      
+      // If we had read tools, continue conversation to get proposals
+      if (hasReadTools && functionResponseParts.length > 0) {
         messages.push({
           role: "model",
           parts: functionCalls.map(fc => ({ functionCall: fc })),

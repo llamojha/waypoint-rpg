@@ -154,6 +154,7 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     world,
     playerAction,
     rollOutcome,
+    actionType,  // Pass action type for failed roll blocking
     activeQuestIds: questContext.activeQuests.map(q => q.id),
     activeQuestTitles: questContext.activeQuests.map(q => q.title),
     activeQuestGoals: questContext.activeQuests.map(q => ({
@@ -177,7 +178,50 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
   let lorekeeperResult;
   let retryCount = 0;
 
-  while (retryCount <= MAX_RETRIES) {
+  // Skip Orchestrator entirely for passive actions with no tools
+  const skipOrchestrator = actionType === "passive" && allowedProposalTools?.length === 0;
+
+  if (skipOrchestrator) {
+    // No proposals needed - run Arbiter/Lorekeeper with empty proposals
+    traces.push({
+      agent: "orchestrator",
+      status: "success",
+      durationMs: 0,
+      description: `Skipped - passive action with no tools [${actionType}]`,
+      details: ["No state changes proposed"],
+    });
+
+    // Still need to run Arbiter (with empty proposals) and Lorekeeper
+    const parallelStart = Date.now();
+    [arbiterResult, lorekeeperResult] = await Promise.all([
+      runArbiter([], arbiterContext),
+      runLorekeeper(playerAction, world, characterId),
+    ]);
+    const parallelDuration = Date.now() - parallelStart;
+
+    traces.push({
+      agent: "arbiter",
+      status: "success",
+      durationMs: parallelDuration,
+      description: "No proposals to validate",
+      details: [],
+    });
+
+    const npcNames = lorekeeperResult.npcsPresent?.map(n => n.name) || [];
+    traces.push({
+      agent: "lorekeeper",
+      status: "success",
+      durationMs: parallelDuration,
+      description: `Fetched context for ${world.poi}`,
+      details: [
+        npcNames.length > 0 ? `NPCs present: ${npcNames.join(", ")}` : "No NPCs at this location",
+        lorekeeperResult.codexSnippets?.length ? `Found ${lorekeeperResult.codexSnippets.length} codex entries` : "No relevant lore",
+        lorekeeperResult.atmosphere ? `Atmosphere: ${lorekeeperResult.atmosphere.mood || "neutral"}` : null,
+      ].filter(Boolean) as string[],
+    });
+  }
+
+  while (!skipOrchestrator && retryCount <= MAX_RETRIES) {
     const rejectionContext = retryCount > 0 && arbiterResult?.rejected.length
       ? `Previous proposals rejected: ${arbiterResult.rejected.map(r => `${r.proposal.type} - ${r.reason}`).join("; ")}. Please adjust.`
       : detectedIntent;
@@ -344,7 +388,12 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     chroniclerContext.codexSnippets,
     chroniclerContext.consequences,
     chroniclerContext.npcVoices,
-    chroniclerContext.atmosphere
+    chroniclerContext.atmosphere,
+    // Pass rejected proposals so Chronicler knows NOT to narrate them
+    arbiterResult?.rejected.map(r => ({
+      type: r.proposal.type,
+      reason: r.reason,
+    }))
   );
 
   const geminiResponse = await generateTurn(prompt);

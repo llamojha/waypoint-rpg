@@ -232,6 +232,30 @@ export interface RollOutcome {
 }
 
 /**
+ * Rejection info for Chronicler context
+ */
+export interface RejectedProposal {
+  type: string;
+  reason: string;
+}
+
+/**
+ * Format rejected proposals for Chronicler
+ */
+function formatRejectedProposals(rejected: RejectedProposal[]): string {
+  if (!rejected || rejected.length === 0) return "";
+
+  const formatted = rejected.map(r => `- ${r.type}: ${r.reason}`).join("\n");
+
+  return `
+REJECTED PROPOSALS (DO NOT NARRATE THESE):
+${formatted}
+
+The player attempted to gain these but they were DENIED. Do NOT narrate the player receiving, finding, or obtaining these items/gold. Instead, narrate that they searched but found nothing, or that their attempt failed.
+`;
+}
+
+/**
  * Build the complete turn prompt for Chronicler
  * Now accepts pre-approved events from Arbiter plus lore context from Lorekeeper
  *
@@ -246,6 +270,7 @@ export interface RollOutcome {
  * @param consequences - Side effects from Apply State (NPC died, etc.)
  * @param npcVoices - NPC voice data for dialogue
  * @param atmosphere - Scene atmosphere descriptors
+ * @param rejectedProposals - Proposals that were rejected (should NOT be narrated)
  * @returns Complete prompt string for Chronicler
  */
 export function buildTurnPrompt(
@@ -259,7 +284,8 @@ export function buildTurnPrompt(
   codexSnippets?: CodexEntry[],
   consequences?: Consequence[],
   npcVoices?: NpcVoice[],
-  atmosphere?: Atmosphere | null
+  atmosphere?: Atmosphere | null,
+  rejectedProposals?: RejectedProposal[]
 ): string {
   const lastTurns = recentTurns.slice(-100);
 
@@ -310,6 +336,9 @@ Do NOT propose additional events - these have already been validated.
   // When player has been at a location, don't re-describe the atmosphere
   const atmosphereContext = isNewLocation ? formatAtmosphere(atmosphere || null) : "";
 
+  // Add rejected proposals context
+  const rejectedContext = formatRejectedProposals(rejectedProposals || []);
+
   const userPrompt = `CURRENT LOCATION:
 ${world.poi} in ${world.region}
 ${world.description || ""}
@@ -322,7 +351,7 @@ ${isNewLocation ? "Player just ARRIVED at this location - describe the scene and
 
 NPCS PRESENT:
 ${formatNPCs(npcsPresent || [])}
-${voiceContext}${atmosphereContext}${loreContext}${consequencesContext}
+${voiceContext}${atmosphereContext}${loreContext}${consequencesContext}${rejectedContext}
 CHARACTER:
 ${character.name}${character.gender ? ` (${character.gender})` : ""}
 HP: ${character.hp}/${character.maxHp}

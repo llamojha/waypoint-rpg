@@ -229,7 +229,7 @@ function validateGoldBounds(
 }
 
 /**
- * Validate gold gains against economy bounds
+ * Validate gold gains against economy bounds and context
  * Only validates positive deltas (gains), losses are handled by validateGoldBounds
  */
 function validateGoldGain(
@@ -245,8 +245,37 @@ function validateGoldGain(
   if (delta <= 0) return { valid: true };
 
   const reasonLower = (reason || "").toLowerCase();
+  const actionLower = (ctx.playerAction || "").toLowerCase();
+
+  // Check if player is just CLAIMING to find gold (not a valid source)
+  const claimKeywords = [
+    "i found", "i have", "i got", "i picked up", "there is", "there's a",
+    "i see a", "i grab", "i take the",
+  ];
+  const isPlayerClaim = claimKeywords.some(kw => actionLower.includes(kw));
+
+  // Valid sources for gold gain
+  const validSourceKeywords = [
+    // Combat/loot (requires defeated enemy or container in scene)
+    "loot", "defeat", "kill", "combat", "slay", "victor", "enemy", "monster",
+    // Quest rewards
+    "quest", "reward", "complet", "finish", "bounty",
+    // NPC giving gold
+    "gift", "give", "paid", "payment", "tip", "thank", "hire",
+    // Commerce
+    "sell", "sold", "trade", "merchant", "shop",
+  ];
+  const hasValidSource = validSourceKeywords.some(kw => reasonLower.includes(kw));
+
+  // If player just claims to find gold without valid source, reject
+  if (isPlayerClaim && !hasValidSource) {
+    return {
+      valid: false,
+      reason: `Gold gain rejected: player cannot declare finding gold - must come from valid source (combat, quest, NPC, commerce)`,
+    };
+  }
   
-  // Determine source type from reason keywords
+  // Determine source type from reason keywords for cap
   let maxGain: number = GOLD_BOUNDS.hard_cap.max;
   
   if (/quest|reward|complet|finish|bounty/.test(reasonLower)) {
@@ -286,6 +315,52 @@ function validateItemBounds(proposal: ProposalResult): ValidationResult {
   if (!bounds) return { valid: true };
 
   // For now, just validate rarity is valid - detailed stat checks would need item stats
+  return { valid: true };
+}
+
+/**
+ * Validate inventory add context: player cannot just claim items exist
+ */
+function validateInventoryAddContext(
+  proposal: ProposalResult,
+  ctx: CodeValidationContext
+): ValidationResult {
+  if (proposal.type !== "propose_inventory_add") return { valid: true };
+
+  const { reason } = proposal.data;
+  const reasonLower = (reason || "").toLowerCase();
+  const actionLower = (ctx.playerAction || "").toLowerCase();
+
+  // Check if player is just CLAIMING to have/find an item
+  const claimKeywords = [
+    "i found", "i have", "i got", "i picked up", "there is", "there's a",
+    "i see a", "i grab the", "i take the", "lying here", "on the ground",
+  ];
+  const isPlayerClaim = claimKeywords.some(kw => actionLower.includes(kw));
+
+  // Valid sources for item gain
+  const validSourceKeywords = [
+    // Combat/loot
+    "loot", "defeat", "kill", "combat", "slay", "drop", "enemy", "body",
+    // Quest rewards
+    "quest", "reward", "complet",
+    // NPC giving item
+    "gift", "give", "gave", "offer", "hand",
+    // Commerce
+    "buy", "bought", "purchase", "merchant", "shop",
+    // Crafting
+    "craft", "make", "create",
+  ];
+  const hasValidSource = validSourceKeywords.some(kw => reasonLower.includes(kw));
+
+  // If player just claims to find/have item without valid source, reject
+  if (isPlayerClaim && !hasValidSource) {
+    return {
+      valid: false,
+      reason: `Item gain rejected: player cannot declare finding items - must come from valid source (loot, quest, NPC, purchase)`,
+    };
+  }
+
   return { valid: true };
 }
 
@@ -527,6 +602,55 @@ function validateInventoryRemove(
 }
 
 /**
+ * Validate inventory remove context: item loss must make sense for the action
+ * Rejects item loss for search/observation actions where losing items is illogical
+ */
+function validateInventoryRemoveContext(
+  proposal: ProposalResult,
+  ctx: CodeValidationContext
+): ValidationResult {
+  if (proposal.type !== "propose_inventory_remove") return { valid: true };
+
+  const { item_name, reason } = proposal.data;
+  const reasonLower = (reason || "").toLowerCase();
+  const actionLower = (ctx.playerAction || "").toLowerCase();
+
+  // Keywords indicating actions where item loss makes sense
+  const itemLossKeywords = [
+    // Intentional use/consumption
+    "use", "consume", "eat", "drink", "apply", "throw", "give", "trade", "sell",
+    "sacrifice", "offer", "drop", "discard", "abandon",
+    // Physical actions that could cause loss
+    "jump", "climb", "fall", "swim", "dive", "run", "flee", "escape",
+    // Combat/danger
+    "attack", "fight", "combat", "battle", "defend",
+    // Crafting/modification
+    "craft", "combine", "modify", "upgrade", "repair", "break",
+  ];
+
+  // Keywords indicating search/observation (item loss doesn't make sense)
+  const searchKeywords = [
+    "search", "look", "examine", "inspect", "observe", "scan", "check",
+    "rummage", "forage", "scavenge", "investigate", "explore",
+  ];
+
+  const isSearchAction = searchKeywords.some(kw => actionLower.includes(kw));
+  const hasItemLossContext = itemLossKeywords.some(
+    kw => reasonLower.includes(kw) || actionLower.includes(kw)
+  );
+
+  // If it's a search action and there's no valid reason for item loss, reject
+  if (isSearchAction && !hasItemLossContext) {
+    return {
+      valid: false,
+      reason: `Item loss rejected: "${item_name}" cannot be lost from searching`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Run all code validations on a proposal
  */
 export function runCodeValidation(
@@ -545,10 +669,12 @@ export function runCodeValidation(
     () => validateGoldBounds(proposal, ctx),
     () => validateGoldGain(proposal, ctx),
     () => validateItemBounds(proposal),
+    () => validateInventoryAddContext(proposal, ctx),
     () => validateQuestStart(proposal, ctx),
     () => validateQuestProgression(proposal, ctx),
     () => validateLocationChange(proposal, ctx),
     () => validateInventoryRemove(proposal, ctx),
+    () => validateInventoryRemoveContext(proposal, ctx),
   ];
 
   for (const validate of validators) {

@@ -264,12 +264,13 @@ export async function POST(request: NextRequest) {
       const skillLevel = character.skills[intent.primary_skill]?.level || 0;
       const modifier = calculateTotalModifier(skillLevel, intent.bonus || 0);
 
-      const mechanics: Turn["mechanics"] & { detectedIntent?: string } = {
+      const mechanics: Turn["mechanics"] & { detectedIntent?: string; actionType?: ActionType } = {
         type: "check",
         skill: intent.primary_skill,
         dc: intent.dc,
         modifier,
         detectedIntent: intent.intent,
+        actionType: intent.action_type,  // Store for narration phase
       };
 
       const { data: turnRow, error: turnInsertError } = await supabase
@@ -420,7 +421,7 @@ async function handleRollOnly(
     return NextResponse.json({ error: "Turn not found" }, { status: 404 });
   }
 
-  const mechanics = turnRow.mechanics as Turn["mechanics"] & { detectedIntent?: string };
+  const mechanics = turnRow.mechanics as Turn["mechanics"] & { detectedIntent?: string; actionType?: ActionType };
   if (!mechanics) {
     return NextResponse.json({ error: "No mechanics on turn" }, { status: 400 });
   }
@@ -453,7 +454,7 @@ async function handleRollOnly(
     mechanics.dc
   );
 
-  const updatedMechanics: Turn["mechanics"] & { detectedIntent?: string } = {
+  const updatedMechanics: Turn["mechanics"] & { detectedIntent?: string; actionType?: ActionType } = {
     type: "check",
     skill: mechanics.skill,
     dc: mechanics.dc,
@@ -462,6 +463,7 @@ async function handleRollOnly(
     total: checkResult.total,
     outcome: checkResult.success ? "success" : "failure",
     detectedIntent: mechanics.detectedIntent,
+    actionType: mechanics.actionType,  // Preserve action type for narration phase
   };
 
   await supabase
@@ -508,13 +510,17 @@ async function handleNarration(
     return NextResponse.json({ error: "Turn not found" }, { status: 404 });
   }
 
-  const mechanics = turnRow.mechanics as Turn["mechanics"] & { detectedIntent?: string };
+  const mechanics = turnRow.mechanics as Turn["mechanics"] & { detectedIntent?: string; actionType?: ActionType };
   if (!mechanics || !mechanics.outcome) {
     return NextResponse.json({ error: "Roll not complete" }, { status: 400 });
   }
 
   const playerAction = turnRow.player_action;
   const questContext = await gatherQuestContext(characterId, playerAction, world);
+
+  // Get constrained tools based on stored action type (default to object for search/manipulation)
+  const actionType = mechanics.actionType || "object";
+  const allowedTools = getAllowedProposalTools(actionType);
 
   const rollOutcome: RollOutcome = {
     skill: mechanics.skill,
@@ -538,6 +544,8 @@ async function handleNarration(
     rollOutcome,
     mechanics,
     existingTraces: [questContext.trace],
+    actionType,
+    allowedProposalTools: allowedTools,
   });
 
   const response: TurnResponse = {

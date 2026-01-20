@@ -93,11 +93,13 @@ Classify every action into ONE of these types:
 
 | Type | Description | Examples |
 |------|-------------|----------|
-| passive | Observation, conversation, questions, looking around | "What should we do?", "Look around", "Hello", "Tell me about..." |
+| passive | Observation, conversation, questions, looking around (no interaction) | "What should we do?", "Look around", "Hello", "Tell me about..." |
 | travel | Moving to a different location | "I go to X", "Travel to X", "Head to the market" |
 | social | Meaningful NPC interaction (helping, thanking, insulting) | "I thank Lenna", "I help the merchant", "I insult him" |
 | combat | Fighting, attacking, defending | "I attack", "I strike the goblin", "I defend myself" |
-| object | Using/manipulating items, buying, selling, opening things | "I open the chest", "I buy the sword", "I pull the lever" |
+| object | Searching, looting, using/manipulating items or environment, buying, selling | "I search the area", "I open the chest", "I buy the sword", "I rummage through", "I loot the body" |
+
+IMPORTANT: "search", "rummage", "loot", "forage", "scavenge" = object (not passive)
 
 ## Rules for requires_roll
 

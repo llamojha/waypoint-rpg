@@ -18,14 +18,14 @@ import type { FunctionDeclaration } from "@google/genai";
  * | passive | [] (none - observation/conversation)                 |
  * | travel  | [location_change, npc_discovered]                    |
  * | social  | [relationship_change, quest_start, quest_progress, npc_discovered] |
- * | combat  | [stat_change, inventory_add]                         |
+ * | combat  | [stat_change, inventory_add, relationship_change]    |
  * | object  | [inventory_add, inventory_remove, stat_change]       |
  */
 const ACTION_TYPE_CONSTRAINTS: Record<ActionType, string[]> = {
   passive: [],
   travel: ["propose_location_change", "propose_npc_discovered"],
   social: ["propose_relationship_change", "propose_quest_start", "propose_quest_progress", "propose_npc_discovered"],
-  combat: ["propose_stat_change", "propose_inventory_add"],
+  combat: ["propose_stat_change", "propose_inventory_add", "propose_relationship_change"],
   object: ["propose_inventory_add", "propose_inventory_remove", "propose_stat_change"],
 };
 

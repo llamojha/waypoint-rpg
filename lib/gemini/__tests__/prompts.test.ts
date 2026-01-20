@@ -10,19 +10,32 @@ const mockCharacter: Character = {
   maxHp: 20,
   gold: 100,
   skills: {},
-  equipment: {},
+  equipment: {
+    mainHand: null,
+    offHand: null,
+    head: null,
+    chest: null,
+    arms: null,
+    legs: null,
+    cloak: null,
+    trinket: null,
+  },
   inventory: [],
   conditions: [],
   isMagicUnlocked: false,
 };
 
 const mockWorld: WorldContext = {
+  name: 'Windhollow Vale',
   region: 'Windhollow',
   poi: 'The Waystone',
   time: { day: 1, phase: 'Morning' },
   weather: 'Clear',
   description: 'An ancient stone marker',
+  tags: [],
   nearbyPoi: ['Village Square'],
+  entities: [],
+  memory: [],
 };
 
 const mockTurns: Turn[] = [];
