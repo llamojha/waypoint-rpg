@@ -3,8 +3,7 @@ import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { dbToCharacter, dbToWorld } from "@/lib/supabase/transforms";
 import { runRuneMarshal, type ActionType } from "@/lib/agents/rune-marshal";
 import { runQuestAgent } from "@/lib/agents/quest-agent";
-import { runOrchestrator, type QuestContext } from "@/lib/agents/orchestrator";
-import type { ProposalResult } from "@/lib/agents/tools/proposal-tools";
+import type { QuestContext } from "@/lib/agents/orchestrator";
 import { resolveSkillCheck, calculateTotalModifier } from "@/lib/agents/mechanics";
 import { filterInput } from "@/lib/safety/sentinel";
 import { runTurnPipeline, type RollOutcome } from "@/lib/turn/pipeline";
@@ -52,34 +51,6 @@ function dbToTurn(row: {
     suggestedActions: (row.suggested_actions as string[]) || [],
     diffs: (row.diffs as TurnDiff[]) || [],
   };
-}
-
-/**
- * Format a proposal for trace display
- */
-function formatProposalForTrace(p: ProposalResult): string {
-  switch (p.type) {
-    case "propose_stat_change":
-      const sign = p.data.delta > 0 ? "+" : "";
-      return `${p.data.stat.toUpperCase()} ${sign}${p.data.delta}`;
-    case "propose_inventory_add":
-      return `+Item: ${p.data.item_name}`;
-    case "propose_inventory_remove":
-      return `-Item: ${p.data.item_name}`;
-    case "propose_relationship_change":
-      const relSign = p.data.delta > 0 ? "+" : "";
-      return `${p.data.npc} ${relSign}${p.data.delta}`;
-    case "propose_location_change":
-      return `Travel to: ${p.data.location}`;
-    case "propose_quest_start":
-      return `Start quest: ${p.data.quest_title || p.data.quest_id}`;
-    case "propose_quest_progress":
-      return `Quest progress: ${p.data.quest_id} → step ${p.data.new_progress}`;
-    case "propose_npc_discovered":
-      return `New NPC: ${p.data.name} (${p.data.role})`;
-    case "detect_intent":
-      return `Intent: ${p.data.primary_skill}${p.data.requires_roll ? ` DC ${p.data.dc}` : ""}`;
-  }
 }
 
 export async function GET(request: NextRequest) {
@@ -322,49 +293,7 @@ export async function POST(request: NextRequest) {
       ],
     });
 
-    // Skip Orchestrator for pure observation actions OR passive actions with no tools
-    const isObservationOnly = /^(i )?(look|examine|observe|survey|scan|check out|see|watch|gaze|glance)\b.*\b(around|area|surroundings|room|place|here)?\b/i.test(playerAction.trim());
-    const skipOrchestrator = isObservationOnly || (intent.action_type === "passive" && allowedTools.length === 0);
-
-    let orchestratorProposals: ProposalResult[] = [];
-    if (!skipOrchestrator) {
-      const orchestratorStart = Date.now();
-      const orchestratorResult = await runOrchestrator(
-        playerAction,
-        character,
-        world,
-        recentTurns,
-        undefined,
-        intent.intent,
-        questContext.context,
-        allowedTools,
-        intent.action_type
-      );
-      orchestratorProposals = orchestratorResult.proposals;
-      traces.push({
-        agent: "orchestrator",
-        status: "success",
-        durationMs: Date.now() - orchestratorStart,
-        description: `Generated ${orchestratorProposals.length} proposal(s) [${intent.action_type}]`,
-        details: [
-          `Constrained to: ${allowedToolNames.length > 0 ? allowedToolNames.join(", ") : "no tools"}`,
-          ...(orchestratorResult.traceDetails || []),
-          ...(orchestratorProposals.length > 0
-            ? orchestratorProposals.map(p => `→ ${formatProposalForTrace(p)}`)
-            : ["No state changes proposed"]),
-        ],
-      });
-    } else {
-      traces.push({
-        agent: "orchestrator",
-        status: "success",
-        durationMs: 0,
-        description: `Passive action - skipped proposal generation [${intent.action_type}]`,
-        details: ["No state changes proposed"],
-      });
-    }
-
-    // Run consolidated pipeline
+    // Run consolidated pipeline (handles Orchestrator internally)
     const pipelineResult = await runTurnPipeline({
       supabase,
       characterId,
