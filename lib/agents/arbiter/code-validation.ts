@@ -1,6 +1,7 @@
 import type { Character, WorldContext } from "@/types";
 import type { ProposalResult } from "../tools/proposal-tools";
 import { ITEM_BOUNDS, GOLD_BOUNDS } from "@/constants";
+import type { QuestGoalType } from "@/lib/rules/types";
 
 export interface ValidationResult {
   valid: boolean;
@@ -14,13 +15,17 @@ export interface CodeValidationContext {
   validLocations: string[];
   activeQuestIds?: string[];
   activeQuestTitles?: string[];
+  activeQuestGoals?: Array<{ id: string; title: string; goalType: QuestGoalType; currentGoal: string }>;
   availableQuestIds?: string[];
   availableQuestTitles?: string[];
   playerAction?: string;
+  /** Other proposals in the same turn - used for quest validation */
+  otherProposals?: ProposalResult[];
 }
 
 /**
- * Validate relationship change: NPC must be present, ±2 per turn max
+ * Validate relationship change: NPC must be present, ±2 per turn max, reject delta=0,
+ * reject for purely conversational actions
  */
 function validateRelationshipChange(
   proposal: ProposalResult,
@@ -31,6 +36,41 @@ function validateRelationshipChange(
   }
 
   const { npc, delta } = proposal.data;
+  
+  // Reject no-op changes (delta = 0)
+  if (delta === 0) {
+    return {
+      valid: false,
+      reason: `Relationship delta is 0 - no meaningful interaction occurred`,
+    };
+  }
+  
+  // Reject relationship changes for purely conversational/question actions
+  const actionLower = (ctx.playerAction || "").toLowerCase().trim();
+  const conversationalPatterns = [
+    /^what (should|do|can|shall) (we|i|you)/,  // "what should we do"
+    /^what('s| is) (next|happening|going on)/,  // "what's next"
+    /^(hi|hello|hey|greetings)\b/,              // greetings
+    /^(good )?(morning|afternoon|evening)/,     // time-based greetings
+    /\?$/,                                       // ends with question mark (simple questions)
+  ];
+  
+  // Only reject questions that don't involve meaningful interaction keywords
+  const meaningfulKeywords = [
+    "help", "give", "offer", "share", "tell secret", "insult", "attack",
+    "thank", "apologize", "compliment", "gift", "trade", "buy", "sell",
+    "threaten", "intimidate", "persuade", "convince", "flirt", "comfort"
+  ];
+  
+  const isConversational = conversationalPatterns.some(p => p.test(actionLower));
+  const hasMeaningfulInteraction = meaningfulKeywords.some(k => actionLower.includes(k));
+  
+  if (isConversational && !hasMeaningfulInteraction) {
+    return {
+      valid: false,
+      reason: `Relationship change rejected - "${ctx.playerAction?.slice(0, 30)}" is conversational, not meaningful interaction`,
+    };
+  }
   
   // NPC must be present at current location (flexible matching for partial names)
   const npcsPresent = ctx.world.entities || [];
@@ -189,7 +229,7 @@ function validateGoldBounds(
 }
 
 /**
- * Validate gold gains against economy bounds
+ * Validate gold gains against economy bounds and context
  * Only validates positive deltas (gains), losses are handled by validateGoldBounds
  */
 function validateGoldGain(
@@ -205,8 +245,37 @@ function validateGoldGain(
   if (delta <= 0) return { valid: true };
 
   const reasonLower = (reason || "").toLowerCase();
+  const actionLower = (ctx.playerAction || "").toLowerCase();
+
+  // Check if player is just CLAIMING to find gold (not a valid source)
+  const claimKeywords = [
+    "i found", "i have", "i got", "i picked up", "there is", "there's a",
+    "i see a", "i grab", "i take the",
+  ];
+  const isPlayerClaim = claimKeywords.some(kw => actionLower.includes(kw));
+
+  // Valid sources for gold gain
+  const validSourceKeywords = [
+    // Combat/loot (requires defeated enemy or container in scene)
+    "loot", "defeat", "kill", "combat", "slay", "victor", "enemy", "monster",
+    // Quest rewards
+    "quest", "reward", "complet", "finish", "bounty",
+    // NPC giving gold
+    "gift", "give", "paid", "payment", "tip", "thank", "hire",
+    // Commerce
+    "sell", "sold", "trade", "merchant", "shop",
+  ];
+  const hasValidSource = validSourceKeywords.some(kw => reasonLower.includes(kw));
+
+  // If player just claims to find gold without valid source, reject
+  if (isPlayerClaim && !hasValidSource) {
+    return {
+      valid: false,
+      reason: `Gold gain rejected: player cannot declare finding gold - must come from valid source (combat, quest, NPC, commerce)`,
+    };
+  }
   
-  // Determine source type from reason keywords
+  // Determine source type from reason keywords for cap
   let maxGain: number = GOLD_BOUNDS.hard_cap.max;
   
   if (/quest|reward|complet|finish|bounty/.test(reasonLower)) {
@@ -246,6 +315,52 @@ function validateItemBounds(proposal: ProposalResult): ValidationResult {
   if (!bounds) return { valid: true };
 
   // For now, just validate rarity is valid - detailed stat checks would need item stats
+  return { valid: true };
+}
+
+/**
+ * Validate inventory add context: player cannot just claim items exist
+ */
+function validateInventoryAddContext(
+  proposal: ProposalResult,
+  ctx: CodeValidationContext
+): ValidationResult {
+  if (proposal.type !== "propose_inventory_add") return { valid: true };
+
+  const { reason } = proposal.data;
+  const reasonLower = (reason || "").toLowerCase();
+  const actionLower = (ctx.playerAction || "").toLowerCase();
+
+  // Check if player is just CLAIMING to have/find an item
+  const claimKeywords = [
+    "i found", "i have", "i got", "i picked up", "there is", "there's a",
+    "i see a", "i grab the", "i take the", "lying here", "on the ground",
+  ];
+  const isPlayerClaim = claimKeywords.some(kw => actionLower.includes(kw));
+
+  // Valid sources for item gain
+  const validSourceKeywords = [
+    // Combat/loot
+    "loot", "defeat", "kill", "combat", "slay", "drop", "enemy", "body",
+    // Quest rewards
+    "quest", "reward", "complet",
+    // NPC giving item
+    "gift", "give", "gave", "offer", "hand",
+    // Commerce
+    "buy", "bought", "purchase", "merchant", "shop",
+    // Crafting
+    "craft", "make", "create",
+  ];
+  const hasValidSource = validSourceKeywords.some(kw => reasonLower.includes(kw));
+
+  // If player just claims to find/have item without valid source, reject
+  if (isPlayerClaim && !hasValidSource) {
+    return {
+      valid: false,
+      reason: `Item gain rejected: player cannot declare finding items - must come from valid source (loot, quest, NPC, purchase)`,
+    };
+  }
+
   return { valid: true };
 }
 
@@ -292,7 +407,8 @@ function validateQuestStart(
 }
 
 /**
- * Validate quest progression: quest must exist and progress must be valid
+ * Validate quest progression: quest must exist, be active, and required events must be present
+ * Uses Rules Engine to check if goal requirements are met
  */
 function validateQuestProgression(
   proposal: ProposalResult,
@@ -311,8 +427,9 @@ function validateQuestProgression(
   }
 
   // Quest must exist in active quests (check both ID and title)
+  const questIdLower = (quest_id || "").toLowerCase();
+  
   if (ctx.activeQuestIds && ctx.activeQuestIds.length > 0) {
-    const questIdLower = (quest_id || "").toLowerCase();
     const matchesId = ctx.activeQuestIds.some(
       id => id.toLowerCase() === questIdLower
     );
@@ -333,7 +450,94 @@ function validateQuestProgression(
     };
   }
 
+  // Find the quest goal info to validate requirements
+  const questGoal = ctx.activeQuestGoals?.find(
+    q => q.id.toLowerCase() === questIdLower || q.title.toLowerCase() === questIdLower
+  );
+
+  if (questGoal && ctx.otherProposals) {
+    // Check if required events are present based on goal type
+    const hasRequiredEvent = checkQuestGoalRequirements(
+      questGoal.goalType,
+      questGoal.currentGoal,
+      ctx.otherProposals
+    );
+
+    if (!hasRequiredEvent) {
+      const requiredEvent = getRequiredEventForGoalType(questGoal.goalType);
+      return {
+        valid: false,
+        reason: `Quest progress requires ${requiredEvent} event matching goal: "${questGoal.currentGoal}"`,
+      };
+    }
+  }
+
   return { valid: true };
+}
+
+/**
+ * Check if required events for a quest goal type are present
+ */
+function checkQuestGoalRequirements(
+  goalType: QuestGoalType,
+  currentGoal: string,
+  proposals: ProposalResult[]
+): boolean {
+  const goalLower = currentGoal.toLowerCase();
+
+  switch (goalType) {
+    case "exploration":
+      // Requires location_change to the goal location
+      return proposals.some(p => 
+        p.type === "propose_location_change" && 
+        goalLower.includes(p.data.location?.toLowerCase() || "")
+      );
+
+    case "dialogue":
+      // Requires relationship_change with the goal NPC
+      return proposals.some(p => 
+        p.type === "propose_relationship_change" && 
+        goalLower.includes(p.data.npc?.toLowerCase() || "")
+      );
+
+    case "fetch":
+      // Requires inventory_add of the goal item
+      return proposals.some(p => 
+        p.type === "propose_inventory_add" && 
+        goalLower.includes(p.data.item_name?.toLowerCase() || "")
+      );
+
+    case "combat":
+      // Combat goals are validated by enemy defeat (stat changes with combat reason)
+      return proposals.some(p => 
+        p.type === "propose_stat_change" && 
+        (p.data.reason?.toLowerCase() || "").includes("defeat")
+      );
+
+    case "discover":
+      // Requires npc_discovered or location_change
+      return proposals.some(p => 
+        p.type === "propose_npc_discovered" || 
+        p.type === "propose_location_change"
+      );
+
+    default:
+      return true; // Unknown goal type, allow
+  }
+}
+
+/**
+ * Get the required event type description for a goal type
+ */
+function getRequiredEventForGoalType(goalType: QuestGoalType): string {
+  switch (goalType) {
+    case "exploration": return "location_change";
+    case "dialogue": return "relationship_change";
+    case "fetch": return "inventory_add";
+    case "combat": return "enemy_defeated";
+    case "discover": return "npc_discovered or location_change";
+    default: return "unknown";
+  }
 }
 
 /**
@@ -398,6 +602,55 @@ function validateInventoryRemove(
 }
 
 /**
+ * Validate inventory remove context: item loss must make sense for the action
+ * Rejects item loss for search/observation actions where losing items is illogical
+ */
+function validateInventoryRemoveContext(
+  proposal: ProposalResult,
+  ctx: CodeValidationContext
+): ValidationResult {
+  if (proposal.type !== "propose_inventory_remove") return { valid: true };
+
+  const { item_name, reason } = proposal.data;
+  const reasonLower = (reason || "").toLowerCase();
+  const actionLower = (ctx.playerAction || "").toLowerCase();
+
+  // Keywords indicating actions where item loss makes sense
+  const itemLossKeywords = [
+    // Intentional use/consumption
+    "use", "consume", "eat", "drink", "apply", "throw", "give", "trade", "sell",
+    "sacrifice", "offer", "drop", "discard", "abandon",
+    // Physical actions that could cause loss
+    "jump", "climb", "fall", "swim", "dive", "run", "flee", "escape",
+    // Combat/danger
+    "attack", "fight", "combat", "battle", "defend",
+    // Crafting/modification
+    "craft", "combine", "modify", "upgrade", "repair", "break",
+  ];
+
+  // Keywords indicating search/observation (item loss doesn't make sense)
+  const searchKeywords = [
+    "search", "look", "examine", "inspect", "observe", "scan", "check",
+    "rummage", "forage", "scavenge", "investigate", "explore",
+  ];
+
+  const isSearchAction = searchKeywords.some(kw => actionLower.includes(kw));
+  const hasItemLossContext = itemLossKeywords.some(
+    kw => reasonLower.includes(kw) || actionLower.includes(kw)
+  );
+
+  // If it's a search action and there's no valid reason for item loss, reject
+  if (isSearchAction && !hasItemLossContext) {
+    return {
+      valid: false,
+      reason: `Item loss rejected: "${item_name}" cannot be lost from searching`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Run all code validations on a proposal
  */
 export function runCodeValidation(
@@ -416,10 +669,12 @@ export function runCodeValidation(
     () => validateGoldBounds(proposal, ctx),
     () => validateGoldGain(proposal, ctx),
     () => validateItemBounds(proposal),
+    () => validateInventoryAddContext(proposal, ctx),
     () => validateQuestStart(proposal, ctx),
     () => validateQuestProgression(proposal, ctx),
     () => validateLocationChange(proposal, ctx),
     () => validateInventoryRemove(proposal, ctx),
+    () => validateInventoryRemoveContext(proposal, ctx),
   ];
 
   for (const validate of validators) {
@@ -433,14 +688,61 @@ export function runCodeValidation(
 }
 
 /**
+ * Validate that there are no conflicting proposals (e.g., multiple location changes)
+ * Returns the first proposal to keep and rejects the rest
+ */
+function validateNoConflictingProposals(
+  proposals: ProposalResult[]
+): Array<{ proposal: ProposalResult; result: ValidationResult }> {
+  const results: Array<{ proposal: ProposalResult; result: ValidationResult }> = [];
+  
+  // Track which types we've seen (for types that can only appear once)
+  const seenLocationChange = { seen: false, first: "" };
+  
+  for (const proposal of proposals) {
+    // Only one location change per turn
+    if (proposal.type === "propose_location_change") {
+      if (seenLocationChange.seen) {
+        results.push({
+          proposal,
+          result: {
+            valid: false,
+            reason: `Multiple location changes not allowed - already traveling to "${seenLocationChange.first}"`,
+          },
+        });
+        continue;
+      }
+      seenLocationChange.seen = true;
+      seenLocationChange.first = proposal.data.location;
+    }
+    
+    // Proposal passed conflict check, will be validated individually
+    results.push({ proposal, result: { valid: true } });
+  }
+  
+  return results;
+}
+
+/**
  * Run code validation on all proposals
  */
 export function validateProposalsWithCode(
   proposals: ProposalResult[],
   ctx: CodeValidationContext
 ): Array<{ proposal: ProposalResult; result: ValidationResult }> {
-  return proposals.map(proposal => ({
-    proposal,
-    result: runCodeValidation(proposal, ctx),
-  }));
+  // First check for conflicting proposals (e.g., multiple location changes)
+  const conflictResults = validateNoConflictingProposals(proposals);
+  
+  // Then run individual validation on proposals that passed conflict check
+  return conflictResults.map(({ proposal, result }) => {
+    // If already rejected by conflict check, keep that result
+    if (!result.valid) {
+      return { proposal, result };
+    }
+    // Otherwise run individual validation
+    return {
+      proposal,
+      result: runCodeValidation(proposal, ctx),
+    };
+  });
 }

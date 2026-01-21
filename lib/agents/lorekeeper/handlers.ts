@@ -1,11 +1,20 @@
 /**
  * Lorekeeper database handlers
  * Fetches NPCs, locations, and codex entries
+ * 
+ * Uses region cache when available for faster lookups.
  */
 
 import { createAdminClient } from "@/lib/supabase/server";
 import type { CodexEntry } from "@/types";
 import { initCache, isCacheLoaded, getAllEntries } from "./cache";
+import {
+  isCacheLoadedForRegion,
+  getCachedNpcsAtLocation,
+  getCachedLocation,
+  getCachedNpc,
+  getCachedCodexByKeywords,
+} from "@/lib/cache/region";
 
 export interface NPCPresent {
   id: string;
@@ -74,8 +83,22 @@ export async function getCodexEntries(): Promise<CodexEntry[]> {
 
 /**
  * Get NPCs present at a location
+ * Uses region cache if available, falls back to DB query
  */
-export async function getNpcsAtLocation(location: string): Promise<NPCPresent[]> {
+export async function getNpcsAtLocation(location: string, region?: string): Promise<NPCPresent[]> {
+  // Try region cache first
+  if (region && isCacheLoadedForRegion(region)) {
+    const cached = getCachedNpcsAtLocation(location);
+    return cached.map(npc => ({
+      id: npc.id,
+      name: npc.name,
+      role: npc.role,
+      personality: npc.personality,
+      dialogueHints: npc.dialogueHints,
+    }));
+  }
+
+  // Fallback to DB query
   const supabase = createAdminClient();
   
   const { data, error } = await supabase
@@ -99,8 +122,23 @@ export async function getNpcsAtLocation(location: string): Promise<NPCPresent[]>
 
 /**
  * Get location details
+ * Uses region cache if available, falls back to DB query
  */
-export async function getLocationDetails(locationName: string): Promise<LocationDetails | null> {
+export async function getLocationDetails(locationName: string, region?: string): Promise<LocationDetails | null> {
+  // Try region cache first
+  if (region && isCacheLoadedForRegion(region)) {
+    const cached = getCachedLocation(locationName);
+    if (cached) {
+      return {
+        name: cached.name,
+        type: cached.type,
+        region: cached.region,
+        description: cached.description,
+      };
+    }
+  }
+
+  // Fallback to DB query
   const supabase = createAdminClient();
 
   const { data, error } = await supabase
@@ -124,23 +162,40 @@ export async function getLocationDetails(locationName: string): Promise<Location
 
 /**
  * Get NPC voice data for narration
+ * Uses region cache if available, falls back to DB query
  */
-export async function getNpcVoice(npcName: string): Promise<NpcVoice | null> {
-  const supabase = createAdminClient();
+export async function getNpcVoice(npcName: string, region?: string): Promise<NpcVoice | null> {
+  let personality: string[] = [];
+  let dialogueHints: string[] = [];
+  let name = npcName;
 
-  const { data, error } = await supabase
-    .from("waypoint_npcs")
-    .select("name, personality, dialogue_hints")
-    .ilike("name", npcName)
-    .maybeSingle();
+  // Try region cache first
+  if (region && isCacheLoadedForRegion(region)) {
+    const cached = getCachedNpc(npcName);
+    if (cached) {
+      name = cached.name;
+      personality = cached.personality;
+      dialogueHints = cached.dialogueHints;
+    }
+  } else {
+    // Fallback to DB query
+    const supabase = createAdminClient();
 
-  if (error || !data) {
-    return null;
+    const { data, error } = await supabase
+      .from("waypoint_npcs")
+      .select("name, personality, dialogue_hints")
+      .ilike("name", npcName)
+      .maybeSingle();
+
+    if (error || !data) {
+      return null;
+    }
+
+    name = data.name;
+    personality = (data.personality as string[]) || [];
+    dialogueHints = (data.dialogue_hints as string[]) || [];
   }
 
-  const personality = (data.personality as string[]) || [];
-  const dialogueHints = (data.dialogue_hints as string[]) || [];
-  
   // Derive speech pattern from personality
   let speechPattern: string | undefined;
   if (personality.includes("formal")) speechPattern = "speaks formally";
@@ -149,7 +204,7 @@ export async function getNpcVoice(npcName: string): Promise<NpcVoice | null> {
   else if (personality.includes("friendly")) speechPattern = "speaks warmly";
 
   return {
-    name: data.name,
+    name,
     personality,
     dialogueHints,
     speechPattern,

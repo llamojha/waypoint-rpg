@@ -1,8 +1,23 @@
 # Waypoint Architecture
 
-## Core Principle: LLM Proposes, Code Disposes
+## Core Principles
+
+### 1. LLM Proposes, Code Disposes
 
 The LLM cannot directly mutate game state. All state changes flow through validated diffs, with deterministic code handling mechanics.
+
+### 2. Never Lose Context (Competitive Advantage)
+
+**Waypoint NEVER trims, summarizes, or forgets conversation history.**
+
+Unlike competitors who limit context to 5-8 messages for cost savings, Waypoint leverages Gemini's 1M token context window to maintain complete narrative history. This enables:
+
+- Narrative callbacks to events from hours ago
+- Character development arcs spanning the entire adventure  
+- Story coherence that competitors cannot match
+- NPCs that truly "remember" everything
+
+> **This is our key differentiator.** Competitors sacrifice narrative quality for cost. We don't.
 
 ## Hybrid Architecture: LLM + Code
 

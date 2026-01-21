@@ -76,6 +76,7 @@ describe('Quest Agent Types', () => {
         totalProgress: 3,
         currentStep: 2,
         currentGoal: 'Hunt the boar',
+        goalType: 'combat',
         steps: [
           { step: 1, goal: 'Find tracks', type: 'exploration' },
           { step: 2, goal: 'Hunt the boar', type: 'combat' },

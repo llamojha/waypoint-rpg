@@ -1,6 +1,8 @@
 import type { ProposalResult } from "../tools/proposal-tools";
 import type { Character, WorldContext } from "@/types";
 import { runCodeValidation, CodeValidationContext } from "./code-validation";
+import type { QuestGoalType } from "@/lib/rules/types";
+import type { ActionType } from "@/lib/agents/rune-marshal";
 
 export interface ArbiterResult {
   proposal: ProposalResult;
@@ -25,10 +27,59 @@ export interface ArbiterContext {
     total: number;
     dc: number;
   };
+  actionType?: ActionType;
   activeQuestIds?: string[];
   activeQuestTitles?: string[];
+  activeQuestGoals?: Array<{ id: string; title: string; goalType: QuestGoalType; currentGoal: string }>;
   availableQuestIds?: string[];
   availableQuestTitles?: string[];
+}
+
+/**
+ * Check if a proposal should be blocked due to failed roll
+ * Failed rolls block "positive outcomes" for the action type
+ */
+function isBlockedByFailedRoll(
+  proposal: ProposalResult,
+  rollOutcome: ArbiterContext["rollOutcome"],
+  actionType?: ActionType
+): string | null {
+  // No roll or roll succeeded - don't block
+  if (!rollOutcome || rollOutcome.success) return null;
+
+  // Roll failed - check if this proposal type should be blocked
+  switch (proposal.type) {
+    case "propose_inventory_add":
+      // Block finding items on failed search/object manipulation
+      if (actionType === "object") {
+        return "Failed skill check - cannot find items";
+      }
+      // Block loot on failed combat (you didn't defeat the enemy)
+      if (actionType === "combat") {
+        return "Failed combat - no loot";
+      }
+      break;
+
+    case "propose_relationship_change":
+      // Block positive relationship changes on failed social
+      if (actionType === "social" && proposal.data.delta > 0) {
+        return "Failed social check - relationship cannot improve";
+      }
+      break;
+
+    case "propose_quest_progress":
+      // Block quest progress on failure (you didn't accomplish the goal)
+      return "Failed skill check - quest cannot progress";
+
+    // These are allowed even on failure (but validated for context):
+    // - stat_change (damage validated by validateHpLossContext)
+    // - inventory_remove (validated by validateInventoryRemoveContext)
+    // - location_change (you can still move even if you failed something)
+    // - quest_start (starting a quest doesn't require success)
+    // - npc_discovered (meeting someone doesn't require success)
+  }
+
+  return null;
 }
 
 /** Generate a unique key for a proposal to detect duplicates */
@@ -84,9 +135,11 @@ export async function runArbiter(
     validLocations: [ctx.world.poi, ...(ctx.world.nearbyPoi || [])],
     activeQuestIds: ctx.activeQuestIds,
     activeQuestTitles: ctx.activeQuestTitles,
+    activeQuestGoals: ctx.activeQuestGoals,
     availableQuestIds: ctx.availableQuestIds,
     availableQuestTitles: ctx.availableQuestTitles,
     playerAction: ctx.playerAction,
+    otherProposals: uniqueProposals, // Pass all proposals for cross-validation
   };
 
   for (const proposal of uniqueProposals) {
@@ -94,6 +147,14 @@ export async function runArbiter(
     if (proposal.type === "detect_intent") {
       results.push({ proposal, approved: true, reason: "Intent detection always approved" });
       approved.push(proposal);
+      continue;
+    }
+
+    // Check if blocked by failed roll FIRST
+    const failedRollReason = isBlockedByFailedRoll(proposal, ctx.rollOutcome, ctx.actionType);
+    if (failedRollReason) {
+      results.push({ proposal, approved: false, reason: failedRollReason });
+      rejected.push({ proposal, reason: failedRollReason });
       continue;
     }
 

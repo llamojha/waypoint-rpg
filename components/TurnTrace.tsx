@@ -21,6 +21,7 @@ const AGENT_CONFIG: Record<AgentTrace["agent"], { icon: React.ElementType; title
   collector: { icon: Layers, title: "Collector", color: "text-gold" },
   apply_state: { icon: CheckCircle, title: "Apply State", color: "text-forest" },
   chronicler: { icon: PenTool, title: "Chronicler", color: "text-gold dark:text-gold" },
+  state_snapshot: { icon: Database, title: "State Snapshot", color: "text-forest" },
 };
 
 function formatPipelineDebug(turn: Turn | null | undefined, world: WorldContext | null | undefined): string {

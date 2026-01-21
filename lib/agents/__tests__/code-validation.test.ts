@@ -27,7 +27,7 @@ const mockWorld: WorldContext = {
   description: 'A test location',
   tags: [],
   nearbyPoi: ['Market', 'Tavern'],
-  entities: [],
+  entities: ['Bob', 'Alice'], // NPCs present for relationship tests
   memory: [],
 };
 
@@ -140,7 +140,7 @@ describe('code-validation', () => {
       };
       const result = runCodeValidation(proposal, ctx);
       expect(result.valid).toBe(false);
-      expect(result.reason).toContain('not accessible');
+      expect(result.reason).toContain('not a known location');
     });
   });
 

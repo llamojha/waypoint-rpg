@@ -83,7 +83,9 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 | 4.2 | `lorekeeper`               | ✅ COMPLETE |
 | 4.3 | `agent-pipeline`           | ✅ COMPLETE |
 | 4.4 | `quest-agent`              | ✅ COMPLETE |
-| 4.5 | `phase4-demo-testing`      | 📋 TODO     |
+| 4.5 | `rules-engine`             | ✅ COMPLETE |
+| 4.6 | `constrained-orchestrator` | 📋 TODO     |
+| 4.7 | `phase4-final-testing`     | 📋 TODO     |
 
 **🎮 CHECKPOINT 3**: Full agent architecture with proper validation.
 
@@ -118,12 +120,32 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - Orchestrator uses quest context to propose `quest_progress` or `quest_start`
 - Not a parallel spoke - feeds into Orchestrator as context injection
 
-**4.5 `phase4-demo-testing`**
-- Manual playthrough testing (20+ turns)
-- Verify retry loop triggers on invalid proposals
-- Verify NPC voice/atmosphere in narration
-- Verify quest/NPC interactions work correctly
-- Document any bugs found for fixing
+**4.5 `rules-engine`** ✅ COMPLETE
+- Created Rules Engine with DB-backed rules and caching
+- Quest goal validation (exploration requires location_change, etc.)
+- Skill check patterns and DC ranges
+- Relationship delta bounds
+- Location travel graph
+- Loot tables by location type
+- Integrated into Arbiter for proposal validation
+- Issues discovered during testing → led to Phase 4.6
+
+**4.6 `constrained-orchestrator`** 📋 TODO
+- See `docs/phase-4.5-constrained-orchestrator.md` for full spec
+- Fix state synchronization bug (audit awaits, add debouncing)
+- Enhance Rune Marshal to output `action_type`
+- Create proposal constraint layer (action_type → allowed_tools)
+- Refactor Orchestrator to receive dynamic tool list
+- Wire together in route.ts
+- Handle edge cases (mixed actions, ambiguous actions)
+- Estimate: ~8 hours
+
+**4.7 `phase4-final-testing`** 📋 TODO
+- Re-run manual testing after constrained orchestrator
+- Verify: conversation → 0 proposals
+- Verify: travel → only location_change
+- Verify: interaction → only relationship_change
+- 20+ turns without invalid proposals
 
 #### Checkpoint 3 Checklist:
 - [x] Orchestrator uses read tools (`get_power_word_tier`, `get_skill_level`)
@@ -135,9 +157,13 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - [x] Retry loop re-runs Orchestrator on rejections
 - [x] Chronicler receives NPC voice/atmosphere context
 - [x] Quest context pre-fetched and injected into Orchestrator
+- [ ] State sync bug fixed (agents receive fresh data)
+- [ ] Rune Marshal outputs action_type
+- [ ] Orchestrator receives constrained tools per action_type
+- [ ] Conversation actions produce 0 proposals
 - [ ] NPCs appear correctly at their locations
 - [ ] Invalid location changes rejected
-- [ ] 50+ turns without context overflow
+- [ ] 50+ turns without invalid proposals
 
 ### Phase 5: Gameplay Systems
 
@@ -227,7 +253,13 @@ Phase 0-3: ✅ COMPLETE (Demo Ready)
     4.4 quest-agent ✅
          │
          ▼
-    4.5 phase4-demo-testing
+    4.5 rules-engine ✅
+         │
+         ▼
+    4.6 constrained-orchestrator 📋
+         │
+         ▼
+    4.7 phase4-final-testing
          │
     🎮 CHECKPOINT 3
          │
@@ -253,9 +285,10 @@ Phase 0-3: ✅ COMPLETE (Demo Ready)
 
 ## Next Actions
 
-1. Complete 4.5 `phase4-demo-testing` - Manual testing with debug export
-2. Start 5.0 `automated-testing` - CI pipeline for turn tests
-3. Phase 5 gameplay specs can run in parallel after testing gate
+1. **4.6 `constrained-orchestrator`** - Fix state sync + constrain Orchestrator tools
+2. **4.7 `phase4-final-testing`** - Re-run manual testing after fixes
+3. Start 5.0 `automated-testing` - CI pipeline for turn tests
+4. Phase 5 gameplay specs can run in parallel after testing gate
 
 ---
 

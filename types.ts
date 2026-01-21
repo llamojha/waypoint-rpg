@@ -120,7 +120,7 @@ export interface TurnDiff {
 }
 
 export interface AgentTrace {
-  agent: "sentinel" | "rune_marshal" | "orchestrator" | "arbiter" | "lorekeeper" | "quest_agent" | "collector" | "apply_state" | "chronicler";
+  agent: "sentinel" | "rune_marshal" | "orchestrator" | "arbiter" | "lorekeeper" | "quest_agent" | "collector" | "apply_state" | "chronicler" | "state_snapshot";
   status: "success" | "error" | "skipped";
   durationMs?: number;
   description: string;
