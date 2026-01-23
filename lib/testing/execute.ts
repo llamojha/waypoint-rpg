@@ -267,6 +267,13 @@ export async function executeTurn(
     existingTraces: traces,
     actionType: intent.action_type,
     allowedProposalTools: allowedTools,
+    // Pass skill XP context for XP awarding
+    skillXPContext: (intent.power_words?.length || rollOutcome) ? {
+      skill: intent.primary_skill,
+      dc: intent.dc,
+      tier: intent.tier,
+      powerWords: intent.power_words,
+    } : undefined,
   });
 
   // Reload character and world to get updated state

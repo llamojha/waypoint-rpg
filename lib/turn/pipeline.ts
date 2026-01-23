@@ -18,6 +18,7 @@ import { filterOutput, FALLBACK_NARRATION } from "@/lib/safety/sentinel";
 import { isCacheLoadedForRegion, loadRegionCache } from "@/lib/cache/region";
 import { getWeaponDamage } from "@/lib/mechanics/equipment";
 import { rollDiceNotation } from "@/lib/agents/mechanics";
+import { awardSkillXP } from "@/lib/mechanics/skill-xp";
 import type { ActionType } from "@/lib/agents/rune-marshal";
 import type { FunctionDeclaration } from "@google/genai";
 import type { Turn, TurnDiff, Character, WorldContext, AgentTrace } from "@/types";
@@ -45,6 +46,14 @@ export interface RollOutcome {
   modifier?: number;
 }
 
+/** Skill XP context for awarding XP after actions */
+export interface SkillXPContext {
+  skill: string;
+  dc?: number;
+  tier?: number;
+  powerWords?: string[];
+}
+
 export interface PipelineInput {
   supabase: ReturnType<typeof createAdminClient>;
   characterId: string;
@@ -66,6 +75,8 @@ export interface PipelineInput {
   actionType?: ActionType;
   /** Allowed proposal tools (if constrained) */
   allowedProposalTools?: FunctionDeclaration[];
+  /** Skill XP context for awarding XP */
+  skillXPContext?: SkillXPContext;
 }
 
 export interface PipelineOutput {
@@ -126,6 +137,7 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     existingTraces = [],
     actionType,
     allowedProposalTools,
+    skillXPContext,
   } = input;
 
   const traces: AgentTrace[] = [...existingTraces];
@@ -358,6 +370,36 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
       ? applyResult.diffs.map(d => d.value !== undefined ? `${d.type}: ${d.text} (${d.value})` : `${d.type}: ${d.text}`)
       : ["World state unchanged"],
   });
+
+  // === SKILL XP AWARDING ===
+  // Award XP if we have skill context (from power words or skill check)
+  let skillXPResult: { updatedSkills: Record<string, import("@/types").SkillProgression>; diffs: TurnDiff[]; xpGained: number; leveledUp: boolean } | null = null;
+  
+  if (skillXPContext?.skill) {
+    const success = rollOutcome?.success ?? true; // Power word use without roll counts as success
+    skillXPResult = awardSkillXP(
+      characterId,
+      character.skills,
+      skillXPContext.skill,
+      skillXPContext.dc ?? rollOutcome?.dc,
+      skillXPContext.tier,
+      success
+    );
+    
+    // Merge skill updates into applyResult
+    applyResult.characterUpdates.skills = skillXPResult.updatedSkills;
+    applyResult.diffs.push(...skillXPResult.diffs);
+    
+    traces.push({
+      agent: "apply_state",
+      status: "success",
+      durationMs: 0,
+      description: skillXPResult.leveledUp 
+        ? `${skillXPContext.skill} leveled up!`
+        : `Awarded ${skillXPResult.xpGained} XP to ${skillXPContext.skill}`,
+      details: skillXPResult.diffs.map(d => `${d.text} ${d.value || ""}`),
+    });
+  }
 
   // === COLLECTOR: Second pass ===
   const chroniclerContext = buildChroniclerContext(collected, applyResult);

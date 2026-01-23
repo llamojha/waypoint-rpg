@@ -308,6 +308,13 @@ export async function POST(request: NextRequest) {
       existingTraces: traces,
       actionType: intent.action_type,
       allowedProposalTools: allowedTools,
+      // Pass skill XP context for power word use (no roll)
+      skillXPContext: intent.power_words?.length ? {
+        skill: intent.primary_skill,
+        dc: intent.dc,
+        tier: intent.tier,
+        powerWords: intent.power_words,
+      } : undefined,
     });
 
     const response: TurnResponse = {
@@ -477,6 +484,11 @@ async function handleNarration(
     existingTraces: [questContext.trace],
     actionType,
     allowedProposalTools: allowedTools,
+    // Pass skill XP context for rolled skill checks
+    skillXPContext: {
+      skill: mechanics.skill,
+      dc: mechanics.dc,
+    },
   });
 
   const response: TurnResponse = {
