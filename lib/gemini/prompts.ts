@@ -28,10 +28,34 @@ function formatEquipment(equipment: Equipment): string {
     .filter((slot) => equipment[slot] && (equipment[slot] as Item)?.name)
     .map((slot) => {
       const item = equipment[slot] as Item;
-      return `${slot}: ${item.name}`;
+      const stats: string[] = [];
+      if (item.stats?.damage) stats.push(`dmg: ${item.stats.damage}`);
+      if (item.stats?.ac) stats.push(`AC: +${item.stats.ac}`);
+      const statsStr = stats.length > 0 ? ` (${stats.join(", ")})` : "";
+      return `${slot}: ${item.name}${statsStr}`;
     });
 
   return equipped.length > 0 ? equipped.join(", ") : "None";
+}
+
+/**
+ * Format equipment bonuses for a specific skill check
+ */
+function formatEquipmentBonusContext(equipment: Equipment, skill: string): string {
+  const slots: (keyof Equipment)[] = [
+    "mainHand", "offHand", "head", "chest", "arms", "legs", "cloak", "trinket"
+  ];
+
+  const bonusItems: string[] = [];
+  for (const slot of slots) {
+    const item = equipment[slot] as Item | null;
+    if (item?.skillBonuses?.[skill]) {
+      bonusItems.push(`${item.name} (+${item.skillBonuses[skill]} ${skill})`);
+    }
+  }
+
+  if (bonusItems.length === 0) return "";
+  return `\nEquipment bonus: ${bonusItems.join(", ")}`;
 }
 
 /**
@@ -229,6 +253,10 @@ export interface RollOutcome {
   total: number;
   dc: number;
   outcome: "success" | "failure";
+  /** Weapon damage notation for combat skills (e.g., "1d8") */
+  weaponDamage?: string;
+  /** Calculated damage roll result for combat */
+  damageRolled?: number;
 }
 
 /**
@@ -297,18 +325,25 @@ export function buildTurnPrompt(
 
   let rollContext = "";
   if (rollOutcome) {
+    const damageInfo = rollOutcome.outcome === "success" && rollOutcome.weaponDamage && rollOutcome.damageRolled
+      ? `\n- Weapon: ${rollOutcome.weaponDamage} → dealt ${rollOutcome.damageRolled} damage`
+      : "";
+    const equipmentBonusInfo = formatEquipmentBonusContext(character.equipment, rollOutcome.skill);
+    
     rollContext = `
 SKILL CHECK RESULT:
 The player attempted a ${rollOutcome.skill} check.
 - Rolled: ${rollOutcome.rolled} + ${rollOutcome.modifier} modifier = ${rollOutcome.total}
 - DC: ${rollOutcome.dc}
-- Outcome: ${rollOutcome.outcome.toUpperCase()}
+- Outcome: ${rollOutcome.outcome.toUpperCase()}${damageInfo}${equipmentBonusInfo}
 
 Your narration MUST reflect this ${rollOutcome.outcome}. ${
       rollOutcome.outcome === "success"
-        ? "The action succeeds as intended."
+        ? rollOutcome.damageRolled 
+          ? `The attack succeeds and deals ${rollOutcome.damageRolled} damage.`
+          : "The action succeeds as intended."
         : "The action fails or has complications."
-    }
+    }${equipmentBonusInfo ? " Mention the equipment that helped if contextually appropriate." : ""}
 `;
   }
 

@@ -57,12 +57,14 @@ export function calculatePowerWordBonus(tier: 1 | 2 | 3 | undefined): number {
 
 /**
  * Calculate total modifier for a skill check
+ * Includes: skill level bonus + power word bonus + equipment bonus
  */
 export function calculateTotalModifier(
   skillLevel: number,
-  powerWordBonus: number
+  powerWordBonus: number,
+  equipmentBonus: number = 0
 ): number {
-  return calculateSkillModifier(skillLevel) + powerWordBonus;
+  return calculateSkillModifier(skillLevel) + powerWordBonus + equipmentBonus;
 }
 
 /**

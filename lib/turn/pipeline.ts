@@ -16,6 +16,8 @@ import { buildTurnPrompt } from "@/lib/gemini/prompts";
 import { applyEvents } from "@/lib/turn/apply";
 import { filterOutput, FALLBACK_NARRATION } from "@/lib/safety/sentinel";
 import { isCacheLoadedForRegion, loadRegionCache } from "@/lib/cache/region";
+import { getWeaponDamage } from "@/lib/mechanics/equipment";
+import { rollDiceNotation } from "@/lib/agents/mechanics";
 import type { ActionType } from "@/lib/agents/rune-marshal";
 import type { FunctionDeclaration } from "@google/genai";
 import type { Turn, TurnDiff, Character, WorldContext, AgentTrace } from "@/types";
@@ -362,6 +364,15 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
 
   // === CHRONICLER ===
   const chroniclerStart = Date.now();
+  
+  // Calculate weapon damage for combat skills on success
+  const combatSkills = ["Melee", "Ranged", "Styles"];
+  const isCombatSkill = rollOutcome && combatSkills.includes(rollOutcome.skill);
+  const weaponDamage = isCombatSkill ? getWeaponDamage(character.equipment) : undefined;
+  const damageRolled = isCombatSkill && rollOutcome?.success && weaponDamage 
+    ? rollDiceNotation(weaponDamage) 
+    : undefined;
+
   const rollOutcomeForPrompt = rollOutcome ? {
     skill: rollOutcome.skill,
     rolled: rollOutcome.rolled || 0,
@@ -369,6 +380,8 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     total: rollOutcome.total,
     dc: rollOutcome.dc,
     outcome: rollOutcome.success ? "success" as const : "failure" as const,
+    weaponDamage,
+    damageRolled,
   } : undefined;
 
   const prompt = buildTurnPrompt(

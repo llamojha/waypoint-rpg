@@ -5,6 +5,7 @@ import { runRuneMarshal, type ActionType } from "@/lib/agents/rune-marshal";
 import { runQuestAgent } from "@/lib/agents/quest-agent";
 import type { QuestContext } from "@/lib/agents/orchestrator";
 import { resolveSkillCheck, calculateTotalModifier } from "@/lib/agents/mechanics";
+import { getEquipmentBonusForSkill } from "@/lib/mechanics/equipment";
 import { filterInput } from "@/lib/safety/sentinel";
 import { runTurnPipeline, type RollOutcome } from "@/lib/turn/pipeline";
 import { getAllowedProposalTools, getAllowedToolNames } from "@/lib/rules/proposal-constraints";
@@ -233,7 +234,8 @@ export async function POST(request: NextRequest) {
     // === REQUIRES ROLL: Create pending turn ===
     if (intent.requires_roll && intent.dc) {
       const skillLevel = character.skills[intent.primary_skill]?.level || 0;
-      const modifier = calculateTotalModifier(skillLevel, intent.bonus || 0);
+      const equipmentBonus = getEquipmentBonusForSkill(character.equipment, intent.primary_skill);
+      const modifier = calculateTotalModifier(skillLevel, intent.bonus || 0, equipmentBonus);
 
       const mechanics: Turn["mechanics"] & { detectedIntent?: string; actionType?: ActionType } = {
         type: "check",

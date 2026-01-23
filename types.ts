@@ -81,6 +81,8 @@ export interface Item {
     value?: number;
     healing?: string; // e.g., "2d4" for consumables
   };
+  skillBonuses?: Record<string, number>; // e.g., { "Lockpicking": 2 }
+  passiveEffect?: string; // Flavor text, e.g., "Grants night vision"
 }
 
 export interface Quest {

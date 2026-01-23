@@ -264,3 +264,104 @@ describe("Integration: All Scenarios", () => {
     }, TEST_CONFIG.turnTimeout);
   });
 });
+
+/**
+ * Equipment Integration Tests
+ * 
+ * Tests equipment stats affecting gameplay mechanics.
+ * These tests verify the equipment system integration.
+ */
+describe("Integration: Equipment System", () => {
+  // Note: These are unit-level tests that verify the equipment calculator
+  // Integration with the full pipeline is tested via the scenarios above
+  // when combat/skill checks occur with equipped items
+  
+  it("should calculate AC from equipped armor", async () => {
+    const { calculateTotalAC } = await import("@/lib/mechanics/equipment");
+    const { MOCK_ITEMS } = await import("@/constants");
+    
+    const leatherTunic = MOCK_ITEMS.find(i => i.name === "Leather Tunic");
+    const ironHelm = MOCK_ITEMS.find(i => i.name === "Iron Helm");
+    
+    const equipment = {
+      mainHand: null,
+      offHand: null,
+      head: ironHelm || null,
+      chest: leatherTunic || null,
+      arms: null,
+      legs: null,
+      cloak: null,
+      trinket: null,
+    };
+    
+    const ac = calculateTotalAC(equipment);
+    console.log(`   AC with Leather Tunic + Iron Helm: ${ac}`);
+    
+    // Base 10 + Leather Tunic (2) + Iron Helm (1) = 13
+    expect(ac).toBe(13);
+  });
+
+  it("should aggregate skill bonuses from equipment", async () => {
+    const { calculateEquipmentSkillBonuses } = await import("@/lib/mechanics/equipment");
+    const { MOCK_ITEMS } = await import("@/constants");
+    
+    const thievesGloves = MOCK_ITEMS.find(i => i.name === "Thieves' Gloves");
+    const huntersCloak = MOCK_ITEMS.find(i => i.name === "Hunter's Cloak");
+    
+    const equipment = {
+      mainHand: null,
+      offHand: null,
+      head: null,
+      chest: null,
+      arms: thievesGloves || null,
+      legs: null,
+      cloak: huntersCloak || null,
+      trinket: null,
+    };
+    
+    const bonuses = calculateEquipmentSkillBonuses(equipment);
+    console.log(`   Skill bonuses: ${JSON.stringify(bonuses)}`);
+    
+    // Thieves' Gloves: Lockpicking +2, Pickpocket +1
+    // Hunter's Cloak: Sneaking +1, Lockpicking +1 (if it has this)
+    expect(bonuses["Lockpicking"]).toBeGreaterThanOrEqual(2);
+  });
+
+  it("should get weapon damage from equipped weapon", async () => {
+    const { getWeaponDamage } = await import("@/lib/mechanics/equipment");
+    const { MOCK_ITEMS } = await import("@/constants");
+    
+    const ironDagger = MOCK_ITEMS.find(i => i.name === "Iron Dagger");
+    
+    const equippedWeapon = {
+      mainHand: ironDagger || null,
+      offHand: null,
+      head: null,
+      chest: null,
+      arms: null,
+      legs: null,
+      cloak: null,
+      trinket: null,
+    };
+    
+    const unarmed = {
+      mainHand: null,
+      offHand: null,
+      head: null,
+      chest: null,
+      arms: null,
+      legs: null,
+      cloak: null,
+      trinket: null,
+    };
+    
+    const weaponDamage = getWeaponDamage(equippedWeapon);
+    const unarmedDamage = getWeaponDamage(unarmed);
+    
+    console.log(`   Iron Dagger damage: ${weaponDamage}`);
+    console.log(`   Unarmed damage: ${unarmedDamage}`);
+    
+    expect(weaponDamage).toBe("1d4+2"); // Iron Dagger stats
+    expect(unarmedDamage).toBe("1d4"); // Default unarmed
+  });
+});

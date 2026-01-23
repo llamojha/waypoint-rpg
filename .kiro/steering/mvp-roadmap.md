@@ -130,21 +130,20 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - Integrated into Arbiter for proposal validation
 - Issues discovered during testing → led to Phase 4.6
 
-**4.6 `constrained-orchestrator`** 📋 TODO
+**4.6 `constrained-orchestrator`** ✅ COMPLETE
 - See `docs/phase-4.5-constrained-orchestrator.md` for full spec
-- Fix state synchronization bug (audit awaits, add debouncing)
-- Enhance Rune Marshal to output `action_type`
-- Create proposal constraint layer (action_type → allowed_tools)
-- Refactor Orchestrator to receive dynamic tool list
-- Wire together in route.ts
-- Handle edge cases (mixed actions, ambiguous actions)
-- Estimate: ~8 hours
+- Fixed state synchronization bug
+- Enhanced Rune Marshal to output `action_type`
+- Created proposal constraint layer (action_type → allowed_tools)
+- Refactored Orchestrator to receive dynamic tool list
+- Wired together in route.ts
+- Handled edge cases (mixed actions, ambiguous actions)
 
-**4.7 `phase4-final-testing`** 📋 TODO
-- Re-run manual testing after constrained orchestrator
-- Verify: conversation → 0 proposals
-- Verify: travel → only location_change
-- Verify: interaction → only relationship_change
+**4.7 `phase4-final-testing`** ✅ COMPLETE
+- Manual testing completed
+- Verified: conversation → 0 proposals
+- Verified: travel → only location_change
+- Verified: interaction → only relationship_change
 - 20+ turns without invalid proposals
 
 #### Checkpoint 3 Checklist:
@@ -157,13 +156,13 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - [x] Retry loop re-runs Orchestrator on rejections
 - [x] Chronicler receives NPC voice/atmosphere context
 - [x] Quest context pre-fetched and injected into Orchestrator
-- [ ] State sync bug fixed (agents receive fresh data)
-- [ ] Rune Marshal outputs action_type
-- [ ] Orchestrator receives constrained tools per action_type
-- [ ] Conversation actions produce 0 proposals
-- [ ] NPCs appear correctly at their locations
-- [ ] Invalid location changes rejected
-- [ ] 50+ turns without invalid proposals
+- [x] State sync bug fixed (agents receive fresh data)
+- [x] Rune Marshal outputs action_type
+- [x] Orchestrator receives constrained tools per action_type
+- [x] Conversation actions produce 0 proposals
+- [x] NPCs appear correctly at their locations
+- [x] Invalid location changes rejected
+- [x] 50+ turns without invalid proposals
 
 ### Phase 5: Gameplay Systems (Current)
 
@@ -259,15 +258,15 @@ Phase 0-3: ✅ COMPLETE (Demo Ready)
     4.5 rules-engine ✅
          │
          ▼
-    4.6 constrained-orchestrator 📋
+    4.6 constrained-orchestrator ✅
          │
          ▼
-    4.7 phase4-final-testing
+    4.7 phase4-final-testing ✅
          │
     🎮 CHECKPOINT 3
          │
          ▼
-    5.0 automated-testing (gate)
+    5.0 automated-testing ✅ (gate)
          │
     ┌────┼────┬────┬────┬────┐
     ▼    ▼    ▼    ▼    ▼    ▼
@@ -287,11 +286,6 @@ Phase 0-3: ✅ COMPLETE (Demo Ready)
 ---
 
 ## Next Actions
-
-1. **4.6 `constrained-orchestrator`** - Fix state sync + constrain Orchestrator tools
-2. **4.7 `phase4-final-testing`** - Re-run manual testing after fixes
-3. Start 5.0 `automated-testing` - CI pipeline for turn tests
-4. Phase 5 gameplay specs can run in parallel after testing gate
 
 1. Start Phase 5 gameplay specs (5.1-5.5 can run in parallel)
 2. Each spec must include integration tests
