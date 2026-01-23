@@ -75,7 +75,7 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 
 ---
 
-### Phase 4: Agent Pipeline (Current)
+### Phase 4: Agent Pipeline ✅ COMPLETE
 
 | ID  | Spec Name                  | Status      |
 | --- | -------------------------- | ----------- |
@@ -84,8 +84,8 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 | 4.3 | `agent-pipeline`           | ✅ COMPLETE |
 | 4.4 | `quest-agent`              | ✅ COMPLETE |
 | 4.5 | `rules-engine`             | ✅ COMPLETE |
-| 4.6 | `constrained-orchestrator` | 📋 TODO     |
-| 4.7 | `phase4-final-testing`     | 📋 TODO     |
+| 4.6 | `constrained-orchestrator` | ✅ COMPLETE |
+| 4.7 | `phase4-final-testing`     | ✅ COMPLETE |
 
 **🎮 CHECKPOINT 3**: Full agent architecture with proper validation.
 
@@ -165,29 +165,32 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - [ ] Invalid location changes rejected
 - [ ] 50+ turns without invalid proposals
 
-### Phase 5: Gameplay Systems
+### Phase 5: Gameplay Systems (Current)
 
-| ID  | Spec Name             | Status  |
-| --- | --------------------- | ------- |
-| 5.0 | `automated-testing`   | 📋 TODO |
-| 5.1 | `inventory-equipment` | 📋 TODO |
-| 5.2 | `skill-system`        | 📋 TODO |
-| 5.3 | `combat-system`       | 📋 TODO |
-| 5.4 | `world-systems`       | 📋 TODO |
-| 5.5 | `dm-chat`             | 📋 TODO |
+**CURRENT TASK: 5.1 `inventory-equipment`**
 
-**5.0 `automated-testing`** (First item - gate for Phase 5)
-- API-level integration tests hitting `/api/turn` endpoint
-- Test scenarios from `docs/phase4-demo-testing.md`
-- Assert on trace structure, mechanics, state changes (not narration text)
-- Run via separate CI job (long runtime due to LLM calls)
-- Consider: GitHub Actions with manual trigger, or separate test runner
-- Mock LLM option for fast CI, real LLM for nightly/manual runs
+| ID  | Spec Name             | Status      |
+| --- | --------------------- | ----------- |
+| 5.0 | `automated-testing`   | ✅ COMPLETE |
+| 5.1 | `inventory-equipment` | 📋 TODO     |
+| 5.2 | `skill-system`        | 📋 TODO     |
+| 5.3 | `combat-system`       | 📋 TODO     |
+| 5.4 | `world-systems`       | 📋 TODO     |
+| 5.5 | `dm-chat`             | 📋 TODO     |
+
+**5.0 `automated-testing`** ✅ COMPLETE
+- Created `lib/testing/` framework with executeTurn, validateTrace, validateWithGemini
+- Three validation modes: deterministic (default), Gemini QA (--gemini-qa), Kiro mode (steering doc)
+- First integration test: "I look around" scenario
+- CI configured with manual trigger (workflow_dispatch)
+- Kiro steering doc at `.kiro/prompts/test-mode.md`
+
+**IMPORTANT: All future specs must include integration tests.** See "Testing Requirements" section below.
 
 **🎮 CHECKPOINT 4**: Full gameplay systems.
 
 #### Checkpoint 4 Checklist:
-- [ ] Automated tests passing in CI
+- [x] Automated tests passing in CI
 - [ ] Equip/unequip items from inventory UI
 - [ ] Item stats affect combat (weapon damage, armor AC)
 - [ ] Skills gain XP from use
@@ -289,6 +292,51 @@ Phase 0-3: ✅ COMPLETE (Demo Ready)
 2. **4.7 `phase4-final-testing`** - Re-run manual testing after fixes
 3. Start 5.0 `automated-testing` - CI pipeline for turn tests
 4. Phase 5 gameplay specs can run in parallel after testing gate
+
+1. Start Phase 5 gameplay specs (5.1-5.5 can run in parallel)
+2. Each spec must include integration tests
+
+---
+
+## Testing Requirements
+
+**All future specs MUST include integration tests.** This is enforced starting from Phase 5.
+
+### Adding Tests for New Features
+
+1. **Create test scenario** in `lib/testing/__tests__/`
+2. **Add expectations** to `lib/testing/validate.ts` if needed
+3. **Document scenario** in `docs/phase4-demo-testing.md`
+4. **Run tests** with `npm run test:integration`
+
+### Test Structure
+
+```typescript
+import { resetJourney, executeTurn, validateTrace, TEST_CONFIG } from "@/lib/testing";
+
+describe("Feature: Your Feature", () => {
+  let characterId: string;
+
+  beforeAll(async () => {
+    const result = await resetJourney(getTestUserId());
+    characterId = result.characterId;
+  }, TEST_CONFIG.turnTimeout);
+
+  it("should do the thing", async () => {
+    const result = await executeTurn(characterId, "player action");
+    
+    // Assert on traces, diffs, narration
+    expect(result.narration).toBeTruthy();
+    expect(result.diffs.some(d => d.type === "expected_type")).toBe(true);
+  }, TEST_CONFIG.turnTimeout);
+});
+```
+
+### Validation Modes
+
+- **Deterministic** (default): Code assertions on trace structure
+- **Gemini QA** (`--gemini-qa`): LLM evaluates narration quality
+- **Kiro mode**: Interactive evaluation via `.kiro/prompts/test-mode.md`
 
 ---
 

@@ -2,6 +2,11 @@
 
 Manual testing scenarios to verify the agent pipeline works correctly.
 
+**Note:** These scenarios are now automated in `lib/testing/__tests__/`. Run with:
+```bash
+npm run test:integration
+```
+
 ## Prerequisites
 
 1. Start the dev server: `npm run dev`
