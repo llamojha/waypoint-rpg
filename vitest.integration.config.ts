@@ -21,7 +21,10 @@ if (fs.existsSync(envPath)) {
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['lib/testing/__tests__/**/*.integration.test.ts'],
+    include: [
+      'lib/testing/__tests__/**/*.integration.test.ts',
+      'lib/combat/__tests__/**/*.integration.test.ts',
+    ],
     testTimeout: 120_000, // 2 minutes for LLM calls
     hookTimeout: 120_000,
   },

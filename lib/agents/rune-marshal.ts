@@ -31,7 +31,7 @@ const DETECT_INTENT_TOOL = {
     properties: {
       intent: {
         type: Type.STRING,
-        description: "Brief description of what the player is trying to do (e.g., 'travel to captain hall', 'sneak past guards', 'attack the goblin')",
+        description: "Brief description of what the player is trying to do (e.g., 'travel to captain hall', 'sneak past guards', 'attack the bandit')",
       },
       action_type: {
         type: Type.STRING,
@@ -96,7 +96,7 @@ Classify every action into ONE of these types:
 | passive | Observation, conversation, questions, looking around (no interaction) | "What should we do?", "Look around", "Hello", "Tell me about..." |
 | travel | Moving to a different location | "I go to X", "Travel to X", "Head to the market" |
 | social | Meaningful NPC interaction (helping, thanking, insulting) | "I thank Lenna", "I help the merchant", "I insult him" |
-| combat | Fighting, attacking, defending | "I attack", "I strike the goblin", "I defend myself" |
+| combat | Fighting, attacking, defending | "I attack", "I strike the bandit", "I defend myself" |
 | object | Searching, looting, using/manipulating items or environment, buying, selling | "I search the area", "I open the chest", "I buy the sword", "I rummage through", "I loot the body" |
 
 IMPORTANT: "search", "rummage", "loot", "forage", "scavenge" = object (not passive)

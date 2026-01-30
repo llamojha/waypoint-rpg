@@ -216,6 +216,10 @@ function formatConsequences(consequences: Consequence[]): string {
         return `- ${c.npc} has DIED (${c.reason})`;
       case "npc_defeated":
         return `- ${c.npc} has been DEFEATED (${c.reason})`;
+      case "enemy_defeated":
+        return `- Enemy "${c.enemy}" has been DEFEATED - narrate their death dramatically`;
+      case "combat_started":
+        return `- COMBAT STARTED with ${c.enemies} - narrate the encounter beginning`;
       case "quest_completed":
         return `- Quest "${c.questTitle}" COMPLETED`;
       case "quest_started":
@@ -226,6 +230,8 @@ function formatConsequences(consequences: Consequence[]): string {
         return `- Character is CRITICALLY WOUNDED (${c.hp}/${c.maxHp} HP)`;
       case "character_died":
         return `- Character has DIED`;
+      case "respawned":
+        return `- Character RESPAWNED at ${c.location} - narrate waking up after defeat`;
       case "item_acquired":
         return `- Acquired: ${c.itemName}`;
       case "gold_depleted":
@@ -374,6 +380,20 @@ Do NOT propose additional events - these have already been validated.
   // Add rejected proposals context
   const rejectedContext = formatRejectedProposals(rejectedProposals || []);
 
+  // Format active combat info
+  const combatContext = world.activeCombat
+    ? `\nACTIVE COMBAT:
+${world.activeCombat.enemies.map(e => {
+  const hpPercent = Math.round((e.hp / e.maxHp) * 100);
+  const status = hpPercent <= 25 ? "near death" : hpPercent <= 50 ? "bloodied" : hpPercent <= 75 ? "wounded" : "healthy";
+  return `- ${e.name}: ${e.hp}/${e.maxHp} HP (${status})`;
+}).join("\n")}
+Round: ${world.activeCombat.round}
+
+Describe enemy status in narration (e.g., "The wolf staggers, bloodied" for low HP).
+`
+    : "";
+
   const userPrompt = `CURRENT LOCATION:
 ${world.poi} in ${world.region}
 ${world.description || ""}
@@ -386,7 +406,7 @@ ${isNewLocation ? "Player just ARRIVED at this location - describe the scene and
 
 NPCS PRESENT:
 ${formatNPCs(npcsPresent || [])}
-${voiceContext}${atmosphereContext}${loreContext}${consequencesContext}${rejectedContext}
+${voiceContext}${atmosphereContext}${loreContext}${consequencesContext}${combatContext}${rejectedContext}
 CHARACTER:
 ${character.name}${character.gender ? ` (${character.gender})` : ""}
 HP: ${character.hp}/${character.maxHp}

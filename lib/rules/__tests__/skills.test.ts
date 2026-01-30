@@ -31,7 +31,7 @@ describe("Skills Rules", () => {
     });
 
     it("matches attack action to Melee skill", async () => {
-      const result = await matchSkillCheckRule("I attack the goblin");
+      const result = await matchSkillCheckRule("I attack the bandit");
       expect(result).not.toBeNull();
       expect(result?.skill).toBe("Melee");
     });

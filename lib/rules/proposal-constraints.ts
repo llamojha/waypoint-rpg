@@ -18,14 +18,14 @@ import type { FunctionDeclaration } from "@google/genai";
  * | passive | [] (none - observation/conversation)                 |
  * | travel  | [location_change, npc_discovered]                    |
  * | social  | [relationship_change, quest_start, quest_progress, npc_discovered] |
- * | combat  | [stat_change, inventory_add, relationship_change]    |
+ * | combat  | [stat_change, inventory_add, relationship_change, combat_damage, combat_start] |
  * | object  | [inventory_add, inventory_remove, stat_change]       |
  */
 const ACTION_TYPE_CONSTRAINTS: Record<ActionType, string[]> = {
   passive: [],
   travel: ["propose_location_change", "propose_npc_discovered"],
   social: ["propose_relationship_change", "propose_quest_start", "propose_quest_progress", "propose_npc_discovered"],
-  combat: ["propose_stat_change", "propose_inventory_add", "propose_relationship_change"],
+  combat: ["propose_stat_change", "propose_inventory_add", "propose_relationship_change", "propose_combat_damage", "propose_combat_start"],
   object: ["propose_inventory_add", "propose_inventory_remove", "propose_stat_change"],
 };
 
@@ -90,7 +90,7 @@ export function getConstraintDescription(actionType: ActionType): string {
     case "social":
       return "This is a social interaction. You may propose relationship changes, quest starts/progress, and NPC discoveries.";
     case "combat":
-      return "This is a combat action. You may propose stat changes (HP damage) and inventory additions (loot).";
+      return "This is a combat action. You may propose combat damage to enemies, stat changes (HP damage to player), and inventory additions (loot).";
     case "object":
       return "This is an object manipulation action. You may propose inventory changes and stat changes (gold for purchases).";
     default:

@@ -29,6 +29,7 @@ const mockWorld: WorldContext = {
   nearbyPoi: ['Market', 'Tavern'],
   entities: ['Bob', 'Alice'], // NPCs present for relationship tests
   memory: [],
+  activeCombat: null,
 };
 
 const ctx: CodeValidationContext = {

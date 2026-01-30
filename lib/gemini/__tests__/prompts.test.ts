@@ -36,6 +36,7 @@ const mockWorld: WorldContext = {
   nearbyPoi: ['Village Square'],
   entities: [],
   memory: [],
+  activeCombat: null,
 };
 
 const mockTurns: Turn[] = [];

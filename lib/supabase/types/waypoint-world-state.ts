@@ -15,6 +15,7 @@ export type WaypointWorldStateTable = {
     time_phase: string | null;
     updated_at: string | null;
     weather: string | null;
+    active_combat: Json | null;
   };
   Insert: {
     character_id: string;
@@ -30,6 +31,7 @@ export type WaypointWorldStateTable = {
     time_phase?: string | null;
     updated_at?: string | null;
     weather?: string | null;
+    active_combat?: Json | null;
   };
   Update: {
     character_id?: string;
@@ -45,6 +47,7 @@ export type WaypointWorldStateTable = {
     time_phase?: string | null;
     updated_at?: string | null;
     weather?: string | null;
+    active_combat?: Json | null;
   };
   Relationships: [
     {

@@ -13,7 +13,8 @@ export type ProposedEventType =
   | "quest_progress"
   | "location_change"
   | "combat_damage"
-  | "combat_end";
+  | "combat_end"
+  | "combat_start";
 
 /**
  * Base interface for all proposed events
@@ -125,6 +126,14 @@ export interface CombatEndEvent extends BaseProposedEvent {
 }
 
 /**
+ * Combat start event - spawn enemies
+ */
+export interface CombatStartEvent extends BaseProposedEvent {
+  type: "combat_start";
+  enemies: string[]; // Template names
+}
+
+/**
  * Union type for all proposed events from LLM
  */
 export type ProposedEvent =
@@ -137,7 +146,8 @@ export type ProposedEvent =
   | QuestProgressEvent
   | LocationChangeEvent
   | CombatDamageEvent
-  | CombatEndEvent;
+  | CombatEndEvent
+  | CombatStartEvent;
 
 /**
  * Validated event - same structure as ProposedEvent but guaranteed to be valid

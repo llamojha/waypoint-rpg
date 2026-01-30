@@ -14,6 +14,7 @@ import type { ProposalResult } from "@/lib/agents/tools/proposal-tools";
 import { generateTurn } from "@/lib/gemini/client";
 import { buildTurnPrompt } from "@/lib/gemini/prompts";
 import { applyEvents } from "@/lib/turn/apply";
+import { shouldRespawn, handlePlayerDeath } from "@/lib/combat/respawn";
 import { filterOutput, FALLBACK_NARRATION } from "@/lib/safety/sentinel";
 import { isCacheLoadedForRegion, loadRegionCache } from "@/lib/cache/region";
 import { getWeaponDamage } from "@/lib/mechanics/equipment";
@@ -115,6 +116,12 @@ function formatProposalForTrace(p: ProposalResult): string {
       return `New NPC: ${p.data.name} (${p.data.role})`;
     case "detect_intent":
       return `Intent: ${p.data.primary_skill}${p.data.requires_roll ? ` DC ${p.data.dc}` : ""}`;
+    case "propose_combat_damage":
+      return `Damage: ${p.data.target} -${p.data.damage} HP`;
+    case "propose_combat_start":
+      return `Combat: ${p.data.enemies.join(", ")}`;
+    default:
+      return `Unknown proposal`;
   }
 }
 
@@ -398,6 +405,26 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
         ? `${skillXPContext.skill} leveled up!`
         : `Awarded ${skillXPResult.xpGained} XP to ${skillXPContext.skill}`,
       details: skillXPResult.diffs.map(d => `${d.text} ${d.value || ""}`),
+    });
+  }
+
+  // === RESPAWN CHECK ===
+  // If player died (HP <= 0), respawn at Waystone
+  if (shouldRespawn(character, applyResult.characterUpdates)) {
+    const respawnResult = handlePlayerDeath(character, world);
+    
+    // Merge respawn updates
+    Object.assign(applyResult.characterUpdates, respawnResult.characterUpdates);
+    Object.assign(applyResult.worldUpdates, respawnResult.worldUpdates);
+    applyResult.diffs.push(...respawnResult.diffs);
+    applyResult.consequences.push(respawnResult.consequence);
+    
+    traces.push({
+      agent: "apply_state",
+      status: "success",
+      durationMs: 0,
+      description: "Player died - respawning at Waystone",
+      details: respawnResult.diffs.map(d => `${d.text}: ${d.value || ""}`),
     });
   }
 

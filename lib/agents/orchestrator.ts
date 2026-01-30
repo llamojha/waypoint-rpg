@@ -66,6 +66,7 @@ function buildOrchestratorPrompt(
     description: world.description,
     nearbyPoi: world.nearbyPoi,
     entities: world.entities,
+    activeCombat: world.activeCombat,
   }, null, 2);
   const recentStr = recentTurns.slice(-5).map(t => 
     `Player: ${t.playerAction}\nResult: ${t.narration?.slice(0, 200)}...`
@@ -99,6 +100,11 @@ function buildOrchestratorPrompt(
     ? `\n## NPCs Present at ${world.poi} (ONLY these NPCs can be interacted with)\n${world.entities.map(e => `- ${e}`).join("\n")}\n\nCRITICAL: You can ONLY propose relationship changes or interactions with NPCs listed above. Do NOT reference or interact with NPCs not in this list - they are not at this location.`
     : "\n## NPCs Present\nNone - no NPCs at this location to interact with.";
 
+  // Format active combat info
+  const combatStr = world.activeCombat
+    ? `\n## Active Combat\nEnemies:\n${world.activeCombat.enemies.map(e => `- ${e.name}: ${e.hp}/${e.maxHp} HP (${e.tier})`).join("\n")}\nRound: ${world.activeCombat.round}\n\nOn successful combat roll, use propose_combat_damage with the damageRolled value.`
+    : "";
+
   // Build constraint explanation if action type is provided
   let constraintStr = "";
   if (actionType && allowedToolNames) {
@@ -123,6 +129,7 @@ ${characterStr}
 ## Current Location
 ${worldStr}
 ${entitiesStr}
+${combatStr}
 ${questStr}
 ## Recent Events
 ${recentStr || "No recent events"}
@@ -181,6 +188,23 @@ ${recentStr || "No recent events"}
 ### propose_inventory_remove
 - When player uses consumable, drops, sells, or loses an item
 - Item must exist in inventory
+
+### propose_combat_start
+- Use when player enters a dangerous area and encounters hostile creatures
+- Use when player attacks something that triggers combat
+- Enemies must be from the bestiary: Rat, Snake, Wolf, Wild Boar, Bear, Pack Alpha, Thief, Bandit, Bandit Archer, Bandit Leader, Outlaw, Mercenary, Mercenary Captain, Bandit King
+- Match enemy tier to context: Trivial (Rat, Snake) for minor threats, Common (Wolf, Thief) for typical encounters, Uncommon (Boar, Bandit) for moderate challenges
+- Do NOT start combat if there is already active combat
+- Example: Player enters bandit territory → propose_combat_start({ enemies: ["Bandit", "Bandit Archer"], reason: "ambushed on the road" })
+
+### propose_combat_damage
+- ONLY when player successfully attacks an enemy in active combat
+- Target must be an enemy from the "Active Combat" section (if present)
+- Use the damageRolled value from the roll outcome for damage amount
+- On successful combat roll, propose damage to the target enemy
+- Example: If damageRolled=6 and target is "Wolf", propose { target: "Wolf", damage: 6, reason: "sword strike" }
+- Do NOT propose combat damage if there is no active combat
+- Do NOT propose combat damage on failed rolls
 
 ### propose_relationship_change
 - ONLY when player directly interacts with an NPC (conversation, help, conflict)
@@ -253,11 +277,13 @@ CRITICAL - READ CAREFULLY:
 
 ## Success Examples
 
-### Example 1: Combat action (with roll)
-Player: "I swing my sword at the goblin"
+### Example 1: Combat action (with roll and active combat)
+Active Combat: Wolf (12/12 HP)
+Player: "I swing my sword at the wolf"
+Roll outcome: SUCCESS, damageRolled: 6
 Good output:
 - detect_intent: { primary_skill: "Melee", requires_roll: true, dc: 12 }
-- (after SUCCESS roll) propose_stat_change: { stat: "hp", delta: -4, target: "goblin", reason: "sword strike connected" }
+- propose_combat_damage: { target: "Wolf", damage: 6, reason: "sword strike connected" }
 
 ### Example 2: Social interaction with NPC
 Player: "I thank Helga for the warm meal and leave a generous tip"

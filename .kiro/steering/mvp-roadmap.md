@@ -166,16 +166,15 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 
 ### Phase 5: Gameplay Systems (Current)
 
-**CURRENT TASK: 5.1 `inventory-equipment`**
-
-| ID  | Spec Name             | Status      |
-| --- | --------------------- | ----------- |
-| 5.0 | `automated-testing`   | ✅ COMPLETE |
-| 5.1 | `inventory-equipment` | 📋 TODO     |
-| 5.2 | `skill-system`        | 📋 TODO     |
-| 5.3 | `combat-system`       | 📋 TODO     |
-| 5.4 | `world-systems`       | 📋 TODO     |
-| 5.5 | `dm-chat`             | 📋 TODO     |
+| ID  | Spec Name              | Status      |
+| --- | ---------------------- | ----------- |
+| 5.0 | `automated-testing`    | ✅ COMPLETE |
+| 5.1 | `inventory-equipment`  | ✅ COMPLETE |
+| 5.2 | `skill-system`         | ✅ COMPLETE |
+| 5.3 | `combat-system`        | ✅ COMPLETE |
+| 5.4 | `world-systems`        | 📋 TODO     |
+| 5.5 | `dm-chat`              | 📋 TODO     |
+| 5.6 | `phase5-final-testing` | 📋 TODO     |
 
 **5.0 `automated-testing`** ✅ COMPLETE
 - Created `lib/testing/` framework with executeTurn, validateTrace, validateWithGemini
@@ -184,19 +183,46 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - CI configured with manual trigger (workflow_dispatch)
 - Kiro steering doc at `.kiro/prompts/test-mode.md`
 
-**IMPORTANT: All future specs must include integration tests.** See "Testing Requirements" section below.
+**5.1 `inventory-equipment`** ✅ COMPLETE
+- Equip/unequip items from inventory UI
+- Item stats affect combat (weapon damage, armor AC)
+
+**5.2 `skill-system`** ✅ COMPLETE
+- OSRS-based XP formula with level progression
+- XP awarded after skill checks (success: 15-50, failure: 5-15)
+- Power word tier bonus (+5 per tier)
+- Diminishing returns for anti-grinding (variety bonus +10%, floor 30%)
+- Level-up notifications via TurnDiff
+- Unit tests (19) and integration tests (4)
+
+**5.3 `combat-system`** ✅ COMPLETE
+- Enemy templates from medieval-realistic bestiary (14 enemies, 6 tiers)
+- Session-scoped enemy HP tracking in `world.activeCombat`
+- `propose_combat_start` tool for spawning enemies
+- `propose_combat_damage` tool for dealing damage
+- Soft death: player respawns at Waystone with 1 HP
+- Chronicler narrates enemy HP status and defeat
+- Unit tests (15) and integration tests (5)
+
+**5.6 `phase5-final-testing`** 📋 TODO
+- Manual testing of all Phase 5 features integrated together
+- Combat system scenarios (enemy HP tracking, death handling)
+- World systems scenarios (time progression, weather effects)
+- DM chat scenarios (questions without consuming turns)
+- Cross-feature integration testing
+- User executes test scenarios and pastes traces to Kiro for validation
 
 **🎮 CHECKPOINT 4**: Full gameplay systems.
 
 #### Checkpoint 4 Checklist:
 - [x] Automated tests passing in CI
-- [ ] Equip/unequip items from inventory UI
-- [ ] Item stats affect combat (weapon damage, armor AC)
-- [ ] Skills gain XP from use
-- [ ] Skill level ups with notifications
-- [ ] Power words unlock at skill thresholds
-- [ ] Combat tracks enemy HP
-- [ ] Death/incapacitation handling
+- [x] Equip/unequip items from inventory UI
+- [x] Item stats affect combat (weapon damage, armor AC)
+- [x] Skills gain XP from use
+- [x] Skill level ups with notifications
+- [x] Power words unlock at skill thresholds
+- [x] Combat tracks enemy HP
+- [x] Death/incapacitation handling
 - [ ] Quest log UI with progress tracking
 - [ ] NPC dialogue reflects relationship level
 - [ ] Time progresses (day/phase changes)
@@ -348,52 +374,7 @@ describe("Feature: Your Feature", () => {
 
 ## Post-MVP Roadmap
 
-Features to consider after MVP is stable and launched.
-
-### Phase 7: Map & World Visualization
-
-| ID  | Spec Name              | Estimate | Priority |
-| --- | ---------------------- | -------- | -------- |
-| 7.1 | `interactive-map`      | 8-12h    | High     |
-| 7.2 | `location-art`         | 4-6h     | Medium   |
-| 7.3 | `travel-system`        | 6-8h     | Medium   |
-
-#### 7.1 `interactive-map`
-- Visual map showing full world/region artwork
-- POI markers only appear once discovered in adventure
-- Click discovered POI to see details, travel option
-- Show current location indicator
-- Undiscovered POIs hidden (map terrain still visible)
-- Region boundaries and labels
-
-#### 7.2 `location-art`
-- Generate/display art for each location
-- Store in Supabase Storage
-- Show in map popover and world panel
-- Cache generated images
-
-#### 7.3 `travel-system`
-- Travel time between POIs
-- Random encounters during travel
-- Resource consumption (food, supplies)
-- Fast travel to visited locations
-
-### Phase 8: Living World (Future)
-
-> **See `docs/shared-world-vision.md`** for the full shared world vision including epoch time model, instanced interactions within shared world, and community events.
-
-| ID  | Spec Name              | Estimate | Priority |
-| --- | ---------------------- | -------- | -------- |
-| 8.1 | `world-events`         | 8-10h    | Low      |
-| 8.2 | `npc-schedules`        | 6-8h     | Low      |
-| 8.3 | `faction-system`       | 10-12h   | Low      |
-
-### Phase 9: Social Features (Future)
-
-> **See `docs/shared-world-vision.md`** for social hubs, shared presence, and communication roadmap.
-
-| ID  | Spec Name              | Estimate | Priority |
-| --- | ---------------------- | -------- | -------- |
-| 9.1 | `shared-discoveries`   | 6-8h     | Medium   |
-| 9.2 | `leaderboards`         | 4-6h     | Low      |
-| 9.3 | `story-sharing`        | 6-8h     | Low      |
+> **See `docs/v1-roadmap.md`** for V1 extensions (Phases 7-9) including:
+> - Phase 7: User Experience & Polish (mobile, accessibility, performance)
+> - Phase 8: Content & World (interactive map, achievements, world events, content seeding)
+> - Phase 9: Production Readiness (analytics, rate limiting)

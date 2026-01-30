@@ -165,6 +165,23 @@ export interface WorldContext {
   nearbyPoi: string[];
   entities: string[]; // IDs of NPCs present
   memory: WorldMemory[];
+  activeCombat: ActiveCombat | null;
+}
+
+export interface ActiveCombat {
+  enemies: CombatEnemy[];
+  round: number;
+}
+
+export interface CombatEnemy {
+  id: string;
+  templateName: string;
+  name: string;
+  hp: number;
+  maxHp: number;
+  tier: 'trivial' | 'easy' | 'medium' | 'hard' | 'elite' | 'boss';
+  defense: number;
+  damage: string;
 }
 
 export interface WorldTag {

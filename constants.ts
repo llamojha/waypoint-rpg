@@ -742,7 +742,7 @@ export const INITIAL_WORLD: WorldContext = {
     {
       name: "Guarded",
       type: "claim",
-      description: "Believed to be goblin territory",
+      description: "Believed to be bandit territory",
     },
   ],
   nearbyPoi: ["Fisherman's Hut", "The Old Road"],
@@ -763,6 +763,7 @@ export const INITIAL_WORLD: WorldContext = {
       status: "unverified",
     },
   ],
+  activeCombat: null,
 };
 
 // For testing, give some starting skills - in production all start at 0
@@ -859,25 +860,25 @@ export const MOCK_CODEX_ENTRIES: CodexEntry[] = [
     id: "c1",
     title: "The Ash Coast",
     category: "Locations",
-    text: "A desolate stretch of black sand known for shipwrecks and salt-magic.",
+    text: "A desolate stretch of black sand known for shipwrecks and treacherous tides.",
     status: "canon",
     tags: ["region", "dangerous"],
   },
   {
     id: "c2",
-    title: "Goblin Scavengers",
+    title: "Windhollow Wolves",
     category: "Bestiary",
-    text: "Small, nimble, and desperate. They wield rusted weapons and use pack tactics.",
+    text: "Grey wolves that hunt in packs across the vale. Territorial and cunning.",
     status: "canon",
-    tags: ["enemy", "humanoid"],
+    tags: ["enemy", "wildlife"],
   },
   {
     id: "c3",
-    title: "The Silent King",
+    title: "The Bandit Problem",
     category: "History",
-    text: "Legend speaks of a ruler who never spoke, yet commanded armies with a gesture.",
-    status: "rumor",
-    tags: ["legend", "royal"],
+    text: "Outlaws have plagued the trade roads for years, preying on merchants and travelers.",
+    status: "canon",
+    tags: ["threat", "humanoid"],
   },
   {
     id: "c4",
@@ -889,17 +890,17 @@ export const MOCK_CODEX_ENTRIES: CodexEntry[] = [
   },
   {
     id: "c5",
-    title: "Fog Wraiths",
+    title: "Wild Boars",
     category: "Bestiary",
-    text: "Spirits that form from the heavy sea mist. Vulnerable to fire.",
-    status: "rumor",
-    tags: ["undead", "spirit"],
+    text: "Aggressive beasts that charge when threatened. Their tusks can gore a man.",
+    status: "canon",
+    tags: ["enemy", "wildlife"],
   },
   {
     id: "c6",
-    title: "Watcher's Pact",
+    title: "The Watcher's Oath",
     category: "History",
-    text: "An ancient treaty between men and elves to guard the coastline.",
+    text: "An ancient pact sworn by the first rangers to guard the coastline from raiders.",
     status: "canon",
     tags: ["treaty", "ancient"],
   },
@@ -924,6 +925,7 @@ export const DEMO_WORLD: WorldContext = {
   nearbyPoi: ["Nomante Outpost", "Windhollow Wilderness"],
   entities: ["lenna"],
   memory: [],
+  activeCombat: null,
 };
 
 // Demo Starting Character (cloth armor only, no gold, empty inventory)
@@ -1066,3 +1068,5 @@ export const WILD_BOAR = {
 
 // Wanderer encounter chance (15%)
 export const WANDERER_ENCOUNTER_CHANCE = 0.15;
+
+export const RESPAWN_LOCATION = 'The Waystone';

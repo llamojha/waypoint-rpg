@@ -95,8 +95,9 @@ describe("Integration: Skill XP System", () => {
       
       // Check diff format is correct (either "+X XP" or "→ N" for level up)
       for (const diff of skillDiffs) {
-        const isXpGain = diff.value?.includes("XP");
-        const isLevelUp = diff.value?.includes("→");
+        const valueStr = String(diff.value || "");
+        const isXpGain = valueStr.includes("XP");
+        const isLevelUp = valueStr.includes("→");
         expect(isXpGain || isLevelUp).toBe(true);
       }
     }, TEST_CONFIG.turnTimeout);

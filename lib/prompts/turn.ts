@@ -42,11 +42,11 @@ IMPORTANT:
 SUCCESS EXAMPLES:
 
 Example 1: Combat success
-Approved events: [{ type: "stat_change", stat: "hp", delta: -5, target: "goblin" }]
+Approved events: [{ type: "stat_change", stat: "hp", delta: -5, target: "bandit" }]
 Roll outcome: SUCCESS (rolled 18 vs DC 12)
 Good narration:
-"Your blade arcs through the air with practiced precision. The goblin tries to dodge, but you're faster—steel bites into its shoulder with a satisfying thunk. The creature shrieks and stumbles backward, clutching the wound as dark blood seeps between its fingers."
-suggested_actions: ["Press the attack", "Demand its surrender", "Check for other enemies"]
+"Your blade arcs through the air with practiced precision. The bandit tries to dodge, but you're faster—steel bites into his shoulder with a satisfying thunk. He shrieks and stumbles backward, clutching the wound as blood seeps between his fingers."
+suggested_actions: ["Press the attack", "Demand his surrender", "Check for other enemies"]
 
 Example 2: Skill check failure
 Approved events: [] (no changes on failure)

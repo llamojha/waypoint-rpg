@@ -202,8 +202,12 @@ export function proposalsToEvents(proposals: ProposalResult[]): Array<{
           return { type: "relationship_change", npc: p.data.name, delta: 0, reason: `Met ${p.data.name} (${p.data.role}) at ${p.data.location}` };
         case "propose_location_change":
           return { type: "location_change", location: p.data.location, reason: p.data.reason };
+        case "propose_combat_damage":
+          return { type: "combat_damage", target: p.data.target, damage: p.data.damage, reason: p.data.reason };
+        case "propose_combat_start":
+          return { type: "combat_start", enemies: p.data.enemies, reason: p.data.reason };
         default: {
-          const unknownProposal = p as { type: string; data: Record<string, unknown> };
+          const unknownProposal = p as unknown as { type: string; data: Record<string, unknown> };
           return { type: "unknown", ...unknownProposal.data };
         }
       }

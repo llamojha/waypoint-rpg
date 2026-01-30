@@ -11,7 +11,9 @@ import type {
   LocationChangeEvent,
   CombatDamageEvent,
   CombatEndEvent,
+  CombatStartEvent,
 } from "./validate";
+import { createCombatEnemy } from "@/lib/combat/enemies";
 
 /**
  * Result of applying events to game state
@@ -46,13 +48,16 @@ export interface ApplyEventsResult {
 export type Consequence =
   | { type: "npc_died"; npc: string; reason: string }
   | { type: "npc_defeated"; npc: string; reason: string }
+  | { type: "enemy_defeated"; enemy: string; reason: string }
+  | { type: "combat_started"; enemies: string; reason: string }
   | { type: "quest_completed"; questTitle: string; reason: string }
   | { type: "quest_started"; questTitle: string; reason: string }
   | { type: "location_changed"; from: string; to: string }
   | { type: "character_critical_hp"; hp: number; maxHp: number }
   | { type: "character_died"; reason: string }
   | { type: "item_acquired"; itemName: string; reason: string }
-  | { type: "gold_depleted"; reason: string };
+  | { type: "gold_depleted"; reason: string }
+  | { type: "respawned"; location: string; reason: string };
 
 /**
  * Handles stat_change events (hp, gold)
@@ -356,12 +361,15 @@ function applyLocationChange(
 }
 
 /**
- * Handles combat_damage events
+ * Handles combat_damage events - decrements enemy HP in activeCombat
  */
 function applyCombatDamage(
   event: CombatDamageEvent,
+  world: WorldContext,
+  worldUpdates: Partial<WorldContext>,
   combatEvents: ApplyEventsResult["combatEvents"],
-  diffs: TurnDiff[]
+  diffs: TurnDiff[],
+  consequences: Consequence[]
 ): void {
   combatEvents.push({
     type: "damage",
@@ -369,6 +377,27 @@ function applyCombatDamage(
     damage: event.damage,
     reason: event.reason,
   });
+
+  // Update enemy HP in activeCombat (immutable update)
+  const activeCombat = worldUpdates.activeCombat ?? world.activeCombat;
+  if (activeCombat) {
+    const updatedEnemies = activeCombat.enemies.map(e =>
+      e.name === event.target
+        ? { ...e, hp: Math.max(0, e.hp - event.damage) }
+        : e
+    );
+    worldUpdates.activeCombat = { ...activeCombat, enemies: updatedEnemies };
+
+    // Check if enemy defeated
+    const targetEnemy = updatedEnemies.find(e => e.name === event.target);
+    if (targetEnemy && targetEnemy.hp <= 0) {
+      consequences.push({
+        type: "enemy_defeated",
+        enemy: targetEnemy.name,
+        reason: `${targetEnemy.name} was defeated`,
+      });
+    }
+  }
 
   diffs.push({
     type: "world",
@@ -396,6 +425,44 @@ function applyCombatEnd(
   diffs.push({
     type: "world",
     text: `${event.target} ${event.outcome}`,
+  });
+}
+
+/**
+ * Handles combat_start events - spawns enemies into activeCombat
+ */
+function applyCombatStart(
+  event: CombatStartEvent,
+  worldUpdates: Partial<WorldContext>,
+  diffs: TurnDiff[],
+  consequences: Consequence[]
+): void {
+  const enemies = event.enemies
+    .map((name, i) => {
+      const enemy = createCombatEnemy(name, `${name.toLowerCase().replace(/\s+/g, "-")}-${i}`);
+      if (!enemy) console.warn('[applyCombatStart] Unknown enemy template:', name);
+      return enemy;
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
+
+  if (enemies.length === 0) return;
+
+  worldUpdates.activeCombat = {
+    enemies,
+    round: 1,
+  };
+
+  const enemyNames = enemies.map(e => e.name).join(", ");
+  diffs.push({
+    type: "world",
+    text: "Combat started",
+    value: enemyNames,
+  });
+
+  consequences.push({
+    type: "combat_started",
+    enemies: enemyNames,
+    reason: event.reason,
   });
 }
 
@@ -508,7 +575,14 @@ export function applyEvents(
         break;
 
       case "combat_damage":
-        applyCombatDamage(event as CombatDamageEvent, combatEvents, diffs);
+        applyCombatDamage(
+          event as CombatDamageEvent,
+          world,
+          worldUpdates,
+          combatEvents,
+          diffs,
+          consequences
+        );
         break;
 
       case "combat_end":
@@ -522,6 +596,15 @@ export function applyEvents(
             reason: combatEndEvent.reason,
           });
         }
+        break;
+
+      case "combat_start":
+        applyCombatStart(
+          event as CombatStartEvent,
+          worldUpdates,
+          diffs,
+          consequences
+        );
         break;
     }
   }

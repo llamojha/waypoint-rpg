@@ -21,19 +21,19 @@ const mockEntries: CodexEntry[] = [
   },
   {
     id: '2',
-    title: 'Goblin Scavengers',
+    title: 'Windhollow Wolves',
     category: 'Bestiary',
-    text: 'Small, nimble creatures that use pack tactics.',
+    text: 'Grey wolves that hunt in packs across the vale.',
     status: 'canon',
-    tags: ['enemy', 'humanoid'],
+    tags: ['enemy', 'wildlife'],
   },
   {
     id: '3',
-    title: 'The Silent King',
+    title: 'The Bandit Problem',
     category: 'History',
-    text: 'A ruler who commanded armies with a gesture.',
-    status: 'rumor',
-    tags: ['legend', 'royal'],
+    text: 'Outlaws have plagued the trade roads for years.',
+    status: 'canon',
+    tags: ['threat', 'humanoid'],
   },
 ];
 
@@ -58,7 +58,7 @@ describe('lorekeeper/cache', () => {
 
     it('returns empty array when cache not loaded', () => {
       clearCache();
-      expect(searchByKeywords(['goblin'])).toEqual([]);
+      expect(searchByKeywords(['wolf'])).toEqual([]);
     });
 
     it('returns empty array for empty keywords', () => {
@@ -67,8 +67,8 @@ describe('lorekeeper/cache', () => {
 
     it('finds entries by title match', () => {
       const results = searchByKeywords(['windhollow']);
-      expect(results).toHaveLength(1);
-      expect(results[0].title).toBe('Windhollow Vale');
+      expect(results).toHaveLength(2); // Both "Windhollow Vale" and "Windhollow Wolves"
+      expect(results.map(r => r.title)).toContain('Windhollow Vale');
     });
 
     it('finds entries by text match', () => {
@@ -80,12 +80,12 @@ describe('lorekeeper/cache', () => {
     it('finds entries by tag match', () => {
       const results = searchByKeywords(['enemy']);
       expect(results).toHaveLength(1);
-      expect(results[0].title).toBe('Goblin Scavengers');
+      expect(results[0].title).toBe('Windhollow Wolves');
     });
 
     it('ranks title matches higher than text matches', () => {
-      const results = searchByKeywords(['goblin']);
-      expect(results[0].title).toBe('Goblin Scavengers');
+      const results = searchByKeywords(['wolves']);
+      expect(results[0].title).toBe('Windhollow Wolves');
     });
 
     it('respects limit parameter', () => {
@@ -95,7 +95,7 @@ describe('lorekeeper/cache', () => {
     });
 
     it('handles case-insensitive search', () => {
-      const results = searchByKeywords(['GOBLIN']);
+      const results = searchByKeywords(['WOLVES']);
       expect(results).toHaveLength(1);
     });
   });
@@ -108,7 +108,7 @@ describe('lorekeeper/cache', () => {
     it('returns entries matching category', () => {
       const results = searchByCategory('Bestiary');
       expect(results).toHaveLength(1);
-      expect(results[0].title).toBe('Goblin Scavengers');
+      expect(results[0].title).toBe('Windhollow Wolves');
     });
 
     it('handles case-insensitive category', () => {
@@ -128,13 +128,13 @@ describe('lorekeeper/cache', () => {
     });
 
     it('returns entry by exact title', () => {
-      const entry = getByTitle('Goblin Scavengers');
+      const entry = getByTitle('Windhollow Wolves');
       expect(entry).not.toBeNull();
       expect(entry?.id).toBe('2');
     });
 
     it('handles case-insensitive title', () => {
-      const entry = getByTitle('goblin scavengers');
+      const entry = getByTitle('windhollow wolves');
       expect(entry).not.toBeNull();
     });
 

@@ -194,6 +194,43 @@ export const proposeQuestStartTool = createTool(
   }
 );
 
+/**
+ * Proposal tool: Deal damage to enemy in combat
+ */
+export const proposeCombatDamageTool = createTool(
+  "propose_combat_damage",
+  "Propose dealing damage to an enemy in active combat",
+  {
+    type: Type.OBJECT,
+    properties: {
+      target: { type: Type.STRING, description: "Name of the enemy to damage" },
+      damage: { type: Type.NUMBER, description: "Amount of damage to deal" },
+      reason: { type: Type.STRING, description: "How the damage was dealt" },
+    },
+    required: ["target", "damage", "reason"],
+  }
+);
+
+/**
+ * Proposal tool: Start combat by spawning enemies
+ */
+export const proposeCombatStartTool = createTool(
+  "propose_combat_start",
+  "Propose starting combat by spawning enemies",
+  {
+    type: Type.OBJECT,
+    properties: {
+      enemies: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
+        description: "Enemy template names to spawn (e.g., ['Wolf', 'Wolf'] or ['Bandit'])",
+      },
+      reason: { type: Type.STRING, description: "Why combat is starting" },
+    },
+    required: ["enemies", "reason"],
+  }
+);
+
 /** All proposal tools for Orchestrator */
 export const PROPOSAL_TOOLS = [
   detectIntentTool,
@@ -205,6 +242,8 @@ export const PROPOSAL_TOOLS = [
   proposeNpcDiscoveredTool,
   proposeLocationChangeTool,
   proposeQuestStartTool,
+  proposeCombatDamageTool,
+  proposeCombatStartTool,
 ];
 
 /** Result types for proposal tools */
@@ -267,6 +306,17 @@ export interface ProposeQuestStartResult {
   reason: string;
 }
 
+export interface ProposeCombatDamageResult {
+  target: string;
+  damage: number;
+  reason: string;
+}
+
+export interface ProposeCombatStartResult {
+  enemies: string[];
+  reason: string;
+}
+
 /** Union type for all proposals */
 export type ProposalResult =
   | { type: "detect_intent"; data: DetectIntentResult }
@@ -277,4 +327,6 @@ export type ProposalResult =
   | { type: "propose_quest_progress"; data: ProposeQuestProgressResult }
   | { type: "propose_npc_discovered"; data: ProposeNpcDiscoveredResult }
   | { type: "propose_location_change"; data: ProposeLocationChangeResult }
-  | { type: "propose_quest_start"; data: ProposeQuestStartResult };
+  | { type: "propose_quest_start"; data: ProposeQuestStartResult }
+  | { type: "propose_combat_damage"; data: ProposeCombatDamageResult }
+  | { type: "propose_combat_start"; data: ProposeCombatStartResult };

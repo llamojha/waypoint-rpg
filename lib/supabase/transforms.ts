@@ -14,6 +14,7 @@ import type {
   Condition,
   WorldTag,
   WorldMemory,
+  ActiveCombat,
 } from "@/types";
 import { INITIAL_SKILLS, DEMO_WORLD, DEMO_CHARACTER } from "@/constants";
 
@@ -121,6 +122,24 @@ export function dbToWorld(row: DbWorldState): WorldContext {
     nearbyPoi: coerceArray<string>(row.nearby_poi),
     entities: coerceArray<string>(row.entities),
     memory: coerceArray<WorldMemory>(row.memories),
+    activeCombat: coerceActiveCombat(row.active_combat),
+  };
+}
+
+/**
+ * Coerce active_combat JSON to ActiveCombat type
+ */
+function coerceActiveCombat(value: unknown): ActiveCombat | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const obj = value as Record<string, unknown>;
+  if (!Array.isArray(obj.enemies)) {
+    return null;
+  }
+  return {
+    enemies: obj.enemies as ActiveCombat["enemies"],
+    round: typeof obj.round === "number" ? obj.round : 1,
   };
 }
 
@@ -144,5 +163,6 @@ export function worldToDb(
     nearby_poi: toJson(world.nearbyPoi || DEMO_WORLD.nearbyPoi),
     entities: toJson(world.entities || DEMO_WORLD.entities), // Lenna present
     memories: toJson(world.memory || []),
+    active_combat: toJson(world.activeCombat || null),
   };
 }
