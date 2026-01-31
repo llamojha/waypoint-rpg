@@ -10,3 +10,4 @@ export * from "./reset";
 export * from "./execute";
 export * from "./validate";
 export * from "./gemini-qa";
+export * from "./player-agent";

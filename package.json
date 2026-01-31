@@ -13,7 +13,8 @@
     "lint": "next lint",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "vitest run --config vitest.integration.config.ts lib/testing/__tests__/full-journey.integration.test.ts"
   },
   "dependencies": {
     "@google/genai": "latest",

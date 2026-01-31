@@ -250,12 +250,12 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 
 ### Phase 6: Final Polish
 
-| ID  | Spec Name                  | Status  |
-| --- | -------------------------- | ------- |
-| 6.1 | `conversation-compression` | 📋 TODO |
+| ID  | Spec Name                  | Status      |
+| --- | -------------------------- | ----------- |
+| 6.1 | `conversation-compression` | ✅ COMPLETE |
 | 6.2 | `security-review`          | 📋 TODO |
 | 6.3 | `mvp-polish`               | 📋 TODO |
-| 6.4 | `e2e-testing`              | 📋 TODO |
+| 6.4 | `e2e-testing`              | ✅ COMPLETE |
 
 **6.2 `security-review`**
 - Add auth checks to all API endpoints (turn, character, world, etc.)
