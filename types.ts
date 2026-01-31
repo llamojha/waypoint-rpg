@@ -122,7 +122,7 @@ export interface TurnDiff {
 }
 
 export interface AgentTrace {
-  agent: "sentinel" | "rune_marshal" | "orchestrator" | "arbiter" | "lorekeeper" | "quest_agent" | "collector" | "apply_state" | "chronicler" | "state_snapshot";
+  agent: "sentinel" | "rune_marshal" | "orchestrator" | "arbiter" | "lorekeeper" | "quest_agent" | "collector" | "apply_state" | "chronicler" | "state_snapshot" | "world_time";
   status: "success" | "error" | "skipped";
   durationMs?: number;
   description: string;
@@ -156,7 +156,7 @@ export interface WorldContext {
   poi: string;
   time: {
     day: number;
-    phase: string; // "Dawn", "Morning", "High Sun", "Dusk", "Night"
+    phase: string; // "Dawn", "Morning", "Afternoon", "Dusk", "Night"
   };
   weather: string;
   description: string;

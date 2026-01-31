@@ -23,6 +23,7 @@ export type {
   WaypointCharacterNewsReadTable,
 } from "./waypoint-news";
 export type { WaypointSessionsTable } from "./waypoint-sessions";
+export type { WaypointWeatherScheduleTable } from "./waypoint-weather-schedule";
 
 // Import for Database composition
 import type { Json } from "./json";
@@ -47,6 +48,7 @@ import type {
   WaypointCharacterNewsReadTable,
 } from "./waypoint-news";
 import type { WaypointSessionsTable } from "./waypoint-sessions";
+import type { WaypointWeatherScheduleTable } from "./waypoint-weather-schedule";
 
 // Combined Database type for Supabase client
 export type Database = {
@@ -68,6 +70,7 @@ export type Database = {
       waypoint_world_news: WaypointWorldNewsTable;
       waypoint_character_news_read: WaypointCharacterNewsReadTable;
       waypoint_sessions: WaypointSessionsTable;
+      waypoint_weather_schedule: WaypointWeatherScheduleTable;
     };
     Views: {
       [_ in never]: never;

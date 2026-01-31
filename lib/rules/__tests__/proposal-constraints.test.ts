@@ -38,7 +38,10 @@ describe("Proposal Constraints", () => {
       const names = getAllowedToolNames("combat");
       expect(names).toContain("propose_stat_change");
       expect(names).toContain("propose_inventory_add");
-      expect(names).toHaveLength(2);
+      expect(names).toContain("propose_relationship_change");
+      expect(names).toContain("propose_combat_damage");
+      expect(names).toContain("propose_combat_start");
+      expect(names).toHaveLength(5);
     });
 
     it("returns object tools", () => {
@@ -88,8 +91,8 @@ describe("Proposal Constraints", () => {
       expect(isProposalAllowed("social", "propose_relationship_change")).toBe(true);
     });
 
-    it("disallows relationship_change for combat", () => {
-      expect(isProposalAllowed("combat", "propose_relationship_change")).toBe(false);
+    it("allows relationship_change for combat (intimidation)", () => {
+      expect(isProposalAllowed("combat", "propose_relationship_change")).toBe(true);
     });
 
     it("allows stat_change for combat and object", () => {

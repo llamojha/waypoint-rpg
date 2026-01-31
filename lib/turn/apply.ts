@@ -57,7 +57,8 @@ export type Consequence =
   | { type: "character_died"; reason: string }
   | { type: "item_acquired"; itemName: string; reason: string }
   | { type: "gold_depleted"; reason: string }
-  | { type: "respawned"; location: string; reason: string };
+  | { type: "respawned"; location: string; reason: string }
+  | { type: "time_advanced"; fromPhase: string; toPhase: string; day: number; description: string };
 
 /**
  * Handles stat_change events (hp, gold)

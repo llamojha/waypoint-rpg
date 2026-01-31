@@ -30,6 +30,22 @@ interface Props {
   onTrace?: () => void;
 }
 
+/** Weather icon mapping */
+const WEATHER_ICONS: Record<string, string> = {
+  Clear: "☀️",
+  Cloudy: "☁️",
+  Rain: "🌧️",
+  Storm: "⛈️",
+  Foggy: "🌫️",
+  Snow: "❄️",
+  Wind: "💨",
+  Heatwave: "🔥",
+};
+
+function getWeatherIcon(weather: string): string {
+  return WEATHER_ICONS[weather] || "☀️";
+}
+
 export const Header: React.FC<Props> = ({
   view,
   setView,
@@ -112,7 +128,7 @@ export const Header: React.FC<Props> = ({
           <div className="hidden xl:flex items-center gap-2 px-3 py-1 bg-parchment-300 border border-parchment-400 rounded-full shadow-inner opacity-80">
             <span className="w-2 h-2 rounded-full bg-gold animate-pulse"></span>
             <span className="text-xs font-bold font-small-caps text-ink-light uppercase tracking-wide">
-              Day {world.time.day} • {world.time.phase}
+              Day {world.time.day} • {world.time.phase} • {getWeatherIcon(world.weather)} {world.weather}
             </span>
           </div>
         )}

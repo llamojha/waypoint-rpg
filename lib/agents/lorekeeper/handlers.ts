@@ -240,11 +240,14 @@ export function getAtmosphere(
 
   // Weather effects
   const weatherEffects: Record<string, string> = {
-    Clear: "clear skies",
-    Cloudy: "overcast",
-    Rainy: "rain pattering",
-    Stormy: "thunder rumbling",
-    Foggy: "mist swirling",
+    Clear: "clear skies, warm sunlight",
+    Cloudy: "overcast skies, muted light",
+    Rain: "rain pattering on surfaces",
+    Storm: "thunder rumbling, lightning flashes",
+    Foggy: "thick mist swirling, low visibility",
+    Snow: "snowflakes drifting, cold air",
+    Wind: "strong gusts, swirling dust",
+    Heatwave: "scorching heat, shimmering air",
   };
 
   const mood = timeMoods[timePhase] || "calm";

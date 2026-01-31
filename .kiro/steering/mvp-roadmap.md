@@ -172,7 +172,7 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 | 5.1 | `inventory-equipment`  | ✅ COMPLETE |
 | 5.2 | `skill-system`         | ✅ COMPLETE |
 | 5.3 | `combat-system`        | ✅ COMPLETE |
-| 5.4 | `world-systems`        | 📋 TODO     |
+| 5.4 | `world-systems`        | ✅ COMPLETE |
 | 5.5 | `dm-chat`              | 📋 TODO     |
 | 5.6 | `phase5-final-testing` | 📋 TODO     |
 
@@ -204,6 +204,16 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - Chronicler narrates enemy HP status and defeat
 - Unit tests (15) and integration tests (5)
 
+**5.4 `world-systems`** ✅ COMPLETE
+- Global weather system (shared across all players per region)
+- 8 weather types: Clear, Cloudy, Rain, Storm, Foggy, Snow, Wind, Heatwave
+- Weather schedule pre-generated weekly with logical transitions
+- Personal time progression (Dawn → Morning → High Sun → Dusk → Night)
+- Time advances every 5 turns, or on travel (+1 phase), or rest (+2 phases)
+- Header UI shows weather icon + text
+- Chronicler narrates weather atmosphere
+- Unit tests (31) and integration tests (3)
+
 **5.6 `phase5-final-testing`** 📋 TODO
 - Manual testing of all Phase 5 features integrated together
 - Combat system scenarios (enemy HP tracking, death handling)
@@ -225,8 +235,8 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - [x] Death/incapacitation handling
 - [ ] Quest log UI with progress tracking
 - [ ] NPC dialogue reflects relationship level
-- [ ] Time progresses (day/phase changes)
-- [ ] Weather affects gameplay
+- [x] Time progresses (day/phase changes)
+- [x] Weather affects gameplay
 - [ ] DM chat answers questions without turns
 
 ### Phase 6: Final Polish

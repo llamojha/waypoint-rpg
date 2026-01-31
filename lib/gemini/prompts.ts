@@ -236,6 +236,8 @@ function formatConsequences(consequences: Consequence[]): string {
         return `- Acquired: ${c.itemName}`;
       case "gold_depleted":
         return `- Gold depleted - character is now broke`;
+      case "time_advanced":
+        return `- TIME ADVANCED: ${c.description} - weave this passage of time naturally into the narration`;
       default:
         return `- ${(c as { type: string }).type}`;
     }

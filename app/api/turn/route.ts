@@ -9,6 +9,8 @@ import { getEquipmentBonusForSkill } from "@/lib/mechanics/equipment";
 import { filterInput } from "@/lib/safety/sentinel";
 import { runTurnPipeline, type RollOutcome } from "@/lib/turn/pipeline";
 import { getAllowedProposalTools, getAllowedToolNames } from "@/lib/rules/proposal-constraints";
+import { getWeatherForToday } from "@/lib/world/weather";
+import { calculateTimeAdvancement, getTimeTransitionDescription, type GameTime } from "@/lib/world/time";
 import type { Turn, TurnDiff, Character, WorldContext, AgentTrace } from "@/types";
 
 interface TurnRequest {
@@ -124,6 +126,11 @@ export async function POST(request: NextRequest) {
     }
 
     const world = dbToWorld(worldRow);
+
+    // === FETCH GLOBAL WEATHER ===
+    // Weather is shared across all players, changes daily
+    const globalWeather = await getWeatherForToday(world.region);
+    world.weather = globalWeather.type; // Override per-character weather with global
 
     // Load known NPC names for this character
     const { data: knownNpcRows } = await supabase
@@ -317,6 +324,34 @@ export async function POST(request: NextRequest) {
       } : undefined,
     });
 
+    // === TIME ADVANCEMENT ===
+    // Check if time should advance based on turn count and action type
+    const turnCount = recentTurns.length + 1; // Include this turn
+    const currentTime: GameTime = { day: world.time.day, phase: world.time.phase as GameTime["phase"] };
+    const newTime = calculateTimeAdvancement(currentTime, turnCount, intent.action_type, playerAction);
+    
+    if (newTime) {
+      // Update world state with new time
+      await supabase
+        .from("waypoint_world_state")
+        .update({ time_day: newTime.day, time_phase: newTime.phase })
+        .eq("character_id", characterId);
+      
+      // Add time advancement to world updates and diffs
+      pipelineResult.worldUpdates.time = newTime;
+      const timeDesc = getTimeTransitionDescription(currentTime, newTime);
+      pipelineResult.diffs.push({ type: "world", text: "Time", value: `${newTime.phase} (Day ${newTime.day})` });
+      
+      // Add trace for time advancement
+      pipelineResult.traces.push({
+        agent: "world_time",
+        status: "success",
+        durationMs: 0,
+        description: timeDesc,
+        details: [`${currentTime.phase} → ${newTime.phase}`, `Turn ${turnCount}`],
+      });
+    }
+
     const response: TurnResponse = {
       turn: {
         id: pipelineResult.turnId,
@@ -490,6 +525,34 @@ async function handleNarration(
       dc: mechanics.dc,
     },
   });
+
+  // === TIME ADVANCEMENT ===
+  // Check if time should advance based on turn count and action type
+  const turnCount = recentTurns.length + 1; // Include this turn
+  const currentTime: GameTime = { day: world.time.day, phase: world.time.phase as GameTime["phase"] };
+  const newTime = calculateTimeAdvancement(currentTime, turnCount, actionType, playerAction);
+  
+  if (newTime) {
+    // Update world state with new time
+    await supabase
+      .from("waypoint_world_state")
+      .update({ time_day: newTime.day, time_phase: newTime.phase })
+      .eq("character_id", characterId);
+    
+    // Add time advancement to world updates and diffs
+    pipelineResult.worldUpdates.time = newTime;
+    const timeDesc = getTimeTransitionDescription(currentTime, newTime);
+    pipelineResult.diffs.push({ type: "world", text: "Time", value: `${newTime.phase} (Day ${newTime.day})` });
+    
+    // Add trace for time advancement
+    pipelineResult.traces.push({
+      agent: "world_time",
+      status: "success",
+      durationMs: 0,
+      description: timeDesc,
+      details: [`${currentTime.phase} → ${newTime.phase}`, `Turn ${turnCount}`],
+    });
+  }
 
   const response: TurnResponse = {
     turn: {

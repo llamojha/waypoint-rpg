@@ -276,6 +276,36 @@ export async function executeTurn(
     } : undefined,
   });
 
+  // === TIME ADVANCEMENT ===
+  // Check if time should advance based on turn count and action type
+  const { calculateTimeAdvancement, getTimeTransitionDescription } = await import("@/lib/world/time");
+  type GameTime = { day: number; phase: "Dawn" | "Morning" | "Afternoon" | "Dusk" | "Night" };
+  const turnCount = recentTurns.length + 1; // Include this turn
+  const currentTime: GameTime = { day: world.time.day, phase: world.time.phase as GameTime["phase"] };
+  const newTime = calculateTimeAdvancement(currentTime, turnCount, intent.action_type, playerAction);
+  
+  if (newTime) {
+    // Update world state with new time
+    await supabase
+      .from("waypoint_world_state")
+      .update({ time_day: newTime.day, time_phase: newTime.phase })
+      .eq("character_id", characterId);
+    
+    // Add time advancement to world updates and diffs
+    pipelineResult.worldUpdates.time = newTime;
+    const timeDesc = getTimeTransitionDescription(currentTime, newTime);
+    pipelineResult.diffs.push({ type: "world", text: "Time", value: `${newTime.phase} (Day ${newTime.day})` });
+    
+    // Add trace for time advancement
+    pipelineResult.traces.push({
+      agent: "world_time",
+      status: "success",
+      durationMs: 0,
+      description: timeDesc,
+      details: [`${currentTime.phase} → ${newTime.phase}`, `Turn ${turnCount}`],
+    });
+  }
+
   // Reload character and world to get updated state
   const { data: updatedCharRow } = await supabase
     .from("waypoint_characters")

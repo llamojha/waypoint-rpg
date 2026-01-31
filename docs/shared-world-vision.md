@@ -1,13 +1,28 @@
 # Shared World Vision (Post-MVP)
 
 > **Status**: Planning document — captures future direction without changing MVP scope.
-> **Last Updated**: 2026-01-10
+> **Last Updated**: 2026-01-30
 
 ## Core Differentiator
 
 Waypoint is a **shared persistent fantasy world** — not instanced story chats. This positions it as a **text MUD/MMO successor** rather than competing with AI Dungeon, Fables.gg, AI Realm, or Old Greg's Tavern (all fully instanced).
 
 **Key insight**: All current AI RPG competitors are instanced story generators. Even "multiplayer" means "friends in the same private campaign." The shared persistent world angle is unoccupied territory.
+
+---
+
+## Global Weather System (Implemented)
+
+Weather is **shared across all players** per region, changing once per real-world day.
+
+| Aspect | How It Works |
+|--------|--------------|
+| **Weather types** | Clear, Cloudy, Rain, Storm, Foggy, Snow, Wind, Heatwave |
+| **Schedule** | Pre-generated weekly forecast with logical transitions |
+| **Shared** | All players in same region see same weather |
+| **Lazy generation** | Schedule generated on first request of a new day |
+
+**Future enhancement**: Vercel cron job to update weather on schedule (currently lazy-loaded on turn start).
 
 ---
 
