@@ -11,6 +11,7 @@ import { runTurnPipeline, type RollOutcome } from "@/lib/turn/pipeline";
 import { getAllowedProposalTools, getAllowedToolNames } from "@/lib/rules/proposal-constraints";
 import { getWeatherForToday } from "@/lib/world/weather";
 import { calculateTimeAdvancement, getTimeTransitionDescription, type GameTime } from "@/lib/world/time";
+import { getLocationSummaries } from "@/lib/compression/queue";
 import type { Turn, TurnDiff, Character, WorldContext, AgentTrace } from "@/types";
 
 interface TurnRequest {
@@ -159,6 +160,9 @@ export async function POST(request: NextRequest) {
 
     const recentTurns = (turnRows || []).map(dbToTurn).reverse();
 
+    // Load location summaries for compressed history
+    const locationSummaries = await getLocationSummaries(characterId);
+
     // === ROLL ONLY: Just roll dice and return result ===
     if (rollOnly && turnId) {
       return handleRollOnly(supabase, turnId, character);
@@ -166,7 +170,7 @@ export async function POST(request: NextRequest) {
 
     // === NARRATE: Generate narration for already-rolled turn ===
     if (narrate && turnId) {
-      return handleNarration(supabase, turnId, characterId, character, world, recentTurns, knownNpcNames);
+      return handleNarration(supabase, turnId, characterId, character, world, recentTurns, knownNpcNames, locationSummaries);
     }
 
     // === NEW TURN ===
@@ -315,6 +319,7 @@ export async function POST(request: NextRequest) {
       existingTraces: traces,
       actionType: intent.action_type,
       allowedProposalTools: allowedTools,
+      locationSummaries,
       // Pass skill XP context for power word use (no roll)
       skillXPContext: intent.power_words?.length ? {
         skill: intent.primary_skill,
@@ -471,7 +476,8 @@ async function handleNarration(
   character: Character,
   world: WorldContext,
   recentTurns: Turn[],
-  knownNpcNames: Set<string>
+  knownNpcNames: Set<string>,
+  locationSummaries: Awaited<ReturnType<typeof getLocationSummaries>>
 ) {
   const { data: turnRow, error: turnError } = await supabase
     .from("waypoint_turns")
@@ -519,6 +525,7 @@ async function handleNarration(
     existingTraces: [questContext.trace],
     actionType,
     allowedProposalTools: allowedTools,
+    locationSummaries,
     // Pass skill XP context for rolled skill checks
     skillXPContext: {
       skill: mechanics.skill,

@@ -194,7 +194,7 @@ export async function handleCheckStateConsistency(
         .eq("character_id", character.id)
         .eq("status", "active");
 
-      const activeQuests = quests?.map(q => (q.waypoint_quests as { title: string })?.title) || [];
+      const activeQuests = quests?.map(q => (q.waypoint_quests as unknown as { title: string })?.title) || [];
       
       return {
         isConsistent: true, // Quest state is complex, just report

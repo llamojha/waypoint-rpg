@@ -24,6 +24,7 @@ export type {
 } from "./waypoint-news";
 export type { WaypointSessionsTable } from "./waypoint-sessions";
 export type { WaypointWeatherScheduleTable } from "./waypoint-weather-schedule";
+export type { WaypointLocationSummariesTable } from "./waypoint-location-summaries";
 
 // Import for Database composition
 import type { Json } from "./json";
@@ -49,6 +50,7 @@ import type {
 } from "./waypoint-news";
 import type { WaypointSessionsTable } from "./waypoint-sessions";
 import type { WaypointWeatherScheduleTable } from "./waypoint-weather-schedule";
+import type { WaypointLocationSummariesTable } from "./waypoint-location-summaries";
 
 // Combined Database type for Supabase client
 export type Database = {
@@ -71,6 +73,7 @@ export type Database = {
       waypoint_character_news_read: WaypointCharacterNewsReadTable;
       waypoint_sessions: WaypointSessionsTable;
       waypoint_weather_schedule: WaypointWeatherScheduleTable;
+      waypoint_location_summaries: WaypointLocationSummariesTable;
     };
     Views: {
       [_ in never]: never;

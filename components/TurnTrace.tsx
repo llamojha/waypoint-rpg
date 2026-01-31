@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Cpu, ShieldCheck, Database, Terminal, Scroll, BookOpen, Swords, Shield, Layers, PenTool, CheckCircle, AlertCircle, Clock, Copy, Check, Sun } from "lucide-react";
+import { X, Cpu, ShieldCheck, Database, Terminal, Scroll, BookOpen, Swords, Shield, Layers, PenTool, CheckCircle, AlertCircle, Clock, Copy, Check, Sun, Archive } from "lucide-react";
 import type { Turn, WorldContext, TurnDiff, AgentTrace } from "@/types";
 
 interface Props {
@@ -23,6 +23,7 @@ const AGENT_CONFIG: Record<AgentTrace["agent"], { icon: React.ElementType; title
   chronicler: { icon: PenTool, title: "Chronicler", color: "text-gold dark:text-gold" },
   state_snapshot: { icon: Database, title: "State Snapshot", color: "text-forest" },
   world_time: { icon: Sun, title: "World Time", color: "text-gold" },
+  compression: { icon: Archive, title: "Compression", color: "text-forest" },
 };
 
 function formatPipelineDebug(turn: Turn | null | undefined, world: WorldContext | null | undefined): string {

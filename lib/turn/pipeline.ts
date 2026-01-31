@@ -12,7 +12,7 @@ import { runLorekeeper } from "@/lib/agents/lorekeeper";
 import { collectParallelOutputs, buildChroniclerContext } from "@/lib/agents/collector";
 import type { ProposalResult } from "@/lib/agents/tools/proposal-tools";
 import { generateTurn } from "@/lib/gemini/client";
-import { buildTurnPrompt } from "@/lib/gemini/prompts";
+import { buildTurnPrompt, type LocationSummaryForPrompt } from "@/lib/gemini/prompts";
 import { applyEvents } from "@/lib/turn/apply";
 import { shouldRespawn, handlePlayerDeath } from "@/lib/combat/respawn";
 import { filterOutput, FALLBACK_NARRATION } from "@/lib/safety/sentinel";
@@ -20,6 +20,7 @@ import { isCacheLoadedForRegion, loadRegionCache } from "@/lib/cache/region";
 import { getWeaponDamage } from "@/lib/mechanics/equipment";
 import { rollDiceNotation } from "@/lib/agents/mechanics";
 import { awardSkillXP } from "@/lib/mechanics/skill-xp";
+import { compressLocationTurns } from "@/lib/compression/queue";
 import type { ActionType } from "@/lib/agents/rune-marshal";
 import type { FunctionDeclaration } from "@google/genai";
 import type { Turn, TurnDiff, Character, WorldContext, AgentTrace } from "@/types";
@@ -78,6 +79,8 @@ export interface PipelineInput {
   allowedProposalTools?: FunctionDeclaration[];
   /** Skill XP context for awarding XP */
   skillXPContext?: SkillXPContext;
+  /** Location summaries for compressed history */
+  locationSummaries?: LocationSummaryForPrompt[];
 }
 
 export interface PipelineOutput {
@@ -145,6 +148,7 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     actionType,
     allowedProposalTools,
     skillXPContext,
+    locationSummaries = [],
   } = input;
 
   const traces: AgentTrace[] = [...existingTraces];
@@ -428,6 +432,24 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     });
   }
 
+  // === COMPRESSION TRIGGER ===
+  // Compress old location's turns when player changes location (synchronous)
+  const locationChanged = applyResult.consequences.some(c => c.type === "location_changed");
+  if (locationChanged && recentTurns.length > 0) {
+    const compressionStart = Date.now();
+    
+    // Compress turns from the old location
+    await compressLocationTurns(characterId, world.poi, recentTurns);
+    
+    traces.push({
+      agent: "compression",
+      status: "success",
+      durationMs: Date.now() - compressionStart,
+      description: `Compressed ${recentTurns.length} turns at ${world.poi}`,
+      details: [`Generated summary for location visit`],
+    });
+  }
+
   // === COLLECTOR: Second pass ===
   const chroniclerContext = buildChroniclerContext(collected, applyResult);
 
@@ -481,7 +503,8 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     arbiterResult?.rejected.map(r => ({
       type: r.proposal.type,
       reason: r.reason,
-    }))
+    })),
+    locationSummaries
   );
 
   const geminiResponse = await generateTurn(prompt);

@@ -75,20 +75,63 @@ function formatConditions(conditions: Character["conditions"]): string {
 }
 
 /**
+ * Location summary for prompt building
+ */
+export interface LocationSummaryForPrompt {
+  location: string;
+  visitNumber: number;
+  summary: string;
+  keyEvents: string[];
+  npcsEncountered: string[];
+}
+
+/**
+ * Format location summaries for context
+ */
+function formatLocationSummaries(summaries: LocationSummaryForPrompt[]): string {
+  if (summaries.length === 0) return "";
+
+  return summaries
+    .map((s) => {
+      const visit = s.visitNumber > 1 ? ` (visit ${s.visitNumber})` : "";
+      const npcs = s.npcsEncountered.length > 0 
+        ? ` Met: ${s.npcsEncountered.join(", ")}.` 
+        : "";
+      return `Previously at ${s.location}${visit}: ${s.summary}${npcs}`;
+    })
+    .join("\n");
+}
+
+/**
  * Format recent turns for context
  * Include full narration so Chronicler can maintain narrative continuity
  */
-function formatRecentTurns(turns: Turn[]): string {
-  if (turns.length === 0) return "This is the beginning of your adventure.";
+function formatRecentTurns(
+  turns: Turn[],
+  summaries: LocationSummaryForPrompt[] = []
+): string {
+  const summarySection = formatLocationSummaries(summaries);
+  
+  if (turns.length === 0 && summaries.length === 0) {
+    return "This is the beginning of your adventure.";
+  }
 
-  return turns
-    .map((turn, index) => {
-      const turnNum = turns.length - index;
-      const outcome = turn.mechanics?.outcome || "ok";
-      const narration = turn.narration ? `\n   Narration: ${turn.narration}` : "";
-      return `Turn ${turnNum}: Player: "${turn.playerAction || "Unknown"}" (${outcome})${narration}`;
-    })
-    .join("\n\n");
+  const turnsSection = turns.length > 0
+    ? turns
+        .map((turn, index) => {
+          const turnNum = turns.length - index;
+          const outcome = turn.mechanics?.outcome || "ok";
+          const narration = turn.narration ? `\n   Narration: ${turn.narration}` : "";
+          return `Turn ${turnNum}: Player: "${turn.playerAction || "Unknown"}" (${outcome})${narration}`;
+        })
+        .join("\n\n")
+    : "";
+
+  if (summarySection && turnsSection) {
+    return `${summarySection}\n\nRecent turns:\n${turnsSection}`;
+  }
+  
+  return summarySection || turnsSection || "This is the beginning of your adventure.";
 }
 
 /**
@@ -307,6 +350,7 @@ The player attempted to gain these but they were DENIED. Do NOT narrate the play
  * @param npcVoices - NPC voice data for dialogue
  * @param atmosphere - Scene atmosphere descriptors
  * @param rejectedProposals - Proposals that were rejected (should NOT be narrated)
+ * @param locationSummaries - Compressed summaries of previous location visits
  * @returns Complete prompt string for Chronicler
  */
 export function buildTurnPrompt(
@@ -321,9 +365,10 @@ export function buildTurnPrompt(
   consequences?: Consequence[],
   npcVoices?: NpcVoice[],
   atmosphere?: Atmosphere | null,
-  rejectedProposals?: RejectedProposal[]
+  rejectedProposals?: RejectedProposal[],
+  locationSummaries?: LocationSummaryForPrompt[]
 ): string {
-  const lastTurns = recentTurns.slice(-100);
+  const lastTurns = recentTurns.slice(-10); // Keep only last 10 verbatim when using summaries
 
   // Detect if player just arrived at this location
   const hasLocationChange = approvedEvents?.some(e => e.type === "location_change") ||
@@ -418,7 +463,7 @@ Inventory: ${formatInventory(character.inventory)}
 Conditions: ${formatConditions(character.conditions)}
 
 RECENT EVENTS:
-${formatRecentTurns(lastTurns)}
+${formatRecentTurns(lastTurns, locationSummaries)}
 
 PLAYER ACTION:
 ${playerAction}

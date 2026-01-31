@@ -93,7 +93,7 @@ async function executeToolCall(
   switch (toolName) {
     case "check_state_consistency": {
       const result = await handleCheckStateConsistency(
-        args as CheckStateConsistencyArgs,
+        args as unknown as CheckStateConsistencyArgs,
         character,
         world,
         recentTurns,
@@ -107,7 +107,7 @@ async function executeToolCall(
 
     case "fix_character_state": {
       const result = await handleFixCharacterState(
-        args as FixCharacterStateArgs,
+        args as unknown as FixCharacterStateArgs,
         character.id!,
         supabase
       );
@@ -119,7 +119,7 @@ async function executeToolCall(
 
     case "fix_world_state": {
       const result = await handleFixWorldState(
-        args as FixWorldStateArgs,
+        args as unknown as FixWorldStateArgs,
         character.id!,
         supabase
       );
@@ -130,7 +130,7 @@ async function executeToolCall(
     }
 
     case "explain_state": {
-      const result = handleExplainState(args as ExplainStateArgs);
+      const result = handleExplainState(args as unknown as ExplainStateArgs);
       return {
         result,
         stateChanged: false,
@@ -345,7 +345,7 @@ export async function POST(request: NextRequest) {
 
     if (isStateQuestion) {
       // Use tool calling for state-related questions
-      const conversationHistory: Array<{ role: "user" | "model"; parts: Array<{ text?: string; functionCall?: { name: string; args: Record<string, unknown> }; functionResponse?: { name: string; response: unknown } }> }> = [
+      const conversationHistory: Array<{ role: "user" | "model"; parts: Array<{ text?: string; functionCall?: { name: string; args: Record<string, unknown> }; functionResponse?: { name: string; response: Record<string, unknown> } }> }> = [
         { role: "user", parts: [{ text: prompt }] },
       ];
 
@@ -372,7 +372,7 @@ export async function POST(request: NextRequest) {
         conversationHistory.push({
           role: "model",
           parts: response.functionCalls.map(fc => ({
-            functionCall: { name: fc.name, args: fc.args as Record<string, unknown> },
+            functionCall: { name: fc.name!, args: fc.args as Record<string, unknown> },
           })),
         });
 
@@ -380,7 +380,7 @@ export async function POST(request: NextRequest) {
         const toolResults: Array<{ functionResponse: { name: string; response: Record<string, unknown> } }> = [];
         for (const fc of response.functionCalls) {
           const { result, stateChanged: changed } = await executeToolCall(
-            fc.name,
+            fc.name!,
             fc.args as Record<string, unknown>,
             character,
             worldContext,
@@ -395,7 +395,7 @@ export async function POST(request: NextRequest) {
             responseObj = { result };
           }
           toolResults.push({
-            functionResponse: { name: fc.name, response: responseObj },
+            functionResponse: { name: fc.name!, response: responseObj },
           });
           if (changed) stateChanged = true;
         }
