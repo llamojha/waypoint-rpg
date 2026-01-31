@@ -165,4 +165,79 @@ describe('code-validation', () => {
       expect(result.reason).toContain('not in inventory');
     });
   });
+
+  describe('relationship polite action validation', () => {
+    it('rejects negative delta for "thank you" actions', () => {
+      const proposal: ProposalResult = {
+        type: 'propose_relationship_change',
+        data: { npc: 'Bob', delta: -1, reason: 'Left conversation' },
+      };
+      const ctxWithAction = { ...ctx, playerAction: "Thank you for your help, I'll go talk to Alice now" };
+      const result = runCodeValidation(proposal, ctxWithAction);
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('polite');
+    });
+
+    it('rejects negative delta for farewell actions', () => {
+      const proposal: ProposalResult = {
+        type: 'propose_relationship_change',
+        data: { npc: 'Bob', delta: -1, reason: 'Goodbye' },
+      };
+      const ctxWithAction = { ...ctx, playerAction: "Goodbye Bob, take care!" };
+      const result = runCodeValidation(proposal, ctxWithAction);
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('polite');
+    });
+
+    it('allows negative delta for hostile actions', () => {
+      const proposal: ProposalResult = {
+        type: 'propose_relationship_change',
+        data: { npc: 'Bob', delta: -2, reason: 'Insulted' },
+      };
+      const ctxWithAction = { ...ctx, playerAction: "I insult Bob and call him a fool" };
+      const result = runCodeValidation(proposal, ctxWithAction);
+      expect(result.valid).toBe(true);
+    });
+
+    it('allows positive delta for polite actions', () => {
+      const proposal: ProposalResult = {
+        type: 'propose_relationship_change',
+        data: { npc: 'Alice', delta: 1, reason: 'Friendly greeting' },
+      };
+      const ctxWithAction = { ...ctx, playerAction: "Thank you Alice, I appreciate your help" };
+      const result = runCodeValidation(proposal, ctxWithAction);
+      expect(result.valid).toBe(true);
+    });
+
+    it('allows negative delta when action is both polite and hostile', () => {
+      const proposal: ProposalResult = {
+        type: 'propose_relationship_change',
+        data: { npc: 'Bob', delta: -1, reason: 'Threatened' },
+      };
+      const ctxWithAction = { ...ctx, playerAction: "Thanks for nothing, I threaten to report you" };
+      const result = runCodeValidation(proposal, ctxWithAction);
+      expect(result.valid).toBe(true);
+    });
+
+    it('rejects relationship change for NPC mentioned only in future intent', () => {
+      const proposal: ProposalResult = {
+        type: 'propose_relationship_change',
+        data: { npc: 'Alice', delta: 1, reason: 'Going to talk' },
+      };
+      const ctxWithAction = { ...ctx, playerAction: "I'll go talk to Alice now" };
+      const result = runCodeValidation(proposal, ctxWithAction);
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('future intent');
+    });
+
+    it('allows relationship change when NPC is directly addressed', () => {
+      const proposal: ProposalResult = {
+        type: 'propose_relationship_change',
+        data: { npc: 'Alice', delta: 1, reason: 'Greeted' },
+      };
+      const ctxWithAction = { ...ctx, playerAction: "Hello Alice, how are you today?" };
+      const result = runCodeValidation(proposal, ctxWithAction);
+      expect(result.valid).toBe(true);
+    });
+  });
 });

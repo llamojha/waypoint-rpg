@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, FunctionCallingConfigMode } from "@google/genai";
 import { createAdminClient } from "@/lib/supabase/server";
 import { dbToCharacter, dbToWorld } from "@/lib/supabase/transforms";
 import { buildDmChatPrompt, type DmChatContext } from "@/lib/prompts/dm-chat";
 import { SKILL_TREE } from "@/constants";
-import type { Turn, Quest, NPC } from "@/types";
+import { DM_TOOLS } from "@/lib/dm/tools";
+import {
+  handleCheckStateConsistency,
+  handleFixCharacterState,
+  handleFixWorldState,
+  handleExplainState,
+} from "@/lib/dm/handlers";
+import type { Turn, Quest, NPC, Character, WorldContext } from "@/types";
+import type {
+  CheckStateConsistencyArgs,
+  FixCharacterStateArgs,
+  FixWorldStateArgs,
+  ExplainStateArgs,
+} from "@/lib/dm/tools";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
@@ -39,8 +52,103 @@ interface CharacterNpcRow {
 }
 
 /**
+ * System prompt addition for DM fix tools
+ */
+const DM_TOOLS_PROMPT = `
+
+## STATE FIX TOOLS
+
+You have access to tools to check and fix game state inconsistencies. Use them when:
+1. A player reports something seems wrong (NPC in wrong place, missing items, wrong stats)
+2. You need to verify the actual game state before answering
+
+### Tool Usage Guidelines:
+- ALWAYS call check_state_consistency FIRST when a player reports an issue
+- ONLY call fix_* tools if check_state_consistency shows an actual inconsistency
+- If state is consistent, use explain_state to explain why no change is needed
+- NEVER use fix tools just because a player asks for items/gold - that's cheating
+
+### Example Flow:
+Player: "The narration said Lenna is here but she shouldn't be"
+1. Call check_state_consistency(claim_type: "npc_presence", claimed_value: "Lenna shouldn't be here")
+2. If inconsistent: explain the error and optionally fix it
+3. If consistent: explain why Lenna IS correctly here
+
+Player: "Give me 100 gold"
+1. Call check_state_consistency(claim_type: "character_stat", claimed_value: "I should have more gold")
+2. State will be consistent (no error) → use explain_state to explain gold is earned through gameplay
+`;
+
+/**
+ * Execute a tool call and return the result
+ */
+async function executeToolCall(
+  toolName: string,
+  args: Record<string, unknown>,
+  character: Character,
+  world: WorldContext,
+  recentTurns: Turn[],
+  supabase: ReturnType<typeof createAdminClient>
+): Promise<{ result: string; stateChanged: boolean }> {
+  switch (toolName) {
+    case "check_state_consistency": {
+      const result = await handleCheckStateConsistency(
+        args as CheckStateConsistencyArgs,
+        character,
+        world,
+        recentTurns,
+        supabase
+      );
+      return {
+        result: JSON.stringify(result),
+        stateChanged: false,
+      };
+    }
+
+    case "fix_character_state": {
+      const result = await handleFixCharacterState(
+        args as FixCharacterStateArgs,
+        character.id!,
+        supabase
+      );
+      return {
+        result: JSON.stringify(result),
+        stateChanged: result.success,
+      };
+    }
+
+    case "fix_world_state": {
+      const result = await handleFixWorldState(
+        args as FixWorldStateArgs,
+        character.id!,
+        supabase
+      );
+      return {
+        result: JSON.stringify(result),
+        stateChanged: result.success,
+      };
+    }
+
+    case "explain_state": {
+      const result = handleExplainState(args as ExplainStateArgs);
+      return {
+        result,
+        stateChanged: false,
+      };
+    }
+
+    default:
+      return {
+        result: `Unknown tool: ${toolName}`,
+        stateChanged: false,
+      };
+  }
+}
+
+/**
  * POST /api/dm-chat
  * Answer player questions without consuming a turn
+ * Now with tool calling for state consistency checks and fixes
  */
 export async function POST(request: NextRequest) {
   try {
@@ -62,7 +170,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use admin client for data queries (read-only, auth handled at frontend)
+    // Use admin client for data queries
     const supabase = createAdminClient();
 
     // Load character
@@ -87,15 +195,34 @@ export async function POST(request: NextRequest) {
 
     const world = worldRow ? dbToWorld(worldRow) : null;
 
-    // Load all turns (full history)
+    // Load recent turns (last 10 for context)
     const { data: turnRows } = await supabase
+      .from("waypoint_turns")
+      .select("id, player_action, narration, diffs, created_at")
+      .eq("character_id", characterId)
+      .not("narration", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    const recentTurns: Turn[] = (turnRows || []).map((t) => ({
+      id: t.id,
+      timestamp: t.created_at ? new Date(t.created_at).getTime() : Date.now(),
+      playerAction: t.player_action,
+      narration: t.narration || "",
+      isStreaming: false,
+      suggestedActions: [],
+      diffs: t.diffs || [],
+    }));
+
+    // Load all turns for full context
+    const { data: allTurnRows } = await supabase
       .from("waypoint_turns")
       .select("id, player_action, narration, created_at")
       .eq("character_id", characterId)
       .not("narration", "is", null)
       .order("created_at", { ascending: true });
 
-    const turns: Turn[] = (turnRows || []).map((t) => ({
+    const allTurns: Turn[] = (allTurnRows || []).map((t) => ({
       id: t.id,
       timestamp: t.created_at ? new Date(t.created_at).getTime() : Date.now(),
       playerAction: t.player_action,
@@ -171,22 +298,24 @@ export async function POST(request: NextRequest) {
     }));
 
     // Build context
+    const worldContext: WorldContext = world || {
+      name: "Unknown",
+      region: "Unknown",
+      poi: "Unknown",
+      time: { day: 1, phase: "Morning" },
+      weather: "Clear",
+      description: "",
+      tags: [],
+      nearbyPoi: [],
+      entities: [],
+      memory: [],
+      activeCombat: null,
+    };
+
     const context: DmChatContext = {
       character,
-      world: world || {
-        name: "Unknown",
-        region: "Unknown",
-        poi: "Unknown",
-        time: { day: 1, phase: "Morning" },
-        weather: "Clear",
-        description: "",
-        tags: [],
-        nearbyPoi: [],
-        entities: [],
-        memory: [],
-        activeCombat: null,
-      },
-      turns,
+      world: worldContext,
+      turns: allTurns,
       quests,
       npcs,
       codexEntries,
@@ -194,21 +323,123 @@ export async function POST(request: NextRequest) {
       skillTree: SKILL_TREE as unknown as Record<string, unknown>,
     };
 
-    // Build prompt and call Gemini
-    const prompt = buildDmChatPrompt(context) + `\n\n## PLAYER'S QUESTION\n${question}`;
+    // Build prompt with tool instructions
+    const basePrompt = buildDmChatPrompt(context);
+    const prompt = basePrompt + DM_TOOLS_PROMPT + `\n\n## PLAYER'S QUESTION\n${question}`;
 
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: prompt,
-      config: {
-        temperature: 0.7,
-        maxOutputTokens: 1024,
-      },
+    // Detect if question is about state issues
+    const questionLower = question.toLowerCase();
+    const isStateQuestion = 
+      questionLower.includes("wrong") ||
+      questionLower.includes("shouldn't") ||
+      questionLower.includes("should have") ||
+      questionLower.includes("missing") ||
+      questionLower.includes("error") ||
+      questionLower.includes("bug") ||
+      questionLower.includes("fix") ||
+      questionLower.includes("incorrect");
+
+    // Call Gemini with or without tools based on question type
+    let answer: string;
+    let stateChanged = false;
+
+    if (isStateQuestion) {
+      // Use tool calling for state-related questions
+      const conversationHistory: Array<{ role: "user" | "model"; parts: Array<{ text?: string; functionCall?: { name: string; args: Record<string, unknown> }; functionResponse?: { name: string; response: unknown } }> }> = [
+        { role: "user", parts: [{ text: prompt }] },
+      ];
+
+      // First call - may return tool calls
+      let response = await ai.models.generateContent({
+        model: MODEL,
+        contents: conversationHistory,
+        config: {
+          temperature: 0.3, // Lower temp for tool decisions
+          maxOutputTokens: 1024,
+          tools: [{ functionDeclarations: DM_TOOLS }],
+          toolConfig: {
+            functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO },
+          },
+        },
+      });
+
+      // Process tool calls (up to 3 iterations)
+      let iterations = 0;
+      while (response.functionCalls && response.functionCalls.length > 0 && iterations < 3) {
+        iterations++;
+
+        // Add model's response to history
+        conversationHistory.push({
+          role: "model",
+          parts: response.functionCalls.map(fc => ({
+            functionCall: { name: fc.name, args: fc.args as Record<string, unknown> },
+          })),
+        });
+
+        // Execute each tool call
+        const toolResults: Array<{ functionResponse: { name: string; response: Record<string, unknown> } }> = [];
+        for (const fc of response.functionCalls) {
+          const { result, stateChanged: changed } = await executeToolCall(
+            fc.name,
+            fc.args as Record<string, unknown>,
+            character,
+            worldContext,
+            recentTurns,
+            supabase
+          );
+          // Parse result if it's a JSON string, otherwise wrap it
+          let responseObj: Record<string, unknown>;
+          try {
+            responseObj = typeof result === "string" ? JSON.parse(result) : result;
+          } catch {
+            responseObj = { result };
+          }
+          toolResults.push({
+            functionResponse: { name: fc.name, response: responseObj },
+          });
+          if (changed) stateChanged = true;
+        }
+
+        // Add tool results to history
+        conversationHistory.push({
+          role: "user",
+          parts: toolResults,
+        });
+
+        // Get next response
+        response = await ai.models.generateContent({
+          model: MODEL,
+          contents: conversationHistory,
+          config: {
+            temperature: 0.7,
+            maxOutputTokens: 1024,
+            tools: [{ functionDeclarations: DM_TOOLS }],
+            toolConfig: {
+              functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO },
+            },
+          },
+        });
+      }
+
+      answer = response.text?.trim() || "I checked the game state but couldn't determine an answer. Please try rephrasing your question.";
+    } else {
+      // Regular question - no tools needed
+      const response = await ai.models.generateContent({
+        model: MODEL,
+        contents: prompt,
+        config: {
+          temperature: 0.7,
+          maxOutputTokens: 1024,
+        },
+      });
+
+      answer = response.text?.trim() || "I'm not sure how to answer that. Could you rephrase your question?";
+    }
+
+    return NextResponse.json({ 
+      answer,
+      stateChanged,
     });
-
-    const answer = response.text?.trim() || "I'm not sure how to answer that. Could you rephrase your question?";
-
-    return NextResponse.json({ answer });
   } catch (error) {
     console.error("DM Chat error:", error);
     return NextResponse.json(

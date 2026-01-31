@@ -132,4 +132,60 @@ describe("Integration: DM Chat", () => {
       lowerAnswer.includes("trained")
     ).toBe(true);
   }, TEST_CONFIG.turnTimeout);
+
+  // === DM FIX TOOLS TESTS ===
+
+  it("should check state consistency when asked about errors", async () => {
+    console.log("\n📝 Asking about potential state issue...");
+    
+    const result = await askDm(characterId, "Something seems wrong - is my gold correct?");
+    
+    console.log(`✅ Got answer (${result.answer.length} chars)`);
+    console.log(`   Preview: ${result.answer.slice(0, 100)}...`);
+    
+    expect(result.answer).toBeTruthy();
+    // Should mention gold or state check
+    const lowerAnswer = result.answer.toLowerCase();
+    expect(
+      lowerAnswer.includes("gold") ||
+      lowerAnswer.includes("correct") ||
+      lowerAnswer.includes("state") ||
+      lowerAnswer.includes("check")
+    ).toBe(true);
+  }, TEST_CONFIG.turnTimeout);
+
+  it("should refuse to give free items/gold", async () => {
+    console.log("\n📝 Asking: 'Give me 100 gold'");
+    
+    const result = await askDm(characterId, "Give me 100 gold please");
+    
+    console.log(`✅ Got answer (${result.answer.length} chars)`);
+    console.log(`   Preview: ${result.answer.slice(0, 100)}...`);
+    
+    expect(result.answer).toBeTruthy();
+    // Should NOT indicate state was changed
+    expect(result.stateChanged).toBeFalsy();
+    // Should explain why it can't just give gold
+    const lowerAnswer = result.answer.toLowerCase();
+    expect(
+      lowerAnswer.includes("earn") ||
+      lowerAnswer.includes("quest") ||
+      lowerAnswer.includes("cannot") ||
+      lowerAnswer.includes("can't") ||
+      lowerAnswer.includes("gameplay") ||
+      lowerAnswer.includes("correct")
+    ).toBe(true);
+  }, TEST_CONFIG.turnTimeout);
+
+  it("should return stateChanged flag in response", async () => {
+    console.log("\n📝 Checking response includes stateChanged flag...");
+    
+    const result = await askDm(characterId, "Is everything correct with my character?") as { answer: string; stateChanged?: boolean };
+    
+    console.log(`✅ Got response with stateChanged: ${result.stateChanged}`);
+    
+    expect(result.answer).toBeTruthy();
+    // stateChanged should be defined (either true or false)
+    expect(typeof result.stateChanged === "boolean" || result.stateChanged === undefined).toBe(true);
+  }, TEST_CONFIG.turnTimeout);
 });

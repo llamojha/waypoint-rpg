@@ -1,289 +1,122 @@
-# Phase 5 Final Test Scenarios
+# Phase 5 Final Testing Checklist
 
-Manual testing scenarios to verify all Phase 5 features work together correctly.
+Manual cross-feature integration testing for Phase 5 gameplay systems.
 
 ## Prerequisites
 
-1. Start the dev server: `npm run dev`
-2. Create a new character or use existing one
-3. Open TurnTrace panel (click terminal icon in header)
-4. Use **Copy** button in TurnTrace to capture debug output
-5. Paste traces to Kiro for validation
-
----
-
-## Test Case Format
-
-Each test includes:
-- **Input**: The player action to type
-- **Expected Features**: Which Phase 5 systems should activate
-- **Expected Results**: Key outcomes to verify
-- **Validation**: What to check in the trace
-
----
-
-## Combat System Tests
-
-### Test 1: Equipment-Enhanced Combat
-
-**Setup**: Equip a weapon from inventory
-
-**Input**: "I attack the bandit with my sword"
-
-**Expected Features**:
-- Combat system: HP tracking, damage calculation
-- Skill system: XP gain for Melee skill
-- Inventory system: Weapon stats affect damage
-
-**Expected Results**:
-- Enemy takes damage based on weapon stats
-- Player gains Melee XP (15-50 points)
-- Combat narration mentions equipped weapon
-- Enemy HP tracked and displayed
-
-**Validation**:
-- Check `propose_stat_change` for enemy HP reduction
-- Check `skill_xp_gained` diff for Melee skill
-- Verify weapon damage bonus applied
-
-### Test 2: Combat Death Handling
-
-**Setup**: Fight enemy until near death
-
-**Input**: "I deliver a finishing blow"
-
-**Expected Features**:
-- Combat system: Death detection and loot drops
-- Inventory system: Loot added to inventory
-
-**Expected Results**:
-- Enemy dies when HP reaches 0
-- Loot drops and gets added to inventory
-- Combat ends properly
-
-**Validation**:
-- Check enemy HP reaches 0
-- Check `propose_inventory_add` for loot
-- Verify combat state cleared
-
----
-
-## World Systems Tests
-
-### Test 3: Time Progression Effects
-
-**Input**: "I rest until evening"
-
-**Expected Features**:
-- World systems: Time advancement
-- World systems: Time affects NPC availability/behavior
-
-**Expected Results**:
-- Time advances from current phase to evening
-- World description reflects time change
-- NPCs may have different availability
-
-**Validation**:
-- Check `world_change` diff for time update
-- Verify world context reflects new time
-- Check if NPC schedules affected
-
-### Test 4: Weather Impact on Skills
-
-**Setup**: Ensure rainy weather (or trigger weather change)
-
-**Input**: "I try to sneak past the guards in the rain"
-
-**Expected Features**:
-- World systems: Weather affects skill checks
-- Skill system: Modified DC due to weather
-
-**Expected Results**:
-- Weather mentioned in narration
-- Skill check DC modified (rain helps stealth)
-- Appropriate skill XP gained
-
-**Validation**:
-- Check weather context in world state
-- Verify DC adjustment in skill check
-- Check `skill_xp_gained` diff
-
----
-
-## DM Chat Tests
-
-### Test 5: Information Query
-
-**Input**: "DM: What do I know about this location?"
-
-**Expected Features**:
-- DM chat: Responds without consuming turn
-- DM chat: Context-aware information
-
-**Expected Results**:
-- Response provides location information
-- No turn counter increment
-- No game state changes
-- Seamless return to gameplay
-
-**Validation**:
-- Check no `TurnDiff` entries generated
-- Verify turn counter unchanged
-- Confirm response is informational only
-
-### Test 6: Equipment Advice
-
-**Setup**: Have multiple weapons in inventory
-
-**Input**: "DM: Which weapon should I use against armored enemies?"
-
-**Expected Features**:
-- DM chat: Equipment analysis
-- DM chat: Tactical advice
-
-**Expected Results**:
-- Advice based on current inventory
-- Weapon stats comparison
-- No equipment changes made
-
-**Validation**:
-- Check inventory remains unchanged
-- Verify advice references actual items
-- Confirm no state mutations
-
----
-
-## Cross-Feature Integration Tests
-
-### Test 7: Weather Combat Integration
-
-**Setup**: Rainy weather + combat encounter
-
-**Input**: "I fight the orc in the pouring rain"
-
-**Expected Features**:
-- Combat system: Damage calculation
-- World systems: Weather affects combat
-- Skill system: XP with weather modifiers
-
-**Expected Results**:
-- Weather impacts combat (visibility, footing)
-- Skill checks modified appropriately
-- Combat narration includes weather effects
-
-**Validation**:
-- Check weather context in combat resolution
-- Verify skill check modifiers applied
-- Check narration mentions weather
-
-### Test 8: Skill Progression Affecting World
-
-**Setup**: High-level skill (e.g., Perception 15+)
-
-**Input**: "I examine the ancient ruins"
-
-**Expected Features**:
-- Skill system: High skill level provides bonuses
-- World systems: Skill level unlocks new discoveries
-- Inventory system: Skill-gated items found
-
-**Expected Results**:
-- High skill reveals hidden details
-- Possible discovery of secret areas/items
-- Skill-appropriate narration depth
-
-**Validation**:
-- Check skill level used in DC calculation
-- Verify skill-gated content unlocked
-- Check for discovery-related diffs
-
-### Test 9: Time-Sensitive Equipment Usage
-
-**Setup**: Evening/night time + stealth equipment
-
-**Input**: "I use my cloak to blend into the shadows"
-
-**Expected Features**:
-- World systems: Time affects stealth effectiveness
-- Inventory system: Equipment provides bonuses
-- Skill system: Combined modifiers
-
-**Expected Results**:
-- Time bonus + equipment bonus stacked
-- Stealth check with multiple modifiers
-- Narration reflects both time and equipment
-
-**Validation**:
-- Check multiple modifier sources
-- Verify time context affects skill check
-- Check equipment bonus applied
-
----
-
-## Validation Checklist
-
-After running all tests, verify:
-
-### Combat System ✅
-- [ ] HP tracking works correctly
-- [ ] Weapon stats affect damage
-- [ ] Death handling functions
-- [ ] Loot drops properly
-
-### World Systems ✅
-- [ ] Time progression works
-- [ ] Weather affects gameplay
-- [ ] Location changes tracked
-- [ ] World state persists
-
-### DM Chat ✅
-- [ ] No turn consumption
-- [ ] Context-aware responses
-- [ ] No state mutations
-- [ ] Smooth gameplay transition
-
-### Skill System Integration ✅
-- [ ] XP gained from all activities
-- [ ] Skill levels affect world interactions
-- [ ] Power words work in all contexts
-- [ ] Level-up notifications appear
-
-### Cross-Feature Integration ✅
-- [ ] Multiple systems work together
-- [ ] No conflicts between features
-- [ ] Modifiers stack correctly
-- [ ] Narration reflects all active systems
-
----
-
-## 🎮 CHECKPOINT 4 Criteria
-
-Verify all criteria met:
-
-- [ ] Combat tracks enemy HP
-- [ ] Death/incapacitation handling
-- [ ] Quest log UI with progress tracking
-- [ ] NPC dialogue reflects relationship level
-- [ ] Time progresses (day/phase changes)
-- [ ] Weather affects gameplay
-- [ ] DM chat answers questions without turns
-
----
-
-## Kiro Validation Process
-
-1. **Execute each test scenario**
-2. **Copy trace from TurnTrace panel**
-3. **Paste to Kiro with prompt**:
+1. Run automated tests first:
+   ```bash
+   npm run test:integration
    ```
-   Please validate this Phase 5 test trace:
-   
-   Test: [Test Name]
-   Expected: [Expected behavior]
-   
-   [PASTE TRACE HERE]
-   
-   Does this trace show the expected Phase 5 features working correctly?
-   ```
-4. **Document any issues found**
-5. **Retest after fixes**
+   All tests should pass before manual testing.
+
+2. Start dev server: `npm run dev`
+3. Create fresh character or reset existing one
+4. Open TurnTrace panel (terminal icon in header)
+
+---
+
+## Test Group A: Combat + Progression
+
+| # | Scenario | Steps | Expected Result | Pass? |
+|---|----------|-------|-----------------|-------|
+| A1 | Combat starts | "I attack the wolf" (when enemy present) | `propose_combat_start` in trace, enemy appears in `activeCombat` | ☐ |
+| A2 | Damage dealt | "I strike at the wolf" | Enemy HP decreases, `combat_damage` diff shown | ☐ |
+| A3 | XP from combat | Complete attack (success) | Melee XP gained, shown in skill diff | ☐ |
+| A4 | Level up | Gain enough XP to level | Level up notification in diffs | ☐ |
+| A5 | Enemy defeat | Reduce enemy HP to 0 | Enemy removed from combat, narration describes defeat | ☐ |
+| A6 | Player death | Get HP to 0 (let enemy hit you) | Respawn at Waystone with 1 HP, narration explains | ☐ |
+
+---
+
+## Test Group B: Equipment Effects
+
+| # | Scenario | Steps | Expected Result | Pass? |
+|---|----------|-------|-----------------|-------|
+| B1 | Weapon damage | Equip weapon → attack | Weapon's damage dice used (check trace) | ☐ |
+| B2 | Armor AC | Equip armor → get attacked | Defense calculation uses armor AC | ☐ |
+| B3 | Skill bonus | Equip item with skill bonus → use that skill | Bonus applied to roll modifier | ☐ |
+
+---
+
+## Test Group C: Time Progression
+
+| # | Scenario | Steps | Expected Result | Pass? |
+|---|----------|-------|-----------------|-------|
+| C1 | Turn-based advance | Play 5 turns | Time phase advances (e.g., Morning → Afternoon) | ☐ |
+| C2 | Travel advance | "I travel to Nomante Outpost" | Time advances +1 phase | ☐ |
+| C3 | Rest advance | "I rest and make camp" | Time advances +2 phases | ☐ |
+| C4 | Day rollover | Advance from Night | Day increments, phase becomes Dawn | ☐ |
+
+---
+
+## Test Group D: Weather System
+
+| # | Scenario | Steps | Expected Result | Pass? |
+|---|----------|-------|-----------------|-------|
+| D1 | Weather display | Check header | Weather icon + text visible | ☐ |
+| D2 | Weather in narration | "I look around" | Chronicler mentions weather/atmosphere | ☐ |
+| D3 | Weather consistency | Play multiple turns | Same weather throughout session (changes daily) | ☐ |
+
+---
+
+## Test Group E: DM Chat
+
+| # | Scenario | Steps | Expected Result | Pass? |
+|---|----------|-------|-----------------|-------|
+| E1 | Ask mechanics | "What are my skills?" via DM Chat | Answer explains skill system, no turn consumed | ☐ |
+| E2 | Ask lore | "Tell me about this location" via DM Chat | Answer uses world context, no turn consumed | ☐ |
+| E3 | Turn count unchanged | Note turn count → ask DM → check count | Turn count identical before/after | ☐ |
+
+---
+
+## Test Group F: Cross-Feature Edge Cases
+
+| # | Scenario | Steps | Expected Result | Pass? |
+|---|----------|-------|-----------------|-------|
+| F1 | Combat + Travel | Try to travel while in combat | Should be blocked or combat ends first | ☐ |
+| F2 | Death + Inventory | Die with items equipped | Items remain equipped after respawn | ☐ |
+| F3 | Rest + Combat | "I rest" while in combat | Should not advance time (combat blocks rest) | ☐ |
+| F4 | XP + Power words | Use tier 1 power word at skill level 0 | No bonus (tier not unlocked until level 1) | ☐ |
+
+---
+
+## Execution Instructions
+
+1. **Run automated tests first** - All must pass before manual testing
+
+2. **For each manual test:**
+   - Execute the action in the game
+   - Copy trace from TurnTrace panel
+   - Paste to Kiro if unexpected behavior
+   - Mark pass/fail in checklist
+
+3. **Document failures:**
+   - Screenshot or trace
+   - Steps to reproduce
+   - Expected vs actual
+
+---
+
+## Completion Criteria
+
+- [ ] All automated tests pass (`npm run test:integration`)
+- [ ] Groups A-F manual tests executed
+- [ ] No critical bugs (combat, death, XP)
+- [ ] Minor issues documented for Phase 6
+
+---
+
+## Results
+
+**Date tested:** _______________
+
+**Tester:** _______________
+
+**Automated tests:** ☐ Pass / ☐ Fail
+
+**Manual tests passed:** ___ / 20
+
+**Critical bugs found:** 
+
+**Notes:**

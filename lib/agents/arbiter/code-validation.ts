@@ -25,7 +25,7 @@ export interface CodeValidationContext {
 
 /**
  * Validate relationship change: NPC must be present, ±2 per turn max, reject delta=0,
- * reject for purely conversational actions
+ * reject for purely conversational actions, reject negative changes for polite actions
  */
 function validateRelationshipChange(
   proposal: ProposalResult,
@@ -45,15 +45,89 @@ function validateRelationshipChange(
     };
   }
   
-  // Reject relationship changes for purely conversational/question actions
   const actionLower = (ctx.playerAction || "").toLowerCase().trim();
+  const npcLower = npc.toLowerCase();
+  
+  // Reject relationship changes for NPCs only mentioned in future intent (not actual interaction)
+  // e.g., "I'll go talk to Helga" - Helga is mentioned but not interacted with
+  const futureIntentPhrases = [
+    "i'll go talk to", "i'll talk to", "i will talk to", "i'll go speak to",
+    "i'm going to talk to", "going to talk to", "going to speak to",
+    "i want to talk to", "i need to talk to", "i'll go see", "i'll visit",
+    "heading to talk to", "walking to talk to",
+  ];
+  
+  // Check if action contains future intent phrase followed by this NPC
+  const isFutureIntent = futureIntentPhrases.some(phrase => {
+    const phraseIndex = actionLower.indexOf(phrase);
+    if (phraseIndex === -1) return false;
+    // Check if NPC name appears after the phrase
+    const afterPhrase = actionLower.slice(phraseIndex + phrase.length);
+    return afterPhrase.includes(npcLower);
+  });
+  
+  // Check if there's actual present interaction with this NPC (direct address or action)
+  const presentInteractionPhrases = [
+    `hi ${npcLower}`, `hello ${npcLower}`, `hey ${npcLower}`,
+    `thank you ${npcLower}`, `thanks ${npcLower}`,
+    `${npcLower},`, // Direct address with comma
+  ];
+  const hasPresentInteraction = presentInteractionPhrases.some(p => actionLower.includes(p)) ||
+    // Also check for "talk to X" without future tense
+    (actionLower.includes(`talk to ${npcLower}`) && !isFutureIntent);
+  
+  if (isFutureIntent && !hasPresentInteraction) {
+    return {
+      valid: false,
+      reason: `Relationship change rejected - "${npc}" only mentioned as future intent, not actual interaction`,
+    };
+  }
+  
+  // Reject NEGATIVE relationship changes for polite/neutral actions
+  if (delta < 0) {
+    const politePatterns = [
+      /\bthank(s| you)\b/,                        // "thank you", "thanks"
+      /\bgoodbye\b|\bbye\b|\bfarewell\b/,         // farewells
+      /\bsee you\b|\btake care\b/,                // polite departures
+      /\bi('ll| will) (go|talk|speak|head|leave)/, // stating intent to leave/talk elsewhere
+      /\bnice (to |meeting |talking )/,           // "nice to meet you"
+      /\bpleasure\b/,                             // "pleasure meeting you"
+    ];
+    
+    const hostilePatterns = [
+      /\binsult\b|\brude\b|\bdismiss\b|\bignore\b/,
+      /\battack\b|\bhit\b|\bpunch\b|\bkick\b/,
+      /\bthreaten\b|\bintimidate\b|\bscare\b/,
+      /\bsteal\b|\brob\b|\btake from\b/,
+      /\blie\b|\bdeceive\b|\btrick\b/,
+      /\bmock\b|\bridicule\b|\blaugh at\b/,
+      /\bshout\b|\byell\b|\bscream at\b/,
+      /\brefuse\b|\breject\b|\bdeny\b/,
+    ];
+    
+    const isPolite = politePatterns.some(p => p.test(actionLower));
+    const isHostile = hostilePatterns.some(p => p.test(actionLower));
+    
+    // If action is polite and NOT hostile, reject negative delta
+    if (isPolite && !isHostile) {
+      return {
+        valid: false,
+        reason: `Negative relationship rejected - "${ctx.playerAction?.slice(0, 40)}" is polite, not hostile`,
+      };
+    }
+  }
+  
+  // Reject relationship changes for purely conversational/question actions
   const conversationalPatterns = [
     /^what (should|do|can|shall) (we|i|you)/,  // "what should we do"
     /^what('s| is) (next|happening|going on)/,  // "what's next"
-    /^(hi|hello|hey|greetings)\b/,              // greetings
-    /^(good )?(morning|afternoon|evening)/,     // time-based greetings
+    /^(good )?(morning|afternoon|evening)/,     // time-based greetings (without NPC name)
     /\?$/,                                       // ends with question mark (simple questions)
   ];
+  
+  // Greetings that directly address the NPC are meaningful interactions
+  const isDirectGreeting = /^(hi|hello|hey|greetings),?\s+\w/i.test(actionLower) && 
+    actionLower.includes(npcLower);
   
   // Only reject questions that don't involve meaningful interaction keywords
   const meaningfulKeywords = [
@@ -63,7 +137,7 @@ function validateRelationshipChange(
   ];
   
   const isConversational = conversationalPatterns.some(p => p.test(actionLower));
-  const hasMeaningfulInteraction = meaningfulKeywords.some(k => actionLower.includes(k));
+  const hasMeaningfulInteraction = meaningfulKeywords.some(k => actionLower.includes(k)) || isDirectGreeting;
   
   if (isConversational && !hasMeaningfulInteraction) {
     return {
@@ -74,7 +148,6 @@ function validateRelationshipChange(
   
   // NPC must be present at current location (flexible matching for partial names)
   const npcsPresent = ctx.world.entities || [];
-  const npcLower = npc.toLowerCase();
   const npcPresent = npcsPresent.some(
     e => e.toLowerCase().includes(npcLower) || npcLower.includes(e.toLowerCase())
   );

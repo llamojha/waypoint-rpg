@@ -434,6 +434,12 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
   // === CHRONICLER ===
   const chroniclerStart = Date.now();
   
+  // Merge world updates into world for Chronicler (so it sees the NEW location after travel)
+  const worldForChronicler: WorldContext = {
+    ...world,
+    ...applyResult.worldUpdates,
+  };
+  
   // Calculate weapon damage for combat skills on success
   const combatSkills = ["Melee", "Ranged", "Styles"];
   const isCombatSkill = rollOutcome && combatSkills.includes(rollOutcome.skill);
@@ -455,7 +461,7 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
 
   const prompt = buildTurnPrompt(
     character,
-    world,
+    worldForChronicler,
     recentTurns,
     playerAction,
     rollOutcomeForPrompt,
