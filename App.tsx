@@ -827,6 +827,7 @@ export default function App() {
                 onRoll={handleRoll}
                 onCancel={handleCancel}
                 onRetry={handleRetry}
+                characterId={gameState.character.id}
               />
             </div>
 

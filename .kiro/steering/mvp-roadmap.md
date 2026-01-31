@@ -173,7 +173,7 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 | 5.2 | `skill-system`         | ✅ COMPLETE |
 | 5.3 | `combat-system`        | ✅ COMPLETE |
 | 5.4 | `world-systems`        | ✅ COMPLETE |
-| 5.5 | `dm-chat`              | 📋 TODO     |
+| 5.5 | `dm-chat`              | ✅ COMPLETE |
 | 5.6 | `phase5-final-testing` | 📋 TODO     |
 
 **5.0 `automated-testing`** ✅ COMPLETE
@@ -214,6 +214,15 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - Chronicler narrates weather atmosphere
 - Unit tests (31) and integration tests (3)
 
+**5.5 `dm-chat`** ✅ COMPLETE
+- "Ask DM" button next to Send in CenterColumn
+- Modal UI for asking questions (DmChatModal component)
+- `/api/dm-chat` endpoint with full game context
+- Answers meta questions (mechanics, rules) and in-world questions (lore, location)
+- No turn consumption - ephemeral responses
+- Question length validation (500 char limit)
+- Unit tests (11) and integration tests (4)
+
 **5.6 `phase5-final-testing`** 📋 TODO
 - Manual testing of all Phase 5 features integrated together
 - Combat system scenarios (enemy HP tracking, death handling)
@@ -237,7 +246,7 @@ MVP COMPLETE                           [Total: ~93-132 hours]
 - [ ] NPC dialogue reflects relationship level
 - [x] Time progresses (day/phase changes)
 - [x] Weather affects gameplay
-- [ ] DM chat answers questions without turns
+- [x] DM chat answers questions without turns
 
 ### Phase 6: Final Polish
 

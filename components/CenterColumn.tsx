@@ -25,8 +25,10 @@ import {
   Heart,
   Globe,
   Sparkles,
+  HelpCircle,
 } from "lucide-react";
 import { TurnStatus } from "@/App";
+import { DmChatModal } from "@/components/DmChatModal";
 
 interface Props {
   world: WorldContext;
@@ -36,6 +38,7 @@ interface Props {
   onRoll: (turnId: string) => void;
   onCancel: () => void;
   onRetry: () => void;
+  characterId?: string;
 }
 
 export const CenterColumn: React.FC<Props> = ({
@@ -46,10 +49,17 @@ export const CenterColumn: React.FC<Props> = ({
   onRoll,
   onCancel,
   onRetry,
+  characterId,
 }) => {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // DM Chat state
+  const [showDmChat, setShowDmChat] = useState(false);
+  const [dmAnswer, setDmAnswer] = useState<string | null>(null);
+  const [dmLoading, setDmLoading] = useState(false);
+  const [dmInitialQuestion, setDmInitialQuestion] = useState("");
 
   // Get the last turn's streaming state and narration length for scroll trigger
   const lastTurn = turns[turns.length - 1];
@@ -73,6 +83,40 @@ export const CenterColumn: React.FC<Props> = ({
     if (!input.trim() || turnStatus === "processing") return;
     onSendTurn(input);
     setInput("");
+  };
+
+  const handleAskDm = () => {
+    // If there's text in the input, use it as the initial question
+    if (input.trim()) {
+      setDmInitialQuestion(input.trim());
+      setInput("");
+    } else {
+      setDmInitialQuestion("");
+    }
+    setDmAnswer(null);
+    setShowDmChat(true);
+  };
+
+  const handleDmQuestion = async (question: string) => {
+    if (!characterId) return;
+    setDmLoading(true);
+    setDmAnswer(null);
+    try {
+      const res = await fetch("/api/dm-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ characterId, question }),
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setDmAnswer(data.answer || data.error || "I couldn't understand that question.");
+    } catch {
+      setDmAnswer("Something went wrong. Please try again.");
+    } finally {
+      setDmLoading(false);
+    }
   };
 
   return (
@@ -197,16 +241,37 @@ export const CenterColumn: React.FC<Props> = ({
               <XCircle size={20} />
             </button>
           ) : (
-            <button
-              type="submit"
-              disabled={!input.trim()}
-              className="self-stretch w-12 bg-ink text-parchment-100 rounded-sm hover:bg-gold hover:text-ink disabled:opacity-30 disabled:hover:bg-ink disabled:hover:text-parchment-100 transition-all flex items-center justify-center border border-parchment-400"
-            >
-              <Send size={20} />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleAskDm}
+                className="self-stretch px-3 bg-parchment-200 text-ink-light border border-parchment-400 rounded-sm hover:bg-gold hover:text-ink hover:border-gold transition-all flex items-center justify-center gap-1 text-xs font-bold font-small-caps uppercase"
+                title="Ask the DM a question (doesn't use a turn)"
+              >
+                <HelpCircle size={16} />
+                <span className="hidden sm:inline">Ask DM</span>
+              </button>
+              <button
+                type="submit"
+                disabled={!input.trim()}
+                className="self-stretch w-12 bg-ink text-parchment-100 rounded-sm hover:bg-gold hover:text-ink disabled:opacity-30 disabled:hover:bg-ink disabled:hover:text-parchment-100 transition-all flex items-center justify-center border border-parchment-400"
+              >
+                <Send size={20} />
+              </button>
+            </>
           )}
         </form>
       </div>
+
+      {/* DM Chat Modal */}
+      <DmChatModal
+        isOpen={showDmChat}
+        onClose={() => setShowDmChat(false)}
+        onAsk={handleDmQuestion}
+        answer={dmAnswer}
+        isLoading={dmLoading}
+        initialQuestion={dmInitialQuestion}
+      />
     </div>
   );
 };
