@@ -23,7 +23,7 @@ This roadmap extends the MVP (Phases 0-6) to deliver a production-ready V1 with 
 
 | ID  | Spec Name                  | Priority | Estimate   | Details |
 | --- | -------------------------- | -------- | ---------- | ------- |
-| 7.1 | `mobile-responsive`        | High     | 150-200    | Touch-friendly UI, responsive design |
+| 7.1 | `mobile-responsive`        | High     | ✅ DONE    | Touch-friendly UI, responsive design |
 | 7.2 | `error-recovery`           | High     | 75-125     | Failed turn handling, network issues |
 | 7.3 | `accessibility-basics`     | Medium   | 100-150    | Screen readers, keyboard navigation |
 | 7.4 | `performance-optimization` | Medium   | 75-100     | Caching, query optimization |

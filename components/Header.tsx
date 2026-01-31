@@ -42,7 +42,11 @@ const WEATHER_ICONS: Record<string, string> = {
   Heatwave: "🔥",
 };
 
-function getWeatherIcon(weather: string): string {
+function getWeatherIcon(weather: string, phase?: string): string {
+  // Show moon at night for clear weather
+  if ((phase === "Night" || phase === "Dusk") && weather === "Clear") {
+    return "🌙";
+  }
   return WEATHER_ICONS[weather] || "☀️";
 }
 
@@ -128,7 +132,7 @@ export const Header: React.FC<Props> = ({
           <div className="hidden xl:flex items-center gap-2 px-3 py-1 bg-parchment-300 border border-parchment-400 rounded-full shadow-inner opacity-80">
             <span className="w-2 h-2 rounded-full bg-gold animate-pulse"></span>
             <span className="text-xs font-bold font-small-caps text-ink-light uppercase tracking-wide">
-              Day {world.time.day} • {world.time.phase} • {getWeatherIcon(world.weather)} {world.weather}
+              Day {world.time.day} • {world.time.phase} • {getWeatherIcon(world.weather, world.time.phase)} {world.weather}
             </span>
           </div>
         )}

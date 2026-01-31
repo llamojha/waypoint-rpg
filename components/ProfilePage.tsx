@@ -32,6 +32,7 @@ import {
   MapLocation,
   WorldContext,
 } from "@/types";
+import { FEATURE_FLAGS } from "@/lib/feature-flags";
 
 interface Props {
   onBack: () => void;
@@ -129,12 +130,14 @@ export const ProfilePage: React.FC<Props> = ({
               icon={<User size={16} />}
               label="Character Sheet"
             />
-            <NavButton
-              active={activeTab === "quests"}
-              onClick={() => setActiveTab("quests")}
-              icon={<Map size={16} />}
-              label="Quest Log"
-            />
+            {FEATURE_FLAGS.quests && (
+              <NavButton
+                active={activeTab === "quests"}
+                onClick={() => setActiveTab("quests")}
+                icon={<Map size={16} />}
+                label="Quest Log"
+              />
+            )}
             <NavButton
               active={activeTab === "locations"}
               onClick={() => setActiveTab("locations")}
@@ -478,7 +481,7 @@ export const ProfilePage: React.FC<Props> = ({
             </div>
           )}
 
-          {activeTab === "quests" && (
+          {FEATURE_FLAGS.quests && activeTab === "quests" && (
             <div className="space-y-6 relative z-10 animate-fade-in">
               <h3 className="text-2xl font-serif font-bold text-ink border-b-2 border-parchment-400 pb-2 mb-4">
                 Quest Log

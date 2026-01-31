@@ -236,6 +236,7 @@ export const CenterColumn: React.FC<Props> = ({
             <button
               type="button"
               onClick={onCancel}
+              aria-label="Cancel generation"
               className="self-stretch w-12 bg-parchment-200 text-burgundy border border-burgundy rounded-sm hover:bg-burgundy hover:text-parchment-100 transition-all flex items-center justify-center"
             >
               <XCircle size={20} />
@@ -245,6 +246,7 @@ export const CenterColumn: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={handleAskDm}
+                aria-label="Ask the DM a question"
                 className="self-stretch px-3 bg-parchment-200 text-ink-light border border-parchment-400 rounded-sm hover:bg-gold hover:text-ink hover:border-gold transition-all flex items-center justify-center gap-1 text-xs font-bold font-small-caps uppercase"
                 title="Ask the DM a question (doesn't use a turn)"
               >
@@ -254,6 +256,7 @@ export const CenterColumn: React.FC<Props> = ({
               <button
                 type="submit"
                 disabled={!input.trim()}
+                aria-label="Send message"
                 className="self-stretch w-12 bg-ink text-parchment-100 rounded-sm hover:bg-gold hover:text-ink disabled:opacity-30 disabled:hover:bg-ink disabled:hover:text-parchment-100 transition-all flex items-center justify-center border border-parchment-400"
               >
                 <Send size={20} />
@@ -314,21 +317,12 @@ const TurnEntry: React.FC<{
 
           <div className="narration-text text-ink text-justify relative z-10">
             <div className={isFirst ? "drop-cap" : ""}>
-              {turn.narration
-                ? turn.narration.split("\n").map((para, i) => (
-                    <p key={i} className="mb-4 last:mb-0">
-                      {para}
-                      {/* Streaming cursor on last paragraph */}
-                      {turn.isStreaming &&
-                        i === turn.narration.split("\n").length - 1 && (
-                          <span className="inline-block w-2 h-4 bg-burgundy ml-0.5 animate-pulse" />
-                        )}
-                    </p>
-                  ))
-                : /* Show cursor when narration is empty but streaming */
-                  turn.isStreaming && (
-                    <span className="inline-block w-2 h-4 bg-burgundy animate-pulse" />
-                  )}
+              {turn.narration &&
+                turn.narration.split("\n").map((para, i) => (
+                  <p key={i} className="mb-4 last:mb-0">
+                    {para}
+                  </p>
+                ))}
             </div>
           </div>
 

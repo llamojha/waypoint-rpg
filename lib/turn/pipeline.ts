@@ -21,6 +21,7 @@ import { getWeaponDamage } from "@/lib/mechanics/equipment";
 import { rollDiceNotation } from "@/lib/agents/mechanics";
 import { awardSkillXP } from "@/lib/mechanics/skill-xp";
 import { compressLocationTurns } from "@/lib/compression/queue";
+import { FEATURE_FLAGS } from "@/lib/feature-flags";
 import type { ActionType } from "@/lib/agents/rune-marshal";
 import type { FunctionDeclaration } from "@google/genai";
 import type { Turn, TurnDiff, Character, WorldContext, AgentTrace } from "@/types";
@@ -180,16 +181,16 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     playerAction,
     rollOutcome,
     actionType,  // Pass action type for failed roll blocking
-    activeQuestIds: questContext.activeQuests.map(q => q.id),
-    activeQuestTitles: questContext.activeQuests.map(q => q.title),
-    activeQuestGoals: questContext.activeQuests.map(q => ({
+    activeQuestIds: FEATURE_FLAGS.quests ? questContext.activeQuests.map(q => q.id) : [],
+    activeQuestTitles: FEATURE_FLAGS.quests ? questContext.activeQuests.map(q => q.title) : [],
+    activeQuestGoals: FEATURE_FLAGS.quests ? questContext.activeQuests.map(q => ({
       id: q.id,
       title: q.title,
       goalType: q.goalType || "dialogue",
       currentGoal: q.currentGoal || "",
-    })),
-    availableQuestIds: questContext.npcQuests.map(q => q.id),
-    availableQuestTitles: questContext.npcQuests.map(q => q.title),
+    })) : [],
+    availableQuestIds: FEATURE_FLAGS.quests ? questContext.npcQuests.map(q => q.id) : [],
+    availableQuestTitles: FEATURE_FLAGS.quests ? questContext.npcQuests.map(q => q.title) : [],
   };
 
   // Determine detected intent for Orchestrator context

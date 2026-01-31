@@ -12,6 +12,7 @@ import { getAllowedProposalTools, getAllowedToolNames } from "@/lib/rules/propos
 import { getWeatherForToday } from "@/lib/world/weather";
 import { calculateTimeAdvancement, getTimeTransitionDescription, type GameTime } from "@/lib/world/time";
 import { getLocationSummaries } from "@/lib/compression/queue";
+import { FEATURE_FLAGS } from "@/lib/feature-flags";
 import type { Turn, TurnDiff, Character, WorldContext, AgentTrace } from "@/types";
 
 interface TurnRequest {
@@ -590,6 +591,20 @@ async function gatherQuestContext(
   playerAction: string,
   world: WorldContext
 ): Promise<{ context: QuestContext; trace: AgentTrace }> {
+  // Skip quest agent when quests are disabled
+  if (!FEATURE_FLAGS.quests) {
+    return {
+      context: { activeQuests: [], npcQuests: [] },
+      trace: {
+        agent: "quest_agent",
+        status: "skipped",
+        durationMs: 0,
+        description: "Quests disabled",
+        details: [],
+      },
+    };
+  }
+
   const actionLower = playerAction.toLowerCase();
   const mentionedNpc = world.entities?.find(npc =>
     actionLower.includes(npc.toLowerCase()) ||

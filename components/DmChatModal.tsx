@@ -21,6 +21,7 @@ export const DmChatModal: React.FC<DmChatModalProps> = ({
   initialQuestion = "",
 }) => {
   const [question, setQuestion] = useState(initialQuestion);
+  const [submittedQuestion, setSubmittedQuestion] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Focus input when modal opens
@@ -42,6 +43,7 @@ export const DmChatModal: React.FC<DmChatModalProps> = ({
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!question.trim() || isLoading) return;
+    setSubmittedQuestion(question.trim());
     onAsk(question.trim());
     setQuestion("");
   };
@@ -71,6 +73,7 @@ export const DmChatModal: React.FC<DmChatModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1 text-ink-light hover:text-ink transition-colors"
           >
             <X size={20} />
@@ -79,6 +82,18 @@ export const DmChatModal: React.FC<DmChatModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Show submitted question */}
+          {submittedQuestion && (
+            <div className="bg-parchment-300/50 border border-parchment-400 rounded-sm p-4">
+              <p className="text-xs font-bold font-small-caps text-ink-light uppercase tracking-wide mb-2">
+                Your question:
+              </p>
+              <p className="font-serif text-ink italic">
+                {submittedQuestion}
+              </p>
+            </div>
+          )}
+
           {/* Answer display */}
           {answer && (
             <div className="bg-parchment-100 border border-parchment-400 rounded-sm p-4">

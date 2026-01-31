@@ -207,8 +207,10 @@ export const RightColumn: React.FC<Props> = ({ world, diffs, npcs }) => {
               <LoreEntry key={mem.id} mem={mem} />
             ))}
             {world.memory.length === 0 && (
-              <div className="text-[10px] italic text-ink-faint text-center">
-                No active rumors nearby.
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <MessageCircle size={24} className="text-ink-faint mb-2 opacity-50" />
+                <p className="text-xs text-ink-light font-serif italic">No news yet</p>
+                <p className="text-[10px] text-ink-faint mt-1">Rumors and discoveries will appear here</p>
               </div>
             )}
           </div>

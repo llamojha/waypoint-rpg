@@ -37,6 +37,7 @@ import {
   Flame,
 } from "lucide-react";
 import { SKILL_TREE, SKILL_RULES } from "@/constants";
+import { FEATURE_FLAGS } from "@/lib/feature-flags";
 
 interface Props {
   character: Character;
@@ -75,19 +76,21 @@ export const LeftColumn: React.FC<Props> = ({
           icon={<Activity size={14} />}
           active={activeTab === "skills"}
           onClick={() => setActiveTab("skills")}
-          label="Skill"
+          label="Skills"
         />
-        <TabButton
-          icon={<Map size={14} />}
-          active={activeTab === "quests"}
-          onClick={() => setActiveTab("quests")}
-          label="Quest"
-        />
+        {FEATURE_FLAGS.quests && (
+          <TabButton
+            icon={<Map size={14} />}
+            active={activeTab === "quests"}
+            onClick={() => setActiveTab("quests")}
+            label="Quest"
+          />
+        )}
         <TabButton
           icon={<Users size={14} />}
           active={activeTab === "folk"}
           onClick={() => setActiveTab("folk")}
-          label="Folk"
+          label="People"
         />
 
         {/* Magic tab - greyed out and disabled if not unlocked */}
@@ -117,7 +120,7 @@ export const LeftColumn: React.FC<Props> = ({
         )}
         {activeTab === "skills" && <SkillsTab character={character} />}
         {activeTab === "magic" && <MagicTab />}
-        {activeTab === "quests" && <QuestsTab quests={quests} />}
+        {FEATURE_FLAGS.quests && activeTab === "quests" && <QuestsTab quests={quests} />}
         {activeTab === "folk" && <SocialTab npcs={npcs} />}
       </div>
     </div>
@@ -806,6 +809,16 @@ const QuestsTab = ({ quests }: { quests: Quest[] }) => {
 
 const SocialTab = ({ npcs }: { npcs: NPC[] }) => {
   const [selectedNpc, setSelectedNpc] = useState<NPC | null>(null);
+
+  if (npcs.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center animate-fade-in">
+        <Users size={32} className="text-ink-faint mb-3 opacity-50" />
+        <p className="text-sm text-ink-light font-serif italic">No one met yet</p>
+        <p className="text-xs text-ink-faint mt-1">Explore and talk to people you encounter</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3 animate-fade-in pl-2">
