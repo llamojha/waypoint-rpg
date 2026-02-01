@@ -50,16 +50,82 @@ export async function handleCheckStateConsistency(
   switch (claim_type) {
     case "location": {
       const actualLocation = world.poi;
-      // Check if player claims they should be somewhere else
+      
+      // Scan recent narration for location mentions
+      const locationKeywords = ["arrive", "arrived", "reach", "reached", "enter", "entered", "at the", "to the", "into the"];
+      const knownLocations = ["waystone", "tavern", "market", "gate", "square", "inn", "shop", "temple", "guild", "harbor", "docks", "forest", "cave", "ruins", "tower", "castle", "village", "town", "city"];
+      
+      let narratedLocation: string | null = null;
+      
+      // Check last 3 turns for location mentions
+      for (const turn of recentTurns.slice(0, 3)) {
+        const narrationLower = (turn.narration || "").toLowerCase();
+        
+        for (const keyword of locationKeywords) {
+          const keywordIndex = narrationLower.indexOf(keyword);
+          if (keywordIndex !== -1) {
+            // Look for a known location near this keyword
+            const nearbyText = narrationLower.slice(keywordIndex, keywordIndex + 50);
+            for (const loc of knownLocations) {
+              if (nearbyText.includes(loc)) {
+                // Found a location mention - extract the full name
+                const match = nearbyText.match(new RegExp(`(?:the\\s+)?(\\w+\\s+)?${loc}(?:\\s+\\w+)?`, "i"));
+                if (match) {
+                  narratedLocation = match[0].replace(/^the\s+/i, "").trim();
+                  break;
+                }
+              }
+            }
+          }
+          if (narratedLocation) break;
+        }
+        if (narratedLocation) break;
+      }
+      
+      // Check if narrated location differs from actual
+      const actualLower = actualLocation.toLowerCase();
+      const isConsistent = !narratedLocation || 
+        actualLower.includes(narratedLocation) || 
+        narratedLocation.includes(actualLower.split(" ")[0]);
+      
+      if (!isConsistent && narratedLocation) {
+        return {
+          isConsistent: false,
+          actualValue: actualLocation,
+          expectedValue: narratedLocation,
+          details: `State inconsistency detected: Recent narration mentioned arriving at "${narratedLocation}", but your current location is "${actualLocation}". This may need to be fixed.`,
+          canFix: true,
+        };
+      }
+      
+      // Also check player's claim
       const claimsWrongLocation = claimLower.includes("should be at") || 
         claimLower.includes("shouldn't be at") ||
-        claimLower.includes("wrong location");
+        claimLower.includes("wrong location") ||
+        claimLower.includes("waystone") ||
+        claimLower.includes("location didn't change");
+      
+      if (claimsWrongLocation) {
+        // Extract claimed location from the claim
+        const claimedMatch = claimLower.match(/(?:at|to)\s+(?:the\s+)?(\w+(?:\s+\w+)?)/);
+        const claimedLocation = claimedMatch?.[1];
+        
+        if (claimedLocation && !actualLower.includes(claimedLocation)) {
+          return {
+            isConsistent: false,
+            actualValue: actualLocation,
+            expectedValue: claimedLocation,
+            details: `You claim you should be at "${claimedLocation}" but your current location is "${actualLocation}". If the narration said you arrived there, this is a state inconsistency that can be fixed.`,
+            canFix: true,
+          };
+        }
+      }
       
       return {
-        isConsistent: !claimsWrongLocation,
+        isConsistent: true,
         actualValue: actualLocation,
-        details: `You are currently at ${actualLocation} in ${world.region}.`,
-        canFix: false, // Location fixes require travel, not DM intervention
+        details: `You are currently at ${actualLocation} in ${world.region}. No inconsistency detected.`,
+        canFix: false,
       };
     }
 

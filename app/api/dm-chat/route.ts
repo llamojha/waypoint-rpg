@@ -327,34 +327,76 @@ export async function POST(request: NextRequest) {
     const basePrompt = buildDmChatPrompt(context);
     const prompt = basePrompt + DM_TOOLS_PROMPT + `\n\n## PLAYER'S QUESTION\n${question}`;
 
-    // Detect if question is about state issues
-    const questionLower = question.toLowerCase();
-    const isStateQuestion = 
-      questionLower.includes("wrong") ||
-      questionLower.includes("shouldn't") ||
-      questionLower.includes("should have") ||
-      questionLower.includes("missing") ||
-      questionLower.includes("error") ||
-      questionLower.includes("bug") ||
-      questionLower.includes("fix") ||
-      questionLower.includes("incorrect");
-
-    // Call Gemini with or without tools based on question type
+    // Always use tool calling - let Gemini decide when to check state
     let answer: string;
     let stateChanged = false;
 
-    if (isStateQuestion) {
-      // Use tool calling for state-related questions
-      const conversationHistory: Array<{ role: "user" | "model"; parts: Array<{ text?: string; functionCall?: { name: string; args: Record<string, unknown> }; functionResponse?: { name: string; response: Record<string, unknown> } }> }> = [
-        { role: "user", parts: [{ text: prompt }] },
-      ];
+    const conversationHistory: Array<{ role: "user" | "model"; parts: Array<{ text?: string; functionCall?: { name: string; args: Record<string, unknown> }; functionResponse?: { name: string; response: Record<string, unknown> } }> }> = [
+      { role: "user", parts: [{ text: prompt }] },
+    ];
 
-      // First call - may return tool calls
-      let response = await ai.models.generateContent({
+    // First call - may return tool calls
+    let response = await ai.models.generateContent({
+      model: MODEL,
+      contents: conversationHistory,
+      config: {
+        temperature: 0.3,
+        maxOutputTokens: 1024,
+        tools: [{ functionDeclarations: DM_TOOLS }],
+        toolConfig: {
+          functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO },
+        },
+      },
+    });
+
+    // Process tool calls (up to 3 iterations)
+    let iterations = 0;
+    while (response.functionCalls && response.functionCalls.length > 0 && iterations < 3) {
+      iterations++;
+
+      // Add model's response to history
+      conversationHistory.push({
+        role: "model",
+        parts: response.functionCalls.map(fc => ({
+          functionCall: { name: fc.name!, args: fc.args as Record<string, unknown> },
+        })),
+      });
+
+      // Execute each tool call
+      const toolResults: Array<{ functionResponse: { name: string; response: Record<string, unknown> } }> = [];
+      for (const fc of response.functionCalls) {
+        const { result, stateChanged: changed } = await executeToolCall(
+          fc.name!,
+          fc.args as Record<string, unknown>,
+          character,
+          worldContext,
+          recentTurns,
+          supabase
+        );
+        let responseObj: Record<string, unknown>;
+        try {
+          responseObj = typeof result === "string" ? JSON.parse(result) : result;
+        } catch {
+          responseObj = { result };
+        }
+        toolResults.push({
+          functionResponse: { name: fc.name!, response: responseObj },
+        });
+        if (changed) stateChanged = true;
+      }
+
+      // Add tool results to history
+      conversationHistory.push({
+        role: "user",
+        parts: toolResults,
+      });
+
+      // Get next response
+      response = await ai.models.generateContent({
         model: MODEL,
         contents: conversationHistory,
         config: {
-          temperature: 0.3, // Lower temp for tool decisions
+          temperature: 0.7,
           maxOutputTokens: 1024,
           tools: [{ functionDeclarations: DM_TOOLS }],
           toolConfig: {
@@ -362,79 +404,9 @@ export async function POST(request: NextRequest) {
           },
         },
       });
-
-      // Process tool calls (up to 3 iterations)
-      let iterations = 0;
-      while (response.functionCalls && response.functionCalls.length > 0 && iterations < 3) {
-        iterations++;
-
-        // Add model's response to history
-        conversationHistory.push({
-          role: "model",
-          parts: response.functionCalls.map(fc => ({
-            functionCall: { name: fc.name!, args: fc.args as Record<string, unknown> },
-          })),
-        });
-
-        // Execute each tool call
-        const toolResults: Array<{ functionResponse: { name: string; response: Record<string, unknown> } }> = [];
-        for (const fc of response.functionCalls) {
-          const { result, stateChanged: changed } = await executeToolCall(
-            fc.name!,
-            fc.args as Record<string, unknown>,
-            character,
-            worldContext,
-            recentTurns,
-            supabase
-          );
-          // Parse result if it's a JSON string, otherwise wrap it
-          let responseObj: Record<string, unknown>;
-          try {
-            responseObj = typeof result === "string" ? JSON.parse(result) : result;
-          } catch {
-            responseObj = { result };
-          }
-          toolResults.push({
-            functionResponse: { name: fc.name!, response: responseObj },
-          });
-          if (changed) stateChanged = true;
-        }
-
-        // Add tool results to history
-        conversationHistory.push({
-          role: "user",
-          parts: toolResults,
-        });
-
-        // Get next response
-        response = await ai.models.generateContent({
-          model: MODEL,
-          contents: conversationHistory,
-          config: {
-            temperature: 0.7,
-            maxOutputTokens: 1024,
-            tools: [{ functionDeclarations: DM_TOOLS }],
-            toolConfig: {
-              functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO },
-            },
-          },
-        });
-      }
-
-      answer = response.text?.trim() || "I checked the game state but couldn't determine an answer. Please try rephrasing your question.";
-    } else {
-      // Regular question - no tools needed
-      const response = await ai.models.generateContent({
-        model: MODEL,
-        contents: prompt,
-        config: {
-          temperature: 0.7,
-          maxOutputTokens: 1024,
-        },
-      });
-
-      answer = response.text?.trim() || "I'm not sure how to answer that. Could you rephrase your question?";
     }
+
+    answer = response.text?.trim() || "I couldn't determine an answer. Please try rephrasing your question.";
 
     return NextResponse.json({ 
       answer,
