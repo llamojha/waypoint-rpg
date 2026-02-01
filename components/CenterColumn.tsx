@@ -26,9 +26,11 @@ import {
   Globe,
   Sparkles,
   HelpCircle,
+  Mail,
 } from "lucide-react";
 import { TurnStatus } from "@/App";
 import { DmChatModal } from "@/components/DmChatModal";
+import { SUPPORT_EMAIL } from "@/lib/constants/support";
 
 interface Props {
   world: WorldContext;
@@ -181,14 +183,18 @@ export const CenterColumn: React.FC<Props> = ({
                   <AlertTriangle size={20} />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-error text-sm">System Error</h4>
+                  <h4 className="font-bold text-error text-sm">Turn Failed</h4>
                   <p className="text-xs text-error/80 mt-1">
-                    Something went wrong while processing your turn.
+                    Something went wrong while processing your turn. Please try again.
                   </p>
-                  <p className="text-xs text-error/70 mt-2">
-                    If this keeps happening, please contact support or notify a developer.
-                  </p>
-                  <div className="flex justify-end mt-3">
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-error/20">
+                    <a
+                      href={`mailto:${SUPPORT_EMAIL}`}
+                      className="text-xs text-error/70 hover:text-error flex items-center gap-1"
+                    >
+                      <Mail size={12} />
+                      Contact Support
+                    </a>
                     <button
                       onClick={onRetry}
                       className="px-4 py-2 bg-error text-white rounded-sm font-bold font-small-caps uppercase text-xs hover:bg-error/90 shadow-md flex items-center gap-2 transition-all active:translate-y-0.5"

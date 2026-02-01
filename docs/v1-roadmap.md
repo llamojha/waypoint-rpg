@@ -8,14 +8,13 @@ This roadmap extends the MVP (Phases 0-6) to deliver a production-ready V1 with 
 
 ## Current Status
 
-**MVP (Phases 0-6)**: ✅ Complete through Phase 4, Phase 5-6 in progress
-- Core gameplay mechanics ✅
-- Agent architecture ✅  
-- Skill system ✅
-- Combat system (5.3) 📋
-- World systems (5.4) 📋
-- DM chat (5.5) 📋
-- Security & polish (Phase 6) 📋
+**MVP (Phases 0-6)**: ✅ COMPLETE
+**V1 (Phases 7-10)**: 🚧 IN PROGRESS ← YOU ARE HERE
+
+Completed V1 specs:
+- 7.1 `mobile-responsive` ✅
+- 7.2 `error-recovery` ✅
+- 8.3 `world-events` ✅
 
 ## V1 Extensions (Phases 7-9)
 
@@ -24,25 +23,22 @@ This roadmap extends the MVP (Phases 0-6) to deliver a production-ready V1 with 
 | ID  | Spec Name                  | Priority | Estimate   | Details |
 | --- | -------------------------- | -------- | ---------- | ------- |
 | 7.1 | `mobile-responsive`        | High     | ✅ DONE    | Touch-friendly UI, responsive design |
-| 7.2 | `error-recovery`           | High     | 75-125     | Failed turn handling, network issues |
-| 7.3 | `accessibility-basics`     | Medium   | 100-150    | Screen readers, keyboard navigation |
-| 7.4 | `performance-optimization` | Medium   | 75-100     | Caching, query optimization |
+| 7.2 | `error-recovery`           | High     | ✅ DONE    | Error boundary, turn error UI with support contact |
+| 7.3 | `performance-optimization` | Medium   | 75-100     | Caching, query optimization |
 
-**Phase 7 Total**: 400-575 credits
+**Phase 7 Total**: 250-325 credits
 
 ### Phase 8: Content & World
 
 | ID  | Spec Name                | Priority | Estimate   | Details |
 | --- | ------------------------ | -------- | ---------- | ------- |
-| 8.1 | `interactive-map`        | High     | 150-200    | Visual map with POI markers, travel UI |
-| 8.2 | `achievement-system`     | High     | 125-175    | Unlock rewards for milestones, skill achievements |
-| 8.3 | `character-customization`| Medium   | 100-150    | More portraits, cosmetic equipment, backgrounds |
-| 8.4 | `world-events`           | Medium   | 125-175    | Scheduled atmosphere changes, NPC schedules, dynamic state |
-| 8.5 | `content-seeding`        | High     | 175-250    | NPCs, locations, location art, codex entries |
-| 8.6 | `community-goals`        | High     | 125-175    | Shared objectives, collective progress, community rewards |
-| 8.7 | `social-features`        | Low      | 100-150    | Leaderboards, discovery feed, player profiles |
+| 8.1 | `achievement-system`     | High     | 125-175    | Unlock rewards for milestones, skill achievements |
+| 8.2 | `content-seeding`        | High     | 175-250    | NPCs, locations, location art, codex entries |
+| 8.3 | `world-events`           | Medium   | ✅ DONE    | Scheduled atmosphere changes, NPC schedules, dynamic state |
+| 8.4 | `social-features`        | Low      | 100-150    | Leaderboards, discovery feed, player profiles |
+| 8.5 | `interactive-map`        | Medium   | 150-200    | Visual map with POI markers, travel UI |
 
-**Phase 8 Total**: 900-1,275 credits
+**Phase 8 Total**: 550-775 credits
 
 ### Phase 9: Production Readiness
 
@@ -50,12 +46,23 @@ This roadmap extends the MVP (Phases 0-6) to deliver a production-ready V1 with 
 | --- | ---------------------- | -------- | -------- | ------- |
 | 9.1 | `posthog-integration`  | High     | 50-75    | Event tracking: turns, skills, achievements |
 | 9.2 | `rate-limiting`        | High     | 50-75    | Per-user turn limits, API rate limiting |
+| 9.3 | `security-review`      | High     | 75-100   | Auth checks, RLS policies, input sanitization |
 
-**Phase 9 Total**: 100-150 credits
+**Phase 9 Total**: 175-250 credits
+
+### Phase 10: Accessibility & Polish
+
+| ID   | Spec Name                  | Priority | Estimate | Details |
+| ---- | -------------------------- | -------- | -------- | ------- |
+| 10.1 | `accessibility-basics`     | Medium   | 100-150  | Screen readers, keyboard navigation, WCAG compliance |
+| 10.2 | `character-customization`  | Low      | 100-150  | More portraits, cosmetic equipment, backgrounds |
+| 10.3 | `community-goals`          | Medium   | 125-175  | Shared objectives, collective progress, community rewards |
+
+**Phase 10 Total**: 325-475 credits
 
 ## V1 Total Estimate
 
-**V1 Extensions**: 1,400-2,000 credits
+**V1 Extensions**: 1,075-1,500 credits
 
 ---
 
@@ -75,13 +82,7 @@ This roadmap extends the MVP (Phases 0-6) to deliver a production-ready V1 with 
 - Retry mechanisms with user feedback
 - State recovery after errors
 
-#### 7.3 `accessibility-basics`
-- Screen reader support (ARIA labels)
-- Keyboard navigation for all interactions
-- Focus management
-- Color contrast compliance
-
-#### 7.4 `performance-optimization`
+#### 7.3 `performance-optimization`
 - Query optimization for turn processing
 - Client-side caching strategies
 - Lazy loading for panels/components
@@ -89,16 +90,7 @@ This roadmap extends the MVP (Phases 0-6) to deliver a production-ready V1 with 
 
 ### Phase 8: Content & World
 
-#### 8.1 `interactive-map`
-- Visual map showing full world/region artwork
-- POI markers appear once discovered in adventure
-- Click discovered POI to see details, travel option
-- Current location indicator
-- Undiscovered POIs hidden (terrain still visible)
-- Region boundaries and labels
-- Travel time display between locations
-
-#### 8.2 `achievement-system`
+#### 8.1 `achievement-system`
 - Skill-based achievements (reach level X in skill)
 - Exploration achievements (discover locations)
 - Combat achievements (defeat enemy types)
@@ -106,20 +98,7 @@ This roadmap extends the MVP (Phases 0-6) to deliver a production-ready V1 with 
 - Achievement notifications and rewards
 - Achievement display in character panel
 
-#### 8.3 `character-customization`
-- Expanded portrait selection
-- Cosmetic equipment slots (no stat impact)
-- Character background selection (flavor text)
-- Title system from achievements
-
-#### 8.4 `world-events`
-- Scheduled weather changes affecting all players
-- NPC schedule system (NPCs move between locations)
-- Time-based world state changes
-- Event notifications in World News
-- Dynamic atmosphere based on world state
-
-#### 8.5 `content-seeding`
+#### 8.2 `content-seeding`
 **NPCs (50-100 characters)**
 - Merchants, guards, flavor NPCs across all locations
 - Rich personalities with rumors/leads
@@ -135,7 +114,83 @@ This roadmap extends the MVP (Phases 0-6) to deliver a production-ready V1 with 
 - Item descriptions and origins
 - Location backstories and legends
 
-#### 8.6 `community-goals`
+#### 8.3 `world-events` ✅ DONE
+- Scheduled weather changes affecting all players ✅
+- Personal time progression system ✅
+- Event notifications in World News ✅
+- Dynamic atmosphere based on world state ✅
+- **Note**: NPC schedules and advanced atmosphere variations marked out of scope
+
+#### 8.4 `social-features`
+**Leaderboards**
+- Top players by individual skills
+- Overall level rankings
+- Achievement counts
+
+**Discovery Feed**
+- "Player [Name] discovered the Hidden Grove"
+- "Player [Name] reached level 10 in Melee"
+- Recent community activity
+
+**Player Profiles**
+- Character name + portrait
+- Overall level and top 3 skills
+- Notable achievements
+- Privacy controls (opt-in sharing)
+
+#### 8.5 `interactive-map`
+- **Component**: Use `react-svg-map` for custom fantasy map support
+- Visual SVG map showing full world/region artwork
+- POI markers appear once discovered in adventure
+- Click discovered POI to see details, travel option
+- Current location indicator with pulse animation
+- Undiscovered POIs hidden (terrain still visible)
+- Region boundaries and labels
+- Travel time display between locations
+- **Implementation**: Custom SVG map file + react-svg-map wrapper
+- **Fallback**: Current list view if SVG assets fail to load
+
+### Phase 9: Production Readiness
+
+#### 9.1 `posthog-integration`
+- Turn event tracking
+- Skill usage analytics
+- Achievement completion tracking
+- Session duration metrics
+- Funnel analysis (onboarding → first quest)
+
+#### 9.2 `rate-limiting`
+- Per-user turn limits (daily/hourly)
+- API rate limiting on all endpoints
+- Graceful degradation messaging
+- Admin override capabilities
+
+#### 9.3 `security-review`
+- Add auth checks to all API endpoints (turn, character, world, etc.)
+- Verify user owns character before allowing mutations
+- Review RLS policies on all Supabase tables
+- Audit `createAdminClient` usage (should be minimal)
+- Rate limiting on LLM-calling endpoints
+- Input sanitization review
+
+### Phase 10: Accessibility & Polish
+
+#### 10.1 `accessibility-basics`
+- Screen reader support (ARIA labels)
+- Keyboard navigation for all interactions
+- Focus management
+- Color contrast compliance (WCAG 2.1 AA)
+- Semantic HTML structure
+- Focus trapping in modals
+- Skip links for main content
+
+#### 10.2 `character-customization`
+- Expanded portrait selection (gallery + AI generation)
+- Cosmetic equipment slots (no stat impact)
+- Character background selection (flavor text)
+- Title system from achievements
+
+#### 10.3 `community-goals`
 **Shared Objectives**
 - Global goals all players contribute to
 - Progress tracked server-side, aggregated across all players
@@ -154,38 +209,6 @@ This roadmap extends the MVP (Phases 0-6) to deliver a production-ready V1 with 
 **Feature Flags**
 - Hide individual quest UI (`FEATURE_INDIVIDUAL_QUESTS=false`)
 - Enable community goals (`FEATURE_COMMUNITY_GOALS=true`)
-
-#### 8.7 `social-features`
-**Leaderboards**
-- Top players by individual skills
-- Overall level rankings
-- Achievement counts
-
-**Discovery Feed**
-- "Player [Name] discovered the Hidden Grove"
-- "Player [Name] reached level 10 in Melee"
-- Recent community activity
-
-**Player Profiles**
-- Character name + portrait
-- Overall level and top 3 skills
-- Notable achievements
-- Privacy controls (opt-in sharing)
-
-### Phase 9: Production Readiness
-
-#### 9.1 `posthog-integration`
-- Turn event tracking
-- Skill usage analytics
-- Achievement completion tracking
-- Session duration metrics
-- Funnel analysis (onboarding → first quest)
-
-#### 9.2 `rate-limiting`
-- Per-user turn limits (daily/hourly)
-- API rate limiting on all endpoints
-- Graceful degradation messaging
-- Admin override capabilities
 
 ---
 
