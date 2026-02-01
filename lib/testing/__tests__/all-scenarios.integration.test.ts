@@ -87,14 +87,14 @@ describe("Integration: All Scenarios", () => {
   // Scenario 4: NPC Interaction (Conversation)
   // ============================================
   describe("Scenario 4: NPC Interaction", () => {
-    it("should interact with Lenna (present at Waystone)", async () => {
-      const result = await executeTurn(characterId, "I talk to Lenna about the waystone");
+    it("should interact with Lucie (present at Waystone)", async () => {
+      const result = await executeTurn(characterId, "I talk to Lucie about the waystone");
       
-      console.log(`   Narration mentions Lenna: ${result.narration.toLowerCase().includes("lenna")}`);
+      console.log(`   Narration mentions Lucie: ${result.narration.toLowerCase().includes("lucie")}`);
       console.log(`   Diffs: ${result.diffs.map(d => d.type).join(", ") || "none"}`);
       
-      // Should mention Lenna in narration
-      expect(result.narration.toLowerCase()).toContain("lenna");
+      // Should mention Lucie in narration
+      expect(result.narration.toLowerCase()).toContain("lucie");
       expect(result.narration).toBeTruthy();
       
       // Should complete without arbiter rejections
@@ -109,7 +109,7 @@ describe("Integration: All Scenarios", () => {
   // ============================================
   describe("Scenario 5: Relationship Change", () => {
     it("should change relationship with hostile action", async () => {
-      const result = await executeTurn(characterId, "I rudely dismiss Lenna and tell her to leave me alone");
+      const result = await executeTurn(characterId, "I rudely dismiss Lucie and tell her to leave me alone");
       
       // Check for relationship diff
       const relationshipDiff = result.diffs.find(d => d.type === "relationship");
@@ -128,7 +128,7 @@ describe("Integration: All Scenarios", () => {
   // ============================================
   describe("Scenario 6: Gold/Stat Change", () => {
     it("should not allow giving gold (character starts with 0)", async () => {
-      const result = await executeTurn(characterId, "I try to give some coins to Lenna");
+      const result = await executeTurn(characterId, "I try to give some coins to Lucie");
       
       const statDiff = result.diffs.find(d => d.type === "stat" && d.text.toLowerCase().includes("gold"));
       

@@ -95,7 +95,7 @@ Classify every action into ONE of these types:
 |------|-------------|----------|
 | passive | Observation, conversation, questions, looking around (no interaction) | "What should we do?", "Look around", "Hello", "Tell me about..." |
 | travel | Moving to a different location | "I go to X", "Travel to X", "Head to the market" |
-| social | Meaningful NPC interaction (helping, thanking, insulting) | "I thank Lenna", "I help the merchant", "I insult him" |
+| social | Meaningful NPC interaction (helping, thanking, insulting) | "I thank Lucie", "I help the merchant", "I insult him" |
 | combat | Fighting, attacking, defending | "I attack", "I strike the bandit", "I defend myself" |
 | object | Searching, looting, using/manipulating items or environment, buying, selling | "I search the area", "I open the chest", "I buy the sword", "I rummage through", "I loot the body" |
 
@@ -163,9 +163,9 @@ Good output:
 - requires_roll: false
 
 ### Example 3: Social interaction
-Player: "I thank Lenna for her help"
+Player: "I thank Lucie for her help"
 Good output:
-- intent: "thank Lenna"
+- intent: "thank Lucie"
 - action_type: "social"
 - primary_skill: "Persuasion"
 - requires_roll: false

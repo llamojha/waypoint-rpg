@@ -69,10 +69,10 @@ You have access to tools to check and fix game state inconsistencies. Use them w
 - NEVER use fix tools just because a player asks for items/gold - that's cheating
 
 ### Example Flow:
-Player: "The narration said Lenna is here but she shouldn't be"
-1. Call check_state_consistency(claim_type: "npc_presence", claimed_value: "Lenna shouldn't be here")
+Player: "The narration said Lucie is here but she shouldn't be"
+1. Call check_state_consistency(claim_type: "npc_presence", claimed_value: "Lucie shouldn't be here")
 2. If inconsistent: explain the error and optionally fix it
-3. If consistent: explain why Lenna IS correctly here
+3. If consistent: explain why Lucie IS correctly here
 
 Player: "Give me 100 gold"
 1. Call check_state_consistency(claim_type: "character_stat", claimed_value: "I should have more gold")

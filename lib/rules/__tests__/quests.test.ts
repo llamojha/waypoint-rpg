@@ -41,7 +41,7 @@ describe("Quest Rules", () => {
         currentGoal: "Travel to Nomante Outpost",
         goalType: "exploration",
         proposedEvents: [
-          { type: "relationship_change", data: { npc: "Lenna", delta: 1 } },
+          { type: "relationship_change", data: { npc: "Lucie", delta: 1 } },
         ],
       };
 

@@ -652,6 +652,32 @@ async function updateWorldState(
     updates.entities = npcNames;
   }
 
+  // If location changed, update nearbyPoi from connections table
+  if (updates.poi && updates.nearbyPoi === undefined) {
+    const { data: connections } = await supabase
+      .from("waypoint_rules_location_connections")
+      .select("to_location")
+      .eq("from_location", updates.poi);
+
+    const nearbyPois = (connections || []).map(c => c.to_location);
+    dbUpdates.nearby_poi = nearbyPois;
+    updates.nearbyPoi = nearbyPois;
+  }
+
+  // If location changed, update region from locations table
+  if (updates.poi && updates.region === undefined) {
+    const { data: locationData } = await supabase
+      .from("waypoint_locations")
+      .select("region")
+      .eq("name", updates.poi)
+      .maybeSingle();
+
+    if (locationData?.region) {
+      dbUpdates.region = locationData.region;
+      updates.region = locationData.region;
+    }
+  }
+
   await supabase.from("waypoint_world_state").update(dbUpdates).eq("character_id", characterId);
 
   // If location changed, fetch the new location's imageUrl

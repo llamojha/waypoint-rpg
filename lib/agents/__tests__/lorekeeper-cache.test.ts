@@ -13,17 +13,17 @@ import type { CodexEntry } from '@/types';
 const mockEntries: CodexEntry[] = [
   {
     id: '1',
-    title: 'Windhollow Vale',
+    title: 'The Highlands',
     category: 'Locations',
-    text: 'A peaceful prairie region known for rolling grasslands.',
+    text: 'A peaceful upland region known for rolling grasslands.',
     status: 'canon',
-    tags: ['region', 'safe', 'windhollow'],
+    tags: ['region', 'safe', 'highlands'],
   },
   {
     id: '2',
-    title: 'Windhollow Wolves',
+    title: 'Highlands Wolves',
     category: 'Bestiary',
-    text: 'Grey wolves that hunt in packs across the vale.',
+    text: 'Grey wolves that hunt in packs across the highlands.',
     status: 'canon',
     tags: ['enemy', 'wildlife'],
   },
@@ -66,26 +66,26 @@ describe('lorekeeper/cache', () => {
     });
 
     it('finds entries by title match', () => {
-      const results = searchByKeywords(['windhollow']);
-      expect(results).toHaveLength(2); // Both "Windhollow Vale" and "Windhollow Wolves"
-      expect(results.map(r => r.title)).toContain('Windhollow Vale');
+      const results = searchByKeywords(['highlands']);
+      expect(results).toHaveLength(2); // Both "The Highlands" and "Highlands Wolves"
+      expect(results.map(r => r.title)).toContain('The Highlands');
     });
 
     it('finds entries by text match', () => {
-      const results = searchByKeywords(['prairie']);
+      const results = searchByKeywords(['upland']);
       expect(results).toHaveLength(1);
-      expect(results[0].title).toBe('Windhollow Vale');
+      expect(results[0].title).toBe('The Highlands');
     });
 
     it('finds entries by tag match', () => {
       const results = searchByKeywords(['enemy']);
       expect(results).toHaveLength(1);
-      expect(results[0].title).toBe('Windhollow Wolves');
+      expect(results[0].title).toBe('Highlands Wolves');
     });
 
     it('ranks title matches higher than text matches', () => {
       const results = searchByKeywords(['wolves']);
-      expect(results[0].title).toBe('Windhollow Wolves');
+      expect(results[0].title).toBe('Highlands Wolves');
     });
 
     it('respects limit parameter', () => {
@@ -108,7 +108,7 @@ describe('lorekeeper/cache', () => {
     it('returns entries matching category', () => {
       const results = searchByCategory('Bestiary');
       expect(results).toHaveLength(1);
-      expect(results[0].title).toBe('Windhollow Wolves');
+      expect(results[0].title).toBe('Highlands Wolves');
     });
 
     it('handles case-insensitive category', () => {
@@ -128,13 +128,13 @@ describe('lorekeeper/cache', () => {
     });
 
     it('returns entry by exact title', () => {
-      const entry = getByTitle('Windhollow Wolves');
+      const entry = getByTitle('Highlands Wolves');
       expect(entry).not.toBeNull();
       expect(entry?.id).toBe('2');
     });
 
     it('handles case-insensitive title', () => {
-      const entry = getByTitle('windhollow wolves');
+      const entry = getByTitle('highlands wolves');
       expect(entry).not.toBeNull();
     });
 

@@ -6,7 +6,7 @@ This document contains the original demo content that was migrated to the databa
 
 ## NPCs
 
-### Lenna (Scholar)
+### Lucie (Scholar)
 - **Location:** The Waystone
 - **Personality:** shy, enthusiastic, curious, kind, slightly awkward
 - **Dialogue Hints:**
@@ -50,7 +50,7 @@ This document contains the original demo content that was migrated to the databa
   - Rewards helpers with her famous pie
 
 ### The Wanderer (Mystery)
-- **Location:** Windhollow Wilderness (appears randomly, 15% chance)
+- **Location:** Highlands Wilderness (appears randomly, 15% chance)
 - **Personality:** enigmatic, cryptic, friendly but distant, all-knowing, vanishes when pressed
 - **Dialogue Hints:**
   - Appears randomly on the prairie
@@ -66,23 +66,23 @@ This document contains the original demo content that was migrated to the databa
 
 ### The Waystone
 - **Type:** landmark
-- **Region:** Windhollow Vale
+- **Region:** The Highlands
 - **Description:** An ancient waystone rises from the prairie grass, its weathered surface etched with faded runes. The air around it shimmers faintly.
-- **NPCs Present:** Lenna
-- **Nearby POIs:** Nomante Outpost, Windhollow Wilderness
+- **NPCs Present:** Lucie
+- **Nearby POIs:** Nomante Outpost, Highlands Wilderness
 - **Image:** `/location_waypoint.png`
 
 ### Nomante Outpost
 - **Type:** outpost
-- **Region:** Windhollow Vale
+- **Region:** The Highlands
 - **Description:** A sturdy frontier post built from timber and stone. The Nomante family banner flies above the gate - three crossed spears on a field of green.
 - **NPCs Present:** Aran Nomante, Adrian, Helga
-- **Nearby POIs:** The Waystone, Windhollow Wilderness
+- **Nearby POIs:** The Waystone, Highlands Wilderness
 - **Image:** `/location_outpost.png`
 
-### Windhollow Wilderness
+### Highlands Wilderness
 - **Type:** wilderness
-- **Region:** Windhollow Vale
+- **Region:** The Highlands
 - **Description:** Rolling prairie stretches in every direction, tall grass swaying in the gentle breeze. Wildflowers dot the landscape.
 - **NPCs Present:** The Wanderer (random encounter)
 - **Nearby POIs:** The Waystone, Nomante Outpost
@@ -97,4 +97,4 @@ This content is stored in:
 - `waypoint_locations` - Location definitions with descriptions and nearby POIs
 - `waypoint_character_npcs` - Per-character NPC relationships
 
-See `supabase/migrations/20260104_demo_seed_data.sql` for the seed data.
+See `docs/summerland-island.md` for the full island content including all 4 regions.

@@ -166,24 +166,24 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Unlock Lenna NPC (she's in the opening narration)
-    const { data: lennaNpc } = await supabase
+    // Unlock Lucie NPC (she's in the opening narration)
+    const { data: lucieNpc } = await supabase
       .from("waypoint_npcs")
       .select("id")
-      .eq("name", "Lenna")
+      .eq("name", "Lucie")
       .maybeSingle();
 
-    if (lennaNpc) {
+    if (lucieNpc) {
       const { error: npcError } = await supabase
         .from("waypoint_character_npcs")
         .insert({
           character_id: newChar.id,
-          npc_id: lennaNpc.id,
+          npc_id: lucieNpc.id,
           relationship: 0,
         });
 
       if (npcError) {
-        console.error("Error unlocking Lenna NPC:", npcError);
+        console.error("Error unlocking Lucie NPC:", npcError);
         // Non-fatal
       }
     }
@@ -207,9 +207,9 @@ export async function POST(request: NextRequest) {
 
     // Create opening turn with narration (includes discovery diffs)
     const openingDiffs = [
-      { type: "world", text: "New Region: Windhollow Vale" },
+      { type: "world", text: "New Region: The Highlands" },
       { type: "world", text: "New Location: The Waystone" },
-      { type: "relationship", text: "New Relationship: Lenna" },
+      { type: "relationship", text: "New Relationship: Lucie" },
     ];
 
     const { error: turnError } = await supabase

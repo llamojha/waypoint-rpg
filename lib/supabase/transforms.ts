@@ -145,7 +145,7 @@ function coerceActiveCombat(value: unknown): ActiveCombat | null {
 
 /**
  * Transform a partial WorldContext to database insert format
- * Uses demo world defaults: Windhollow Vale, The Waystone, Lenna present
+ * Uses demo world defaults: The Highlands, The Waystone, Lucie present
  */
 export function worldToDb(
   world: Partial<WorldContext>,
@@ -161,7 +161,7 @@ export function worldToDb(
     description: world.description || DEMO_WORLD.description,
     tags: toJson(world.tags || DEMO_WORLD.tags),
     nearby_poi: toJson(world.nearbyPoi || DEMO_WORLD.nearbyPoi),
-    entities: toJson(world.entities || DEMO_WORLD.entities), // Lenna present
+    entities: toJson(world.entities || DEMO_WORLD.entities), // Lucie present
     memories: toJson(world.memory || []),
     active_combat: toJson(world.activeCombat || null),
   };

@@ -26,8 +26,8 @@ const mockCharacter: Character = {
 };
 
 const mockWorld: WorldContext = {
-  name: 'Windhollow Vale',
-  region: 'Windhollow',
+  name: 'The Highlands',
+  region: 'The Highlands',
   poi: 'The Waystone',
   time: { day: 1, phase: 'Morning' },
   weather: 'Clear',

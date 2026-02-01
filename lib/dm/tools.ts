@@ -13,7 +13,7 @@ import { FunctionDeclaration, Type } from "@google/genai";
 export const checkStateConsistencyTool: FunctionDeclaration = {
   name: "check_state_consistency",
   description: `Cross-check a player's claim against the actual game state in the database.
-Use this when a player reports something seems wrong (e.g., "Lenna shouldn't be here", "I should have more gold").
+Use this when a player reports something seems wrong (e.g., "Lucie shouldn't be here", "I should have more gold").
 Returns whether the claim is valid and what the actual state is.`,
   parameters: {
     type: Type.OBJECT,
@@ -25,7 +25,7 @@ Returns whether the claim is valid and what the actual state is.`,
       },
       claimed_value: {
         type: Type.STRING,
-        description: "What the player claims should be true (e.g., 'Lenna should not be here', 'I should have 15 gold')",
+        description: "What the player claims should be true (e.g., 'Lucie should not be here', 'I should have 15 gold')",
       },
     },
     required: ["claim_type", "claimed_value"],

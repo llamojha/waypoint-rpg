@@ -17,14 +17,14 @@ const mockArbiterOutput: ArbiterOutput = {
 
 const mockLorekeeperOutput: LorekeeperOutput = {
   npcsPresent: [
-    { id: '1', name: 'Lenna', role: 'Scholar', personality: ['shy'], dialogueHints: ['Researching'] },
+    { id: '1', name: 'Lucie', role: 'Scholar', personality: ['shy'], dialogueHints: ['Researching'] },
   ],
-  locationDetails: { name: 'The Waystone', type: 'landmark', region: 'Windhollow', description: 'Ancient stone' },
+  locationDetails: { name: 'The Waystone', type: 'landmark', region: 'The Highlands', description: 'Ancient stone' },
   codexSnippets: [
     { id: 'c1', title: 'Waystones', category: 'History', text: 'Ancient markers', status: 'canon', tags: [] },
   ],
   npcVoices: [
-    { name: 'Lenna', personality: ['shy', 'curious'], dialogueHints: ['Researching ancient texts'], speechPattern: 'speaks softly' },
+    { name: 'Lucie', personality: ['shy', 'curious'], dialogueHints: ['Researching ancient texts'], speechPattern: 'speaks softly' },
   ],
   atmosphere: { mood: 'calm', descriptors: ['ancient', 'mystical'], ambiance: 'clear skies' },
 };
@@ -78,7 +78,7 @@ describe('collector', () => {
       const context = buildChroniclerContext(collected, mockApplyResult);
 
       expect(context.npcVoices).toHaveLength(1);
-      expect(context.npcVoices[0].name).toBe('Lenna');
+      expect(context.npcVoices[0].name).toBe('Lucie');
       expect(context.npcVoices[0].speechPattern).toBe('speaks softly');
       expect(context.atmosphere).not.toBeNull();
       expect(context.atmosphere?.mood).toBe('calm');

@@ -16,6 +16,8 @@ Completed V1 specs:
 - 7.2 `error-recovery` ✅
 - 8.3 `world-events` ✅
 
+**Phase 7**: ✅ COMPLETE
+
 ## V1 Extensions (Phases 7-9)
 
 ### Phase 7: User Experience & Polish
@@ -24,16 +26,15 @@ Completed V1 specs:
 | --- | -------------------------- | -------- | ---------- | ------- |
 | 7.1 | `mobile-responsive`        | High     | ✅ DONE    | Touch-friendly UI, responsive design |
 | 7.2 | `error-recovery`           | High     | ✅ DONE    | Error boundary, turn error UI with support contact |
-| 7.3 | `performance-optimization` | Medium   | 75-100     | Caching, query optimization |
 
-**Phase 7 Total**: 250-325 credits
+**Phase 7 Total**: ✅ COMPLETE
 
 ### Phase 8: Content & World
 
 | ID  | Spec Name                | Priority | Estimate   | Details |
 | --- | ------------------------ | -------- | ---------- | ------- |
-| 8.1 | `achievement-system`     | High     | 125-175    | Unlock rewards for milestones, skill achievements |
-| 8.2 | `content-seeding`        | High     | 175-250    | NPCs, locations, location art, codex entries |
+| 8.1 | `content-seeding`        | High     | 175-250    | NPCs, locations, location art, codex entries |
+| 8.2 | `achievement-system`     | High     | 125-175    | Unlock rewards for milestones, skill achievements |
 | 8.3 | `world-events`           | Medium   | ✅ DONE    | Scheduled atmosphere changes, NPC schedules, dynamic state |
 | 8.4 | `social-features`        | Low      | 100-150    | Leaderboards, discovery feed, player profiles |
 | 8.5 | `interactive-map`        | Medium   | 150-200    | Visual map with POI markers, travel UI |
@@ -57,12 +58,13 @@ Completed V1 specs:
 | 10.1 | `accessibility-basics`     | Medium   | 100-150  | Screen readers, keyboard navigation, WCAG compliance |
 | 10.2 | `character-customization`  | Low      | 100-150  | More portraits, cosmetic equipment, backgrounds |
 | 10.3 | `community-goals`          | Medium   | 125-175  | Shared objectives, collective progress, community rewards |
+| 10.4 | `performance-optimization` | Low      | 75-100   | Parallel DB queries, LLM streaming, client caching |
 
-**Phase 10 Total**: 325-475 credits
+**Phase 10 Total**: 400-575 credits
 
 ## V1 Total Estimate
 
-**V1 Extensions**: 1,075-1,500 credits
+**V1 Extensions**: 1,125-1,575 credits
 
 ---
 
@@ -90,15 +92,7 @@ Completed V1 specs:
 
 ### Phase 8: Content & World
 
-#### 8.1 `achievement-system`
-- Skill-based achievements (reach level X in skill)
-- Exploration achievements (discover locations)
-- Combat achievements (defeat enemy types)
-- Social achievements (NPC relationships)
-- Achievement notifications and rewards
-- Achievement display in character panel
-
-#### 8.2 `content-seeding`
+#### 8.1 `content-seeding`
 **NPCs (50-100 characters)**
 - Merchants, guards, flavor NPCs across all locations
 - Rich personalities with rumors/leads
@@ -113,6 +107,14 @@ Completed V1 specs:
 - World history, factions, notable events
 - Item descriptions and origins
 - Location backstories and legends
+
+#### 8.2 `achievement-system`
+- Skill-based achievements (reach level X in skill)
+- Exploration achievements (discover locations)
+- Combat achievements (defeat enemy types)
+- Social achievements (NPC relationships)
+- Achievement notifications and rewards
+- Achievement display in character panel
 
 #### 8.3 `world-events` ✅ DONE
 - Scheduled weather changes affecting all players ✅
@@ -209,6 +211,21 @@ Completed V1 specs:
 **Feature Flags**
 - Hide individual quest UI (`FEATURE_INDIVIDUAL_QUESTS=false`)
 - Enable community goals (`FEATURE_COMMUNITY_GOALS=true`)
+
+#### 10.4 `performance-optimization`
+**Analysis completed** - current state is acceptable, optimizations deferred.
+
+**Findings:**
+- Bundle size: ~1.1 MB (lean, no bloat)
+- Caching: Region cache, rules cache, lorekeeper cache already implemented
+- Arbiter + Lorekeeper already run in parallel
+
+**Potential optimizations (if needed):**
+- Parallelize initial DB queries (character, world, turns, NPCs) - Medium impact
+- Stream Chronicler LLM response - Medium impact (perceived speed)
+- Client-side state caching with invalidation - Low impact
+
+**Current bottleneck:** LLM calls (Rune Marshal → Orchestrator → Chronicler) dominate latency. DB queries are fast.
 
 ---
 

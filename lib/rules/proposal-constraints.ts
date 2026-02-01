@@ -54,7 +54,7 @@ export function getAllowedToolNames(actionType: ActionType): string[] {
 
 /**
  * Get union of allowed tools for multiple action types
- * Used when player action spans multiple types (e.g., "I thank Lenna and head to the market")
+ * Used when player action spans multiple types (e.g., "I thank Lucie and head to the market")
  */
 export function getUnionOfAllowedTools(actionTypes: ActionType[]): FunctionDeclaration[] {
   const allAllowedNames = new Set<string>();

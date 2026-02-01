@@ -866,9 +866,9 @@ export const MOCK_CODEX_ENTRIES: CodexEntry[] = [
   },
   {
     id: "c2",
-    title: "Windhollow Wolves",
+    title: "Highlands Wolves",
     category: "Bestiary",
-    text: "Grey wolves that hunt in packs across the vale. Territorial and cunning.",
+    text: "Grey wolves that hunt in packs across the highlands. Territorial and cunning.",
     status: "canon",
     tags: ["enemy", "wildlife"],
   },
@@ -908,13 +908,13 @@ export const MOCK_CODEX_ENTRIES: CodexEntry[] = [
 
 
 // ============================================
-// DEMO EXPERIENCE - Windhollow Vale
+// DEMO EXPERIENCE - The Highlands
 // ============================================
 
 // Demo Starting World State
 export const DEMO_WORLD: WorldContext = {
   name: "Eldoria",
-  region: "Windhollow Vale",
+  region: "The Highlands",
   poi: "The Waystone",
   time: { day: 1, phase: "Morning" },
   weather: "Clear",
@@ -922,8 +922,8 @@ export const DEMO_WORLD: WorldContext = {
     "An ancient waystone rises from the prairie grass, its weathered surface etched with faded runes. The air around it shimmers faintly, carrying whispers of distant places.",
   imageUrl: "/location_waypoint.png",
   tags: [{ name: "Safe Zone", type: "canon" }],
-  nearbyPoi: ["Nomante Outpost", "Windhollow Wilderness"],
-  entities: ["lenna"],
+  nearbyPoi: ["Nomante Outpost", "Highlands Wilderness"],
+  entities: ["lucie"],
   memory: [],
   activeCombat: null,
 };
@@ -964,12 +964,12 @@ The last thing you remember is... nothing. A void where memory should be. You're
 
 A young woman in scholar's robes notices you stirring. She gasps, nearly dropping her notebook, then hurries over with wide eyes.
 
-"You're awake! I— I can't believe it actually worked. Well, not worked exactly, I didn't do anything, but— oh!" She catches herself, cheeks flushing. "I'm Lenna. I've been studying this waystone for months and you just... appeared. In a flash of light. Are you alright?"
+"You're awake! I— I can't believe it actually worked. Well, not worked exactly, I didn't do anything, but— oh!" She catches herself, cheeks flushing. "I'm Lucie. I've been studying this waystone for months and you just... appeared. In a flash of light. Are you alright?"
 
 She gestures toward a distant cluster of buildings visible across the prairie. "There's an outpost not far from here. Nomante Outpost. Captain Aran can help you get equipped if you're... new to these lands."`;
 
 export const OPENING_SUGGESTED_ACTIONS = [
-  "Talk to Lenna",
+  "Talk to Lucie",
   "Examine the waystone",
   "Look around",
   "Check yourself",
@@ -1041,15 +1041,15 @@ export const DEMO_ITEMS: Record<string, Item> = {
     stats: { value: 15, healing: "2d4" },
     provenance: "Helga's recipe",
   },
-  lennasToken: {
-    id: "lennas-token",
-    name: "Lenna's Token",
+  luciesToken: {
+    id: "lucies-token",
+    name: "Lucie's Token",
     type: "trinket",
     slot: "trinket",
     tags: ["handmade", "mysterious"],
-    description: "A small handmade charm given by Lenna. It has a strange warmth to it, and something about it feels... significant.",
+    description: "A small handmade charm given by Lucie. It has a strange warmth to it, and something about it feels... significant.",
     stats: { value: 0 },
-    provenance: "Gift from Lenna",
+    provenance: "Gift from Lucie",
   },
 };
 

@@ -3,6 +3,7 @@ import type { Character, WorldContext } from "@/types";
 import { runCodeValidation, CodeValidationContext } from "./code-validation";
 import type { QuestGoalType } from "@/lib/rules/types";
 import type { ActionType } from "@/lib/agents/rune-marshal";
+import { getLocationConnectionRules } from "@/lib/rules/cache";
 
 export interface ArbiterResult {
   proposal: ProposalResult;
@@ -129,10 +130,23 @@ export async function runArbiter(
     return true;
   });
 
+  // Fetch valid destinations from connections table (more reliable than nearbyPoi)
+  const connections = await getLocationConnectionRules();
+  const validDestinations = connections
+    .filter(c => c.fromLocation === ctx.world.poi)
+    .map(c => c.toLocation);
+  
+  // Combine with nearbyPoi as fallback, plus current location
+  const validLocations = [
+    ctx.world.poi,
+    ...validDestinations,
+    ...(ctx.world.nearbyPoi || []),
+  ].filter((v, i, a) => a.indexOf(v) === i); // dedupe
+
   const codeCtx: CodeValidationContext = {
     character: ctx.character,
     world: ctx.world,
-    validLocations: [ctx.world.poi, ...(ctx.world.nearbyPoi || [])],
+    validLocations,
     activeQuestIds: ctx.activeQuestIds,
     activeQuestTitles: ctx.activeQuestTitles,
     activeQuestGoals: ctx.activeQuestGoals,

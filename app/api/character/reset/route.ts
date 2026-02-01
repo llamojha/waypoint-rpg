@@ -110,15 +110,15 @@ export async function POST() {
     const { data: updatedWorld } = await adminClient
       .from("waypoint_world_state")
       .update({
-        region: "Windhollow Vale",
+        region: "The Highlands",
         poi: "The Waystone",
         time_day: 1,
         time_phase: "Morning",
         weather: "Clear",
         description: "An ancient stone marker at the crossroads, said to guide lost travelers.",
         tags: [],
-        nearby_poi: ["Nomante Outpost", "Windhollow Wilderness"],
-        entities: ["lenna"],
+        nearby_poi: ["Nomante Outpost", "Highlands Wilderness"],
+        entities: ["lucie"],
         memories: [],
         updated_at: new Date().toISOString(),
       })
@@ -126,17 +126,17 @@ export async function POST() {
       .select()
       .single();
 
-    // Re-unlock Lenna NPC
-    const { data: lennaNpc } = await adminClient
+    // Re-unlock Lucie NPC
+    const { data: lucieNpc } = await adminClient
       .from("waypoint_npcs")
       .select("id")
-      .eq("name", "Lenna")
+      .eq("name", "Lucie")
       .maybeSingle();
 
-    if (lennaNpc) {
+    if (lucieNpc) {
       await adminClient.from("waypoint_character_npcs").insert({
         character_id: characterId,
-        npc_id: lennaNpc.id,
+        npc_id: lucieNpc.id,
         relationship: 0,
       });
     }
@@ -162,9 +162,9 @@ export async function POST() {
       player_action: "Awaken",
       narration: OPENING_NARRATION,
       diffs: [
-        { type: "world", text: "New Region: Windhollow Vale" },
+        { type: "world", text: "New Region: The Highlands" },
         { type: "world", text: "New Location: The Waystone" },
-        { type: "relationship", text: "New Relationship: Lenna" },
+        { type: "relationship", text: "New Relationship: Lucie" },
       ],
       suggested_actions: OPENING_SUGGESTED_ACTIONS,
       mechanics: null,
