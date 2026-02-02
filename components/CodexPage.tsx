@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { MOCK_CODEX_ENTRIES, USE_MOCK_DATA } from "@/constants";
 import {
   Book,
@@ -8,7 +9,6 @@ import {
   Map,
   Users,
   Search,
-  X,
 } from "lucide-react";
 import { CodexEntry, NPC } from "@/types";
 
@@ -17,40 +17,6 @@ interface Props {
   npcs?: NPC[];
   initialSearchTerm?: string;
 }
-
-// Image modal component
-const ImageModal: React.FC<{ src: string; alt: string; onClose: () => void }> = ({ src, alt, onClose }) => (
-  <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
-    <button onClick={onClose} className="absolute top-4 right-4 text-white hover:text-parchment-300">
-      <X size={32} />
-    </button>
-    <img src={src} alt={alt} className="max-w-full max-h-full object-contain rounded-sm" onClick={(e) => e.stopPropagation()} />
-  </div>
-);
-
-// NPC detail modal component
-const NpcModal: React.FC<{ npc: { name: string; role: string; portraitUrl?: string }; onClose: () => void }> = ({ npc, onClose }) => (
-  <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-    <div className="bg-parchment-100 rounded-sm border-2 border-parchment-600 p-6 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
-      <button onClick={onClose} className="absolute top-2 right-2 text-ink-light hover:text-ink">
-        <X size={20} />
-      </button>
-      <div className="flex flex-col items-center text-center">
-        <div className="w-24 h-24 rounded-full border-4 border-parchment-400 overflow-hidden bg-parchment-300 mb-4">
-          {npc.portraitUrl ? (
-            <img src={npc.portraitUrl} alt={npc.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-ink-faint">
-              <Users size={32} />
-            </div>
-          )}
-        </div>
-        <h3 className="text-2xl font-display text-ink mb-1">{npc.name}</h3>
-        <span className="text-sm font-serif text-ink-light">{npc.role}</span>
-      </div>
-    </div>
-  </div>
-);
 
 export const CodexPage: React.FC<Props> = ({
   entries,
@@ -302,7 +268,11 @@ export const CodexPage: React.FC<Props> = ({
           // NPC Detail View
           <div className="max-w-2xl mx-auto relative z-10 animate-fade-in space-y-6">
             <div className="flex items-start gap-6 border-b-2 border-parchment-800 pb-4">
-              <div className="w-24 h-24 rounded-full border-4 border-parchment-600 overflow-hidden bg-parchment-300 shrink-0">
+              <button 
+                className="w-24 h-24 rounded-full border-4 border-parchment-600 overflow-hidden bg-parchment-300 shrink-0 cursor-pointer hover:border-burgundy transition-colors"
+                onClick={() => selectedNpc.portraitUrl && setImageModal({ src: selectedNpc.portraitUrl, alt: selectedNpc.name })}
+                disabled={!selectedNpc.portraitUrl}
+              >
                 {selectedNpc.portraitUrl ? (
                   <img src={selectedNpc.portraitUrl} alt={selectedNpc.name} className="w-full h-full object-cover" />
                 ) : (
@@ -310,7 +280,7 @@ export const CodexPage: React.FC<Props> = ({
                     <Users size={32} />
                   </div>
                 )}
-              </div>
+              </button>
               <div>
                 <h1 className="text-4xl font-display text-ink mb-2">{selectedNpc.name}</h1>
                 <div className="flex items-center gap-3">
@@ -357,9 +327,70 @@ export const CodexPage: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Modals */}
-      {imageModal && <ImageModal src={imageModal.src} alt={imageModal.alt} onClose={() => setImageModal(null)} />}
-      {npcModal && <NpcModal npc={npcModal} onClose={() => setNpcModal(null)} />}
+      {/* Image Modal - rendered via portal */}
+      {imageModal && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={() => setImageModal(null)}
+        >
+          <div 
+            className="bg-parchment-200 rounded-sm border-4 border-parchment-800 shadow-2xl max-w-2xl w-full p-4 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setImageModal(null)}
+              className="absolute top-2 right-2 text-ink-light hover:text-ink text-xl leading-none z-10"
+            >
+              ×
+            </button>
+            <img
+              src={imageModal.src}
+              alt={imageModal.alt}
+              className="w-full h-auto max-h-[60vh] object-contain rounded-sm mb-4"
+            />
+            <h3 className="text-2xl font-display text-ink text-center">
+              {imageModal.alt}
+            </h3>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* NPC Modal - rendered via portal */}
+      {npcModal && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setNpcModal(null)}
+        >
+          <div 
+            className="bg-parchment-200 rounded-sm border-4 border-parchment-800 shadow-2xl max-w-sm w-full p-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setNpcModal(null)}
+              className="absolute top-2 right-2 text-ink-light hover:text-ink text-xl leading-none"
+            >
+              ×
+            </button>
+            
+            {npcModal.portraitUrl && (
+              <img
+                src={npcModal.portraitUrl}
+                alt={npcModal.name}
+                className="w-32 h-32 rounded-full object-cover border-4 border-gold mx-auto mb-4 shadow-lg"
+              />
+            )}
+            
+            <h3 className="text-xl font-display text-ink text-center mb-1">
+              {npcModal.name}
+            </h3>
+            <p className="text-sm text-ink-light text-center">
+              {npcModal.role}
+            </p>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
