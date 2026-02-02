@@ -212,7 +212,7 @@ export interface MapLocation {
 export interface CodexEntry {
   id: string;
   title: string;
-  category: "Bestiary" | "Factions" | "Locations" | "History" | "Magic";
+  category: "Bestiary" | "Factions" | "Locations" | "History" | "Magic" | "Regions" | "Legends";
   text: string;
   status: "canon" | "rumor";
   tags: string[];
