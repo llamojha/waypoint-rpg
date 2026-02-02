@@ -3,15 +3,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   User,
-  Shield,
   Moon,
   Sun,
   Code,
   Map as MapIcon,
   Book,
-  Compass,
-  Bell,
-  Search,
   LogOut,
   ChevronDown,
 } from "lucide-react";
@@ -209,20 +205,6 @@ export const Header: React.FC<Props> = ({
 
       {/* Right: Actions & Profile */}
       <div className="flex items-center gap-3 relative z-10">
-        {view !== "landing" && (
-          <>
-            <button className="p-2 text-ink-light hover:text-gold transition-colors relative">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-burgundy rounded-full border border-parchment-200"></span>
-            </button>
-            <button className="p-2 text-ink-light hover:text-gold transition-colors hidden lg:block">
-              <Search size={18} />
-            </button>
-          </>
-        )}
-
-        <div className="h-6 w-px bg-parchment-400 mx-1"></div>
-
         <button
           onClick={toggleTheme}
           className="p-2 text-ink-light hover:text-gold transition-colors rounded-full hover:bg-parchment-300/50"
@@ -232,16 +214,6 @@ export const Header: React.FC<Props> = ({
 
         {view !== "landing" && (
           <>
-            <button
-              className="hidden lg:flex items-center gap-1 group px-2"
-              title="Safety Settings"
-            >
-              <Shield
-                size={14}
-                className="text-burgundy/70 group-hover:text-burgundy"
-              />
-            </button>
-
             {onTrace && (
               <button
                 onClick={onTrace}

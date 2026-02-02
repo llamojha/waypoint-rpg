@@ -11,7 +11,7 @@ import { ProfilePage } from "@/components/ProfilePage";
 import { MapPage } from "@/components/MapPage";
 import { CodexPage } from "@/components/CodexPage";
 import { Header } from "@/components/Header";
-import { GameState, Character, Turn, TurnDiff, MapLocation, CodexEntry } from "@/types";
+import { GameState, Character, Turn, TurnDiff, MapLocation, CodexEntry, NPC } from "@/types";
 import {
   INITIAL_CHARACTER,
   INITIAL_QUESTS,
@@ -74,8 +74,9 @@ export default function App() {
   // Locations state (separate from gameState for now)
   const [locations, setLocations] = useState<MapLocation[]>([]);
 
-  // Codex entries (global, shared)
+  // Codex entries and all NPCs (global, shared)
   const [codexEntries, setCodexEntries] = useState<CodexEntry[]>([]);
+  const [allNpcs, setAllNpcs] = useState<NPC[]>([]);
 
   // Apply Theme
   useEffect(() => {
@@ -247,7 +248,7 @@ export default function App() {
     }
   };
 
-  // Load codex entries (global, not per-character)
+  // Load codex entries and NPCs (global, not per-character)
   const loadCodex = async () => {
     try {
       const res = await fetch("/api/codex");
@@ -260,6 +261,9 @@ export default function App() {
 
       if (data.entries) {
         setCodexEntries(data.entries);
+      }
+      if (data.npcs) {
+        setAllNpcs(data.npcs);
       }
     } catch (err) {
       console.error("Failed to load codex:", err);
@@ -818,7 +822,7 @@ export default function App() {
           <MapPage onTravel={handleTravel} onViewLore={handleViewLore} />
         )}
 
-        {view === "codex" && <CodexPage entries={codexEntries} initialSearchTerm={codexSearchTerm} />}
+        {view === "codex" && <CodexPage entries={codexEntries} npcs={allNpcs} initialSearchTerm={codexSearchTerm} />}
 
         {view === "game" && (
           <div className="flex-1 grid grid-cols-1 md:grid-cols-[320px_1fr_320px] bg-parchment-300 h-full overflow-hidden">

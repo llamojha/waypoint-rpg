@@ -217,6 +217,7 @@ export interface CodexEntry {
   status: "canon" | "rumor";
   tags: string[];
   imageUrl?: string;
+  relatedNpcs?: Array<{ name: string; role: string; portraitUrl: string | null }>;
 }
 
 export interface Session {
