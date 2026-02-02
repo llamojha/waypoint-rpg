@@ -791,7 +791,7 @@ const Footer = ({
       {/* Signature */}
       <div className="text-xs text-center md:text-right opacity-60 font-mono">
         <div>Made with ☕ in Madrid, Spain</div>
-        <div className="mt-1">© 2025 Waypoint RPG</div>
+        <div className="mt-1">© 2026 Waypoint RPG</div>
       </div>
     </div>
   </footer>

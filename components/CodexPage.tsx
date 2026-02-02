@@ -8,6 +8,7 @@ import {
   Map,
   Users,
   Search,
+  X,
 } from "lucide-react";
 import { CodexEntry, NPC } from "@/types";
 
@@ -16,6 +17,40 @@ interface Props {
   npcs?: NPC[];
   initialSearchTerm?: string;
 }
+
+// Image modal component
+const ImageModal: React.FC<{ src: string; alt: string; onClose: () => void }> = ({ src, alt, onClose }) => (
+  <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <button onClick={onClose} className="absolute top-4 right-4 text-white hover:text-parchment-300">
+      <X size={32} />
+    </button>
+    <img src={src} alt={alt} className="max-w-full max-h-full object-contain rounded-sm" onClick={(e) => e.stopPropagation()} />
+  </div>
+);
+
+// NPC detail modal component
+const NpcModal: React.FC<{ npc: { name: string; role: string; portraitUrl?: string }; onClose: () => void }> = ({ npc, onClose }) => (
+  <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="bg-parchment-100 rounded-sm border-2 border-parchment-600 p-6 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <button onClick={onClose} className="absolute top-2 right-2 text-ink-light hover:text-ink">
+        <X size={20} />
+      </button>
+      <div className="flex flex-col items-center text-center">
+        <div className="w-24 h-24 rounded-full border-4 border-parchment-400 overflow-hidden bg-parchment-300 mb-4">
+          {npc.portraitUrl ? (
+            <img src={npc.portraitUrl} alt={npc.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-ink-faint">
+              <Users size={32} />
+            </div>
+          )}
+        </div>
+        <h3 className="text-2xl font-display text-ink mb-1">{npc.name}</h3>
+        <span className="text-sm font-serif text-ink-light">{npc.role}</span>
+      </div>
+    </div>
+  </div>
+);
 
 export const CodexPage: React.FC<Props> = ({
   entries,
@@ -26,6 +61,8 @@ export const CodexPage: React.FC<Props> = ({
   const [search, setSearch] = useState(initialSearchTerm);
   const [selectedNpc, setSelectedNpc] = useState<NPC | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<CodexEntry | null>(null);
+  const [imageModal, setImageModal] = useState<{ src: string; alt: string } | null>(null);
+  const [npcModal, setNpcModal] = useState<{ name: string; role: string; portraitUrl?: string } | null>(null);
 
   // Use provided entries, or mock data if enabled, or empty array
   const displayEntries = entries ?? (USE_MOCK_DATA ? MOCK_CODEX_ENTRIES : []);
@@ -187,13 +224,16 @@ export const CodexPage: React.FC<Props> = ({
           <div className="max-w-2xl mx-auto relative z-10 animate-fade-in space-y-6">
             {/* Entry Image */}
             {selectedEntry.imageUrl && (
-              <div className="w-full h-48 rounded-sm border-2 border-parchment-600 overflow-hidden bg-parchment-300">
+              <button
+                onClick={() => setImageModal({ src: selectedEntry.imageUrl!, alt: selectedEntry.title })}
+                className="w-full h-48 rounded-sm border-2 border-parchment-600 overflow-hidden bg-parchment-300 cursor-pointer hover:border-burgundy transition-colors"
+              >
                 <img
                   src={selectedEntry.imageUrl}
                   alt={selectedEntry.title}
                   className="w-full h-full object-cover"
                 />
-              </div>
+              </button>
             )}
 
             <div className="flex justify-between items-start border-b-2 border-parchment-800 pb-4">
@@ -226,9 +266,10 @@ export const CodexPage: React.FC<Props> = ({
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {selectedEntry.relatedNpcs.map((npc) => (
-                    <div
+                    <button
                       key={npc.name}
-                      className="flex items-center gap-3 p-2 bg-parchment-200 border border-parchment-300 rounded-sm"
+                      onClick={() => setNpcModal({ name: npc.name, role: npc.role, portraitUrl: npc.portraitUrl ?? undefined })}
+                      className="flex items-center gap-3 p-2 bg-parchment-200 border border-parchment-300 rounded-sm hover:border-burgundy hover:bg-parchment-300 transition-colors cursor-pointer text-left"
                     >
                       <div className="w-10 h-10 rounded-full border-2 border-parchment-400 overflow-hidden bg-parchment-300 shrink-0">
                         {npc.portraitUrl ? (
@@ -251,7 +292,7 @@ export const CodexPage: React.FC<Props> = ({
                           {npc.role}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -315,6 +356,10 @@ export const CodexPage: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {imageModal && <ImageModal src={imageModal.src} alt={imageModal.alt} onClose={() => setImageModal(null)} />}
+      {npcModal && <NpcModal npc={npcModal} onClose={() => setNpcModal(null)} />}
     </div>
   );
 };
