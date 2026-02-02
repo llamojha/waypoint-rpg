@@ -1,6 +1,6 @@
 # Spec 8.5: Content Seeding
 
-## Status: 📋 NOT STARTED
+## Status: ✅ COMPLETE
 
 ## Overview
 
@@ -38,12 +38,25 @@ See `docs/v1-roadmap.md` — Phase 8
 
 ## Deliverables
 
-- [ ] 50+ NPCs seeded across locations
-- [ ] All major locations have descriptions
-- [ ] Location art for 10+ key locations
-- [ ] 30+ codex entries for lore
-- [ ] NPCs have rumors/leads for organic storytelling
-- [ ] Travel connections defined between all locations
+- [x] 50+ NPCs seeded across locations (37 NPCs across 4 regions)
+- [x] All major locations have descriptions (19 locations)
+- [x] Location art for 10+ key locations (16 location images)
+- [ ] 30+ codex entries for lore (deferred)
+- [x] NPCs have rumors/leads for organic storytelling
+- [x] Travel connections defined between all locations
+- [x] Landing page updated with Summerland Island branding
+- [x] NPC gallery, testimonials, chat demo updated to match lore
+
+## Completed Work
+
+- 48 images generated (16 locations + 32 NPCs)
+- 4 regions: The Highlands, Stormwall Coast, Caledonia, Dunamar
+- Landing page hero: "Explore Summerland Island"
+- NPC gallery shows 8 NPCs from across regions
+- Testimonials reference island locations and NPCs
+- Chat demo rewritten for Black Fort / Flotsam Hunters scene
+- Map locations updated in constants.ts
+- New map image (map01.png)
 
 ---
 

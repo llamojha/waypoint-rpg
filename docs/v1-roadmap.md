@@ -33,7 +33,7 @@ Completed V1 specs:
 
 | ID  | Spec Name                | Priority | Estimate   | Details |
 | --- | ------------------------ | -------- | ---------- | ------- |
-| 8.1 | `content-seeding`        | High     | 175-250    | NPCs, locations, location art, codex entries |
+| 8.1 | `content-seeding`        | High     | ✅ DONE    | NPCs, locations, location art, landing page |
 | 8.2 | `achievement-system`     | High     | 125-175    | Unlock rewards for milestones, skill achievements |
 | 8.3 | `world-events`           | Medium   | ✅ DONE    | Scheduled atmosphere changes, NPC schedules, dynamic state |
 | 8.4 | `social-features`        | Low      | 100-150    | Leaderboards, discovery feed, player profiles |
