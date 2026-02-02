@@ -172,7 +172,7 @@ export async function runArbiter(
       continue;
     }
 
-    const codeResult = runCodeValidation(proposal, codeCtx);
+    const codeResult = await runCodeValidation(proposal, codeCtx);
 
     if (!codeResult.valid) {
       results.push({ proposal, approved: false, reason: codeResult.reason || "Failed validation" });
@@ -215,7 +215,13 @@ export function proposalsToEvents(proposals: ProposalResult[]): Array<{
         case "propose_npc_discovered":
           return { type: "relationship_change", npc: p.data.name, delta: 0, reason: `Met ${p.data.name} (${p.data.role}) at ${p.data.location}` };
         case "propose_location_change":
-          return { type: "location_change", location: p.data.location, reason: p.data.reason };
+          return { 
+            type: "location_change", 
+            location: p.data.location, 
+            reason: p.data.reason,
+            path: p.data.path,
+            totalTravelTime: p.data.totalTravelTime,
+          };
         case "propose_combat_damage":
           return { type: "combat_damage", target: p.data.target, damage: p.data.damage, reason: p.data.reason };
         case "propose_combat_start":

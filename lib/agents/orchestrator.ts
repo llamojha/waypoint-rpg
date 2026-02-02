@@ -47,7 +47,8 @@ function buildOrchestratorPrompt(
   recentTurns: Turn[],
   questContext?: QuestContext,
   actionType?: ActionType,
-  allowedToolNames?: string[]
+  allowedToolNames?: string[],
+  knownNpcNames?: Set<string>
 ): string {
   const characterStr = JSON.stringify({
     name: character.name,
@@ -95,10 +96,23 @@ function buildOrchestratorPrompt(
     }
   }
 
-  // Format entities (NPCs present)
-  const entitiesStr = world.entities?.length > 0
-    ? `\n## NPCs Present at ${world.poi} (ONLY these NPCs can be interacted with)\n${world.entities.map(e => `- ${e}`).join("\n")}\n\nCRITICAL: You can ONLY propose relationship changes or interactions with NPCs listed above. Do NOT reference or interact with NPCs not in this list - they are not at this location.`
-    : "\n## NPCs Present\nNone - no NPCs at this location to interact with.";
+  // Format entities (NPCs present) with known/new status
+  let entitiesStr = "";
+  if (world.entities?.length > 0) {
+    const npcLines = world.entities.map(e => {
+      const isKnown = knownNpcNames?.has(e);
+      return `- ${e}${isKnown ? "" : " (NEW - not yet met)"}`;
+    });
+    entitiesStr = `\n## NPCs Present at ${world.poi}
+${npcLines.join("\n")}
+
+CRITICAL: 
+- You can ONLY interact with NPCs listed above.
+- For NPCs marked "(NEW - not yet met)": Use propose_npc_discovered when player first interacts with them.
+- For NPCs already known: Use propose_relationship_change for meaningful interactions.`;
+  } else {
+    entitiesStr = "\n## NPCs Present\nNone - no NPCs at this location to interact with.";
+  }
 
   // Format active combat info
   const combatStr = world.activeCombat
@@ -337,13 +351,14 @@ export async function runOrchestrator(
   detectedIntent?: string,
   questContext?: QuestContext,
   allowedProposalTools?: FunctionDeclaration[],
-  actionType?: ActionType
+  actionType?: ActionType,
+  knownNpcNames?: Set<string>
 ): Promise<OrchestratorOutput> {
   // Get allowed tool names for prompt context
   const allowedToolNames = allowedProposalTools?.map(t => t.name).filter((n): n is string => !!n);
   
   const systemPrompt = buildOrchestratorPrompt(
-    character, world, recentTurns, questContext, actionType, allowedToolNames
+    character, world, recentTurns, questContext, actionType, allowedToolNames, knownNpcNames
   );
   
   // Build user message with intent and optional roll outcome

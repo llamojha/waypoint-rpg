@@ -298,6 +298,10 @@ export interface ProposeNpcDiscoveredResult {
 export interface ProposeLocationChangeResult {
   location: string;
   reason: string;
+  /** Multi-hop path (added by Arbiter for distant destinations) */
+  path?: string[];
+  /** Total travel time in phases (added by Arbiter for multi-hop) */
+  totalTravelTime?: number;
 }
 
 export interface ProposeQuestStartResult {

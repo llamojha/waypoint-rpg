@@ -343,6 +343,7 @@ function applyQuestProgress(
 
 /**
  * Handles location_change events
+ * Supports multi-hop travel: if path is provided, records all intermediate locations
  * Note: Full location data (description, imageUrl, entities, nearbyPoi) is looked up
  * from the database in the API route after applyEvents returns.
  */
@@ -352,13 +353,29 @@ function applyLocationChange(
   worldUpdates: Partial<WorldContext>,
   diffs: TurnDiff[]
 ): void {
+  // Final destination
   worldUpdates.poi = event.location;
 
-  diffs.push({
-    type: "world",
-    text: "Location",
-    value: event.location,
-  });
+  // If multi-hop path, show the journey
+  if (event.path && event.path.length > 2) {
+    // path includes start, so intermediate stops are path[1] to path[length-2]
+    const intermediateStops = event.path.slice(1, -1);
+    const journeyText = intermediateStops.length > 0
+      ? `via ${intermediateStops.join(" → ")}`
+      : "";
+    
+    diffs.push({
+      type: "world",
+      text: "Traveled",
+      value: `${event.location}${journeyText ? ` (${journeyText})` : ""}`,
+    });
+  } else {
+    diffs.push({
+      type: "world",
+      text: "Location",
+      value: event.location,
+    });
+  }
 }
 
 /**

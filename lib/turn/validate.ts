@@ -104,6 +104,10 @@ export interface LocationChangeEvent extends BaseProposedEvent {
   type: "location_change";
   location: string;
   entities?: string[];
+  /** Multi-hop path (if traveling through intermediate locations) */
+  path?: string[];
+  /** Total travel time in phases (for multi-hop) */
+  totalTravelTime?: number;
 }
 
 /**

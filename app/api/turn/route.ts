@@ -334,7 +334,14 @@ export async function POST(request: NextRequest) {
     // Check if time should advance based on turn count and action type
     const turnCount = recentTurns.length + 1; // Include this turn
     const currentTime: GameTime = { day: world.time.day, phase: world.time.phase as GameTime["phase"] };
-    const newTime = calculateTimeAdvancement(currentTime, turnCount, intent.action_type, playerAction);
+    
+    // Check for multi-hop travel time override
+    const locationChangeEvent = pipelineResult.approvedEvents?.find(
+      (e: { type: string; totalTravelTime?: number }) => e.type === "location_change" && e.totalTravelTime
+    );
+    const travelTimeOverride = locationChangeEvent?.totalTravelTime;
+    
+    const newTime = calculateTimeAdvancement(currentTime, turnCount, intent.action_type, playerAction, travelTimeOverride);
     
     if (newTime) {
       // Update world state with new time

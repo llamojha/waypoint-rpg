@@ -21,6 +21,8 @@ export function isGeminiQAEnabled(): boolean {
 export const TEST_CONFIG = {
   /** Timeout for LLM calls (ms) */
   turnTimeout: 60_000,
+  /** Timeout for test setup (ms) */
+  setupTimeout: 30_000,
   /** Default test character name */
   characterName: "Test Hero",
   /** Default test character gender */

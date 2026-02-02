@@ -71,21 +71,23 @@ export function isRestAction(playerAction: string): boolean {
  * @param turnCount - Total turns played by this character
  * @param actionType - Type of action from Rune Marshal
  * @param playerAction - Raw player input (for rest detection)
+ * @param travelTimeOverride - Optional override for multi-hop travel time
  * @returns Number of phases to advance (0 if no advancement)
  */
 export function shouldAdvanceTime(
   turnCount: number,
   actionType: ActionType,
-  playerAction: string
+  playerAction: string,
+  travelTimeOverride?: number
 ): number {
   // Rest action: +2 phases
   if (isRestAction(playerAction)) {
     return 2;
   }
   
-  // Travel action: +1 phase
+  // Travel action: use override if provided (multi-hop), otherwise +1 phase
   if (TIME_ADVANCING_ACTIONS.includes(actionType)) {
-    return 1;
+    return travelTimeOverride ?? 1;
   }
   
   // Every 5 turns: +1 phase
@@ -104,9 +106,10 @@ export function calculateTimeAdvancement(
   currentTime: GameTime,
   turnCount: number,
   actionType: ActionType,
-  playerAction: string
+  playerAction: string,
+  travelTimeOverride?: number
 ): GameTime | null {
-  const phasesToAdvance = shouldAdvanceTime(turnCount, actionType, playerAction);
+  const phasesToAdvance = shouldAdvanceTime(turnCount, actionType, playerAction, travelTimeOverride);
   
   if (phasesToAdvance === 0) {
     return null;

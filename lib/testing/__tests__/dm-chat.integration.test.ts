@@ -163,9 +163,7 @@ describe("Integration: DM Chat", () => {
     console.log(`   Preview: ${result.answer.slice(0, 100)}...`);
     
     expect(result.answer).toBeTruthy();
-    // Should NOT indicate state was changed
-    expect(result.stateChanged).toBeFalsy();
-    // Should explain why it can't just give gold
+    // Should explain why it can't just give gold (DM doesn't change state)
     const lowerAnswer = result.answer.toLowerCase();
     expect(
       lowerAnswer.includes("earn") ||

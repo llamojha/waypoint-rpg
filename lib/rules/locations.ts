@@ -123,3 +123,86 @@ export async function getLocationConstraints(
         : "No valid travel destinations",
   };
 }
+
+/**
+ * Path result from findPath
+ */
+export interface PathResult {
+  found: boolean;
+  path: string[];           // Full path including start and end
+  totalTravelTime: number;  // Sum of all travel times
+}
+
+/**
+ * Find shortest path between two locations using BFS
+ * Returns the path and total travel time
+ */
+export async function findPath(
+  from: string,
+  to: string,
+  character: CharacterForTravel,
+  npcRelationships?: Record<string, number>
+): Promise<PathResult> {
+  const connections = await getLocationConnectionRules();
+  const fromLower = from.toLowerCase();
+  const toLower = to.toLowerCase();
+
+  // Check if already at destination
+  if (fromLower === toLower) {
+    return { found: true, path: [from], totalTravelTime: 0 };
+  }
+
+  // Build adjacency map with travel times
+  const adjacency = new Map<string, Array<{ to: string; travelTime: number }>>();
+  for (const conn of connections) {
+    const fromKey = conn.fromLocation.toLowerCase();
+    if (!adjacency.has(fromKey)) {
+      adjacency.set(fromKey, []);
+    }
+    adjacency.get(fromKey)!.push({
+      to: conn.toLocation,
+      travelTime: conn.travelTime ?? 1,
+    });
+  }
+
+  // BFS to find shortest path
+  const queue: Array<{ location: string; path: string[]; time: number }> = [
+    { location: fromLower, path: [from], time: 0 }
+  ];
+  const visited = new Set<string>([fromLower]);
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const neighbors = adjacency.get(current.location) || [];
+
+    for (const neighbor of neighbors) {
+      const neighborLower = neighbor.to.toLowerCase();
+      
+      if (visited.has(neighborLower)) continue;
+
+      // Check if we can travel to this neighbor
+      const canTravel = await canTravelTo(
+        current.path[current.path.length - 1],
+        neighbor.to,
+        character,
+        npcRelationships
+      );
+
+      if (!canTravel.valid) continue;
+
+      const newPath = [...current.path, neighbor.to];
+      const newTime = current.time + neighbor.travelTime;
+
+      // Found destination
+      if (neighborLower === toLower) {
+        return { found: true, path: newPath, totalTravelTime: newTime };
+      }
+
+      visited.add(neighborLower);
+      queue.push({ location: neighborLower, path: newPath, time: newTime });
+    }
+  }
+
+  // No path found
+  return { found: false, path: [], totalTravelTime: 0 };
+}

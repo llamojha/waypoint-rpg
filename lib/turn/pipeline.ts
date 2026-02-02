@@ -93,6 +93,8 @@ export interface PipelineOutput {
   traces: AgentTrace[];
   characterUpdates: Partial<Character>;
   worldUpdates: Partial<WorldContext>;
+  /** Approved events (for extracting travel time, etc.) */
+  approvedEvents?: Array<{ type: string; totalTravelTime?: number; [key: string]: unknown }>;
 }
 
 /**
@@ -263,7 +265,8 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
       rejectionContext,
       questContext,
       allowedProposalTools,
-      actionType
+      actionType,
+      knownNpcNames
     );
     proposals = orchestratorResult.proposals;
 
@@ -452,7 +455,40 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
   }
 
   // === COLLECTOR: Second pass ===
-  const chroniclerContext = buildChroniclerContext(collected, applyResult);
+  let chroniclerContext = buildChroniclerContext(collected, applyResult);
+
+  // If location changed, re-fetch NPCs and atmosphere for the NEW location
+  if (locationChanged && applyResult.worldUpdates.poi) {
+    const { getNpcsAtLocation, getLocationDetails, getNpcVoice, getAtmosphere } = await import("@/lib/agents/lorekeeper/handlers");
+    const newLocation = applyResult.worldUpdates.poi;
+    const newRegion = applyResult.worldUpdates.region || world.region;
+    
+    const [newNpcs, newLocationDetails] = await Promise.all([
+      getNpcsAtLocation(newLocation, newRegion),
+      getLocationDetails(newLocation, newRegion),
+    ]);
+    
+    // Fetch voices for new NPCs
+    const newVoices = [];
+    for (const npc of newNpcs) {
+      const voice = await getNpcVoice(npc.name, newRegion);
+      if (voice) newVoices.push(voice);
+    }
+    
+    // Get atmosphere for new location
+    const newAtmosphere = newLocationDetails
+      ? getAtmosphere(newLocationDetails.type, world.time.phase, world.weather)
+      : null;
+    
+    // Update chronicler context with new location data
+    chroniclerContext = {
+      ...chroniclerContext,
+      npcsPresent: newNpcs,
+      locationDetails: newLocationDetails,
+      npcVoices: newVoices,
+      atmosphere: newAtmosphere,
+    };
+  }
 
   // === CHRONICLER ===
   const chroniclerStart = Date.now();
@@ -595,6 +631,7 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     traces,
     characterUpdates,
     worldUpdates: enrichedWorldUpdates,
+    approvedEvents,
   };
 }
 

@@ -2,6 +2,7 @@ import type { Character, WorldContext } from "@/types";
 import type { ProposalResult } from "../tools/proposal-tools";
 import { ITEM_BOUNDS, GOLD_BOUNDS } from "@/constants";
 import type { QuestGoalType } from "@/lib/rules/types";
+import { findPath } from "@/lib/rules/locations";
 
 export interface ValidationResult {
   valid: boolean;
@@ -614,13 +615,13 @@ function getRequiredEventForGoalType(goalType: QuestGoalType): string {
 }
 
 /**
- * Validate location change: only allow travel to known POIs from nearbyPoi list
- * No invented sub-locations allowed
+ * Validate location change: allow travel to any reachable location via pathfinding
+ * If destination is not directly adjacent, find path and modify proposal to include route
  */
-function validateLocationChange(
+async function validateLocationChange(
   proposal: ProposalResult,
   ctx: CodeValidationContext
-): ValidationResult {
+): Promise<ValidationResult> {
   if (proposal.type !== "propose_location_change") return { valid: true };
 
   const { location } = proposal.data;
@@ -635,19 +636,41 @@ function validateLocationChange(
     };
   }
 
-  // Location must be in valid list (nearbyPoi or current poi)
-  const isKnownPoi = ctx.validLocations.some(
+  // Check if directly adjacent (in validLocations)
+  const isDirectlyReachable = ctx.validLocations.some(
     loc => loc.toLowerCase() === locationLower
   );
 
-  if (!isKnownPoi) {
+  if (isDirectlyReachable) {
+    return { valid: true };
+  }
+
+  // Not directly reachable - try pathfinding
+  const pathResult = await findPath(
+    ctx.world.poi,
+    location,
+    { inventory: ctx.character.inventory, questsCompleted: [] }
+  );
+
+  if (!pathResult.found) {
     return {
       valid: false,
-      reason: `"${location}" is not a known location. Valid: ${ctx.validLocations.join(", ")}`,
+      reason: `"${location}" is not reachable from "${ctx.world.poi}". Valid nearby: ${ctx.validLocations.join(", ")}`,
     };
   }
 
-  return { valid: true };
+  // Path found! Modify proposal to include the full path
+  return {
+    valid: true,
+    modified: {
+      ...proposal,
+      data: {
+        ...proposal.data,
+        path: pathResult.path,
+        totalTravelTime: pathResult.totalTravelTime,
+      },
+    },
+  };
 }
 
 /**
@@ -726,10 +749,10 @@ function validateInventoryRemoveContext(
 /**
  * Run all code validations on a proposal
  */
-export function runCodeValidation(
+export async function runCodeValidation(
   proposal: ProposalResult,
   ctx: CodeValidationContext
-): ValidationResult {
+): Promise<ValidationResult> {
   // Skip detect_intent - it's not a state change
   if (proposal.type === "detect_intent") {
     return { valid: true };
@@ -745,7 +768,6 @@ export function runCodeValidation(
     () => validateInventoryAddContext(proposal, ctx),
     () => validateQuestStart(proposal, ctx),
     () => validateQuestProgression(proposal, ctx),
-    () => validateLocationChange(proposal, ctx),
     () => validateInventoryRemove(proposal, ctx),
     () => validateInventoryRemoveContext(proposal, ctx),
   ];
@@ -755,6 +777,12 @@ export function runCodeValidation(
     if (!result.valid || result.modified) {
       return result;
     }
+  }
+
+  // Async validators (pathfinding)
+  const locationResult = await validateLocationChange(proposal, ctx);
+  if (!locationResult.valid || locationResult.modified) {
+    return locationResult;
   }
 
   return { valid: true };
@@ -799,23 +827,28 @@ function validateNoConflictingProposals(
 /**
  * Run code validation on all proposals
  */
-export function validateProposalsWithCode(
+export async function validateProposalsWithCode(
   proposals: ProposalResult[],
   ctx: CodeValidationContext
-): Array<{ proposal: ProposalResult; result: ValidationResult }> {
+): Promise<Array<{ proposal: ProposalResult; result: ValidationResult }>> {
   // First check for conflicting proposals (e.g., multiple location changes)
   const conflictResults = validateNoConflictingProposals(proposals);
   
   // Then run individual validation on proposals that passed conflict check
-  return conflictResults.map(({ proposal, result }) => {
+  const results: Array<{ proposal: ProposalResult; result: ValidationResult }> = [];
+  
+  for (const { proposal, result } of conflictResults) {
     // If already rejected by conflict check, keep that result
     if (!result.valid) {
-      return { proposal, result };
+      results.push({ proposal, result });
+    } else {
+      // Otherwise run individual validation
+      results.push({
+        proposal,
+        result: await runCodeValidation(proposal, ctx),
+      });
     }
-    // Otherwise run individual validation
-    return {
-      proposal,
-      result: runCodeValidation(proposal, ctx),
-    };
-  });
+  }
+  
+  return results;
 }
