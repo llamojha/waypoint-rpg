@@ -117,7 +117,7 @@ const Hero = ({ onStart, isWaitlist }: { onStart: () => void; isWaitlist: boolea
     ></div>
     <div className="relative z-20 max-w-5xl mx-auto">
       <h1 className="text-6xl md:text-8xl font-display text-ink mb-6 text-shadow">
-        Your World. <span className="text-burgundy">Your Rules.</span>
+        Explore <span className="text-burgundy">Summerland Island.</span>
       </h1>
 
       <h2 className="text-2xl md:text-3xl font-serif text-ink-light mb-6">
@@ -187,16 +187,20 @@ const PromiseChip = ({ text }: { text: string }) => (
    4. Character Gallery
 ------------------------------------------------------------------------- */
 const AvatarGrid = () => {
-  // Using CSS filters to make the same SVG look different for the mock
+  // NPCs from across the island - 2 from each region
   const avatars = [
-    { name: "Tracker", src: "/avatar_tracker.png" },
-    { name: "Duelist", src: "/avatar_duelist.png" },
-    { name: "Diplomat", src: "/avatar_diplomat.png" },
-    { name: "Smuggler", src: "/avatar_smuggler.png" },
-    { name: "Apothecary", src: "/avatar_apothecary.png" },
-    { name: "Beast-Tamer", src: "/avatar_beast_tamer.png" },
-    { name: "Relic-Hunter", src: "/avatar_relic_hunter.png" },
-    { name: "Warden", src: "/avatar_warden.png" },
+    // The Highlands
+    { name: "Lucie", src: "/npc_lucie.png" },
+    { name: "Aran", src: "/npc_aran.png" },
+    // Stormwall Coast
+    { name: "Domhnall", src: "/npc_domhnall.png" },
+    { name: "Morag", src: "/npc_morag.png" },
+    // Caledonia
+    { name: "Élodie", src: "/npc_elodie.png" },
+    { name: "Gaspard", src: "/npc_gaspard.png" },
+    // Dunamar
+    { name: "Pedro", src: "/npc_pedro.png" },
+    { name: "Celia", src: "/npc_celia.png" },
   ];
 
   return (
@@ -221,7 +225,7 @@ const AvatarGrid = () => {
         ))}
       </div>
       <p className="text-center font-serif text-xl text-ink italic mb-2">
-        "Rob an innkeeper. Befriend a dragon. Found a guild. You aren’t locked
+        "Salvage shipwrecks. Charm a baroness. Explore forgotten caves. You aren’t locked
         into a class, you become what you practice."
       </p>
       <p className="text-center text-xs font-bold font-small-caps text-ink-light uppercase tracking-widest opacity-70">
@@ -238,55 +242,55 @@ const AvatarGrid = () => {
 const Testimonials = () => {
   const reviews = [
     {
-      text: "We started as nobodies. Three sessions later we founded a trade route and the prices changed.",
+      text: "I spent three sessions earning Domhnall's trust. Now the flotsam hunters share their salvage routes with me.",
       author: "Sarah J.",
       color: "border-burgundy",
       img: "/reviewer_1_v2.png",
     },
     {
-      text: "The world actually remembered my bad reputation. I got denied at the gate. Brutal. Perfect.",
+      text: "Baroness Solène remembered I insulted her at the market. The guards 'escorted' me out of Caledonia.",
       author: "Mike R.",
       color: "border-forest",
       img: "/reviewer_2_v2.png",
     },
     {
-      text: "We chased a rumor for two nights… and it became a real Codex entry when we proved it.",
+      text: "We followed rumors about the Black Fort for two nights… and uncovered what really happened there.",
       author: "Sam W.",
       color: "border-gold",
       img: "/reviewer_3_v2.png",
     },
     {
-      text: "Magic showed up once. It was terrifying. Everyone cared. It felt legendary.",
+      text: "Found Aris deep in La Cueva. The things he knows about the island... it changes everything.",
       author: "Lina P.",
       color: "border-ink",
       img: "/reviewer_4_v2.png",
     },
     {
-      text: "The system handled my attempt to forge a treaty with goblins flawlessly.",
+      text: "Crossed the Howling-Spine in a storm. Lost my best gear but the scholars at Forel took me in.",
       author: "Casey B.",
       color: "border-burgundy-dim",
       img: "/reviewer_5_v2.png",
     },
     {
-      text: "No prep needed. I just logged in and the world was there, waiting.",
+      text: "No prep needed. I just arrived at the Waystone and the island was there, waiting.",
       author: "Jordan P.",
       color: "border-forest-dim",
       img: "/reviewer_6_v2.png",
     },
     {
-      text: "I've never seen an RPG track relationships this deeply before.",
+      text: "Morag at the Flotsam Hold still won't serve me. That bar fight was three sessions ago.",
       author: "Devin K.",
       color: "border-gold-dim",
       img: "/reviewer_7_v2.png",
     },
     {
-      text: "My character isn't a Fighter, she's a Duelist-Poet. The skills reflect that perfectly.",
+      text: "Started as a trader, now I'm known across Dunamar as a tracker. The skills reflect how I actually play.",
       author: "Riley M.",
       color: "border-ink",
       img: "/reviewer_8_v2.png",
     },
     {
-      text: "Finally, consequences that stick. I'm still paying for that mistake in the tavern.",
+      text: "Héctor's songs spread my reputation faster than I could travel. Now everyone in Caleta knows my name.",
       author: "Alex T.",
       color: "border-forest",
       img: "/reviewer_9_v2.png",
@@ -445,7 +449,7 @@ const ChatDemo = () => (
             Current Chapter
           </span>
           <h2 className="font-display text-2xl text-ink leading-none">
-            The Watchtower of Ashlight
+            The Black Fort Ruins
           </h2>
         </div>
         <div className="text-xs font-serif italic opacity-50">Story Mode</div>
@@ -467,8 +471,7 @@ const ChatDemo = () => (
             <span className="font-display text-xl flex items-center gap-2"><span className="translate-y-[7px]">~</span><span>⚜</span><span className="translate-y-[7px]">~</span></span>
           </div>
           <div className="narration-text text-ink text-justify relative z-10 drop-cap">
-            Wind moans through the broken arrow slits. A lone lantern burns on
-            the stairwell. Fresh oil, fresh wick.
+            Wind howls through the crumbling battlements. Ravens scatter from the collapsed tower. Fresh bootprints in the mud lead inside.
             <br />
             Someone’s here.
           </div>
@@ -556,14 +559,14 @@ const ChatDemo = () => (
               <span className="uppercase text-ink-light tracking-wide">
                 CODEX:
               </span>
-              <span className="text-ink">Ashlight Watchtower (Occupied)</span>
+              <span className="text-ink">Black Fort Ruins (Occupied)</span>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] font-bold font-sans">
               <Users size={12} className="text-burgundy" />
               <span className="uppercase text-ink-light tracking-wide">
                 NEW CONTACT:
               </span>
-              <span className="text-ink">Warden Mara (Suspicious)</span>
+              <span className="text-ink">Finlay (Suspicious)</span>
             </div>
           </div>
         </div>
@@ -607,21 +610,21 @@ const ChatDemo = () => (
               <span className="uppercase text-ink-light tracking-wide">
                 STATE:
               </span>
-              <span className="text-ink">Watchtower Alert</span>
+              <span className="text-ink">Negotiation Open</span>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] font-bold font-sans">
               <BookOpen size={12} className="text-gold" />
               <span className="uppercase text-ink-light tracking-wide">
                 CODEX:
               </span>
-              <span className="text-ink">Courier's Seal</span>
+              <span className="text-ink">Flotsam Hunters</span>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] font-bold font-sans">
               <Users size={12} className="text-burgundy" />
               <span className="uppercase text-ink-light tracking-wide">
                 RELATIONSHIP:
               </span>
-              <span className="text-ink">Warden Mara (-1)</span>
+              <span className="text-ink">Finlay (-1)</span>
             </div>
           </div>
         </div>
@@ -631,10 +634,10 @@ const ChatDemo = () => (
       <div className="bg-gradient-to-t from-parchment-200 via-parchment-200 to-transparent pt-8 pb-6 px-8 relative z-10">
         <div className="flex justify-center gap-3 mb-4 opacity-60">
           <span className="text-[10px] text-ink-light border border-parchment-400 px-2 py-0.5 rounded-full bg-parchment-100">
-            Show her the seal (Inventory)
+            Offer to help with salvage
           </span>
           <span className="text-[10px] text-ink-light border border-parchment-400 px-2 py-0.5 rounded-full bg-parchment-100">
-            Prepare to fight (Initiative)
+            Ask about Domhnall
           </span>
         </div>
 

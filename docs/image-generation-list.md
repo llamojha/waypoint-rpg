@@ -10,39 +10,22 @@ Images needed for Summerland Island content. Style: Fantasy watercolor, consiste
 
 | Name | File | Description |
 |------|------|-------------|
-| The Needleback | `public/location_needleback.png` | A rugged mountain rising from highland prairie, its jagged peak resembling a needle against a cloudy sky. Sheep farms dot the lower slopes with small stone cottages. Rolling green hills in foreground. |
-
-*Existing: The Waystone (`location_waypoint.png`), Nomante Outpost (`location_outpost.png`), Highlands Wilderness (`location_wilderness.png`)*
-
-### Stormwall Coast
-
-| Name | File | Description |
-|------|------|-------------|
-| Stormwall Coast Wilderness | `public/location_stormwall_wilderness.png` | Harsh coastal terrain with exposed grey rock and wind-battered grass. Glacio-karst landscape with dramatic cliffs. Stormy sky, crashing waves visible in distance. Desolate and windswept. |
-| Black Fort Ruins | `public/location_black_fort.png` | Crumbling dark stone walls and collapsed towers on a coastal cliff. Ancient fortification overgrown with moss. Ominous atmosphere, grey sky, ravens circling. |
-| Storm Beach | `public/location_storm_beach.png` | Boulder-strewn beach with massive rocks deposited by violent storms. Rough grey sea, dramatic waves. Small fishing boats pulled up on shore. Overcast sky. |
-| Brecan Hills | `public/location_brecan_hills.png` | Isolated windswept hills overlooking a stormy coast. Sparse vegetation, exposed rock. A solitary stone cottage visible in distance. Moody, atmospheric. |
-| The Flotsam Hold | `public/location_flotsam_hold.png` | A sturdy tavern built from salvaged ship timbers and driftwood. Weathered wood exterior, rope details, ship's wheel on wall. Warm light from windows. Coastal setting. |
-
-### Caledonia
-
-| Name | File | Description |
-|------|------|-------------|
-| Caledonia Wilderness | `public/location_caledonia_wilderness.png` | Coastal wilderness with rolling green hills and scattered groves. Salt air atmosphere, wildflowers in meadows. Gentle terrain, pastoral feel. Distant sea visible. |
-| Caledonia City | `public/location_caledonia_city.png` | Bustling port city with ships crowding the harbor. Stone buildings, market squares with colorful awnings. Mediterranean feel. Busy docks, merchants, seagulls. |
-| The Windmill | `public/location_windmill.png` | Tall stone windmill on a hill overlooking golden wheat fields. Great wooden sails turning in coastal breeze. Blue sky, pastoral countryside. |
-| The Howling-Spine | `public/location_howling_spine.png` | Narrow rocky isthmus connecting mainland to a distant spur. Constant wind visualized with bent grass and flying debris. Dramatic, exposed, treacherous path. |
-| Forel | `public/location_forel.png` | Small scholar camp at the end of an isthmus. Tents and temporary structures near ancient stone ruins. Isolated, academic atmosphere. Books and artifacts visible. |
-
-### Dunamar
-
-| Name | File | Description |
-|------|------|-------------|
-| Dunamar Wilderness | `public/location_dunamar_wilderness.png` | Arid terrain with dry bushes and cracked earth. Harsh sun, heat shimmer. Sparse vegetation, rocky outcrops. Desert-like landscape. |
-| Caleta de Pedro | `public/location_caleta_pedro.png` | Small coastal settlement around a sheltered cove. Simple whitewashed buildings with terracotta roofs. Fishing boats in calm turquoise water. Mediterranean/Canarian style. |
-| Arenales del Sur | `public/location_arenales.png` | Massive golden sand dunes stretching to horizon. Shapes shifting in desert wind. Dramatic shadows, endless expanse. A lone figure for scale. |
-| Lomas del Sol | `public/location_lomas_sol.png` | Sun-baked arid hills with scrubland vegetation. Hunters' territory. Harsh sunlight, dry grass, rocky terrain. Distant mountains. |
-| La Cueva de Aris | `public/location_cueva_aris.png` | Deep cave entrance carved into a hillside. Dark opening with hints of depth. Mysterious atmosphere, ancient feel. Faint glow from within. |
+| The Needleback | `public/location_needleback.png` | DONE |
+| Stormwall Coast Wilderness | `public/location_stormwall_wilderness.png` | DONE |
+| Black Fort Ruins | `public/location_black_fort.png` | DONE |
+| Storm Beach | `public/location_storm_beach.png` | DONE |
+| Brecan Hills | `public/location_brecan_hills.png` | DONE |
+| The Flotsam Hold | `public/location_flotsam_hold.png` | DONE |
+| Caledonia Wilderness | `public/location_caledonia_wilderness.png` | DONE |
+| Caledonia City | `public/location_caledonia_city.png` | DONE |
+| The Windmill | `public/location_windmill.png` | DONE |
+| The Howling-Spine | `public/location_howling_spine.png` | DONE |
+| Forel | `public/location_forel.png` | DONE |
+| Dunamar Wilderness | `public/location_dunamar_wilderness.png` | DONE |
+| Caleta de Pedro | `public/location_caleta_pedro.png` | DONE |
+| Arenales del Sur | `public/location_arenales.png` | DONE |
+| Lomas del Sol | `public/location_lomas_sol.png` | DONE |
+| La Cueva de Aris | `public/location_cueva_aris.png` | DONE |
 
 ---
 
@@ -52,22 +35,15 @@ Images needed for Summerland Island content. Style: Fantasy watercolor, consiste
 
 | Name | Role | File | Description |
 |------|------|------|-------------|
-| Dave | Sheep Farmer | `public/npc_dave.png` | Middle-aged man with weathered face, practical clothing. Shepherd's crook, wool cap. Content expression, observant eyes. Simple farmer attire. |
-
-*Existing: Lucie (`npc_lenna.png` - rename to `npc_lucie.png`), Aran (`npc_aran.png`), Adrian (`npc_adrian.png`), Helga (`npc_helga.png`), The Wanderer (`npc_wanderer.png`)*
-
-### Stormwall Coast (8 needed)
-
-| Name | Role | File | Description |
-|------|------|------|-------------|
-| Domhnall | Flotsam Hunter Leader | `public/npc_domhnall.png` | Weathered man in his 50s with calm authority. Sea-worn clothing, rope belt. Grey beard, steady gaze. Respected leader presence. |
-| Finlay | Second-in-Command | `public/npc_finlay.png` | Suspicious-looking man, blunt features. Arms crossed, guarded posture. Loyal but wary of strangers. Practical coastal attire. |
-| Morag | Tavern Owner | `public/npc_morag.png` | Hard-eyed woman, strict demeanor. Apron over sturdy dress. Tests newcomers with her gaze. Protective of her establishment. |
-| Eoin | Waitress | `public/npc_eoin.png` | Quick-moving young woman, warm smile for regulars. Serving tray, practical dress. Sharp eyes that collect secrets. |
-| Ian | Newbie Flotsam Hunter | `public/npc_ian.png` | Eager young man, nervous energy. New equipment, talks too much. Enthusiastic but inexperienced. |
-| Ciaran | Flotsam Hunter | `public/npc_ciaran.png` | Charming when useful, guarded otherwise. Dreams of leaving visible in distant gaze. Opportunistic smile. |
-| Dougal | Fisherman | `public/npc_dougal.png` | Chronically annoyed older fisherman. Superstitious trinkets on belt. Stubborn jaw, weathered hands. Complains but reliable. |
-| Ronan | Former Fighter | `public/npc_ronan.png` | Formal, theatrical man in full worn armor. Storyteller's dramatic gestures. Noble bearing despite isolation. |
+| Dave | Sheep Farmer | `public/npc_dave.png` | DONE |
+| Domhnall | Flotsam Hunter Leader | `public/npc_domhnall.png` | DONE |
+| Finlay | Second-in-Command | `public/npc_finlay.png` | DONE |
+| Morag | Tavern Owner | `public/npc_morag.png` | DONE |
+| Eoin | Waitress | `public/npc_eoin.png` | DONE |
+| Ian | Newbie Flotsam Hunter | `public/npc_ian.png` | DONE |
+| Ciaran | Flotsam Hunter | `public/npc_ciaran.png` | DONE |
+| Dougal | Fisherman | `public/npc_dougal.png` | DONE |
+| Ronan | Former Fighter | `public/npc_ronan.png` | DONE |
 
 ### Caledonia (15 needed)
 
