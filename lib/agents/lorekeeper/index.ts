@@ -74,6 +74,7 @@ Analyze the player's action and identify any keywords that might have relevant l
 - Creature types mentioned or implied
 - Historical references
 - Items or artifacts
+- Geographic questions (regions, locations, the island)
 
 If the action mentions or implies something that might have lore, call search_codex with relevant keywords.
 If the action is mundane (walking, resting, simple conversation), you may skip the search.
@@ -96,7 +97,11 @@ Good output: search_codex({ keywords: ["ruins", "ancient", world.poi], limit: 3 
 
 ### Example 4: Mundane action (NO search needed)
 Player: "I sit down and rest"
-Good output: (no search_codex call - action is mundane)`;
+Good output: (no search_codex call - action is mundane)
+
+### Example 5: Geographic/world questions
+Player: "What other regions are there?"
+Good output: search_codex({ keywords: ["region", "Summerland", "island"], limit: 5 })`;
 }
 
 /**

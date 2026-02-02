@@ -203,10 +203,14 @@ function formatCodexSnippets(snippets: CodexEntry[]): string {
   ).join("\n");
 
   return `
-RELEVANT LORE:
+RELEVANT LORE (CANONICAL):
 ${formatted}
 
-Use this lore to enrich your narration where appropriate. Don't force it if not relevant.
+CRITICAL: This lore is CANONICAL - it is the authoritative source of truth for this world.
+- When NPCs share knowledge about locations, regions, factions, or history, they MUST use information from this lore.
+- Do NOT invent new locations, regions, or world facts that contradict or go beyond this lore.
+- If the player asks about something not covered in the lore, the NPC should say they don't know or are uncertain.
+- Use this lore naturally in dialogue - NPCs can paraphrase or add personality, but the facts must match.
 `;
 }
 

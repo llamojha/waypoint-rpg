@@ -525,8 +525,14 @@ const DiffBadge: React.FC<{ diff: TurnDiff }> = ({ diff }) => {
     switch (diff.type) {
       case "npc":
         return { icon: Users, color: "text-burgundy", label: "NEW CONTACT" };
-      case "relationship":
-        return { icon: Users, color: "text-burgundy", label: "RELATIONSHIP" };
+      case "relationship": {
+        const isPositive = typeof diff.value === "string" && diff.value.startsWith("+");
+        return { 
+          icon: Users, 
+          color: isPositive ? "text-forest" : "text-burgundy", 
+          label: "PEOPLE" 
+        };
+      }
       case "news":
         return { icon: BookOpen, color: "text-gold", label: "CODEX" };
       case "quest":
