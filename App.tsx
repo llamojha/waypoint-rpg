@@ -11,7 +11,7 @@ import { ProfilePage } from "@/components/ProfilePage";
 import { MapPage } from "@/components/MapPage";
 import { CodexPage } from "@/components/CodexPage";
 import { Header } from "@/components/Header";
-import { GameState, Character, Turn, TurnDiff, MapLocation } from "@/types";
+import { GameState, Character, Turn, TurnDiff, MapLocation, CodexEntry } from "@/types";
 import {
   INITIAL_CHARACTER,
   INITIAL_QUESTS,
@@ -73,6 +73,9 @@ export default function App() {
 
   // Locations state (separate from gameState for now)
   const [locations, setLocations] = useState<MapLocation[]>([]);
+
+  // Codex entries (global, shared)
+  const [codexEntries, setCodexEntries] = useState<CodexEntry[]>([]);
 
   // Apply Theme
   useEffect(() => {
@@ -244,10 +247,30 @@ export default function App() {
     }
   };
 
+  // Load codex entries (global, not per-character)
+  const loadCodex = async () => {
+    try {
+      const res = await fetch("/api/codex");
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.warn("Codex fetch failed:", data.error);
+        return;
+      }
+
+      if (data.entries) {
+        setCodexEntries(data.entries);
+      }
+    } catch (err) {
+      console.error("Failed to load codex:", err);
+    }
+  };
+
   // Fetch character when user is authenticated
   useEffect(() => {
     if (!authLoading && user) {
       loadCharacter();
+      loadCodex(); // Load codex when user logs in
     } else if (!authLoading && !user) {
       // Not authenticated - stop loading and show landing
       setIsLoading(false);
@@ -795,7 +818,7 @@ export default function App() {
           <MapPage onTravel={handleTravel} onViewLore={handleViewLore} />
         )}
 
-        {view === "codex" && <CodexPage initialSearchTerm={codexSearchTerm} />}
+        {view === "codex" && <CodexPage entries={codexEntries} initialSearchTerm={codexSearchTerm} />}
 
         {view === "game" && (
           <div className="flex-1 grid grid-cols-1 md:grid-cols-[320px_1fr_320px] bg-parchment-300 h-full overflow-hidden">
