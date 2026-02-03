@@ -9,6 +9,7 @@ import { getEquipmentBonusForSkill } from "@/lib/mechanics/equipment";
 import { filterInput } from "@/lib/safety/sentinel";
 import { runTurnPipeline, type RollOutcome } from "@/lib/turn/pipeline";
 import { getAllowedProposalTools, getAllowedToolNames } from "@/lib/rules/proposal-constraints";
+import { buildAffordances, constrainTools } from "@/lib/rules/affordances";
 import { getWeatherForToday } from "@/lib/world/weather";
 import { calculateTimeAdvancement, getTimeTransitionDescription, type GameTime } from "@/lib/world/time";
 import { getLocationSummaries } from "@/lib/compression/queue";
@@ -292,11 +293,15 @@ export async function POST(request: NextRequest) {
     const questContext = await gatherQuestContext(characterId, playerAction, world);
     traces.push(questContext.trace);
 
-    // Get constrained tools based on action type
+    // Build affordances from current state
+    const affordances = await buildAffordances(character, world, intent.action_type);
+
+    // Get constrained tools based on action type, then constrain with affordances
     const allowedTools = getAllowedProposalTools(intent.action_type);
+    const constrainedTools = constrainTools(allowedTools, affordances);
     const allowedToolNames = getAllowedToolNames(intent.action_type);
 
-    // Add action type trace
+    // Add action type trace with affordances info
     traces.push({
       agent: "rune_marshal",
       status: "success",
@@ -304,6 +309,8 @@ export async function POST(request: NextRequest) {
       description: `Action type: ${intent.action_type}`,
       details: [
         `Allowed tools: ${allowedToolNames.length > 0 ? allowedToolNames.join(", ") : "none (passive action)"}`,
+        ...(affordances.locationIds.length > 0 ? [`Valid locations: ${affordances.locationIds.join(", ")}`] : []),
+        ...(affordances.enemyIds.length > 0 ? [`Valid targets: ${affordances.enemyIds.join(", ")}`] : []),
       ],
     });
 
@@ -319,7 +326,8 @@ export async function POST(request: NextRequest) {
       knownNpcNames,
       existingTraces: traces,
       actionType: intent.action_type,
-      allowedProposalTools: allowedTools,
+      allowedProposalTools: constrainedTools,
+      affordances,
       locationSummaries,
       // Pass skill XP context for power word use (no roll)
       skillXPContext: intent.power_words?.length ? {

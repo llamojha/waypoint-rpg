@@ -7,6 +7,7 @@ import type { Character, WorldContext, Turn } from "@/types";
 import type { ActiveQuest, NpcQuest } from "./quest-agent";
 import type { ActionType } from "./rune-marshal";
 import { getConstraintDescription } from "@/lib/rules/proposal-constraints";
+import { formatAffordancesForPrompt, type Affordances } from "@/lib/rules/affordances";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
@@ -48,7 +49,8 @@ function buildOrchestratorPrompt(
   questContext?: QuestContext,
   actionType?: ActionType,
   allowedToolNames?: string[],
-  knownNpcNames?: Set<string>
+  knownNpcNames?: Set<string>,
+  affordances?: Affordances
 ): string {
   const characterStr = JSON.stringify({
     name: character.name,
@@ -119,6 +121,9 @@ CRITICAL:
     ? `\n## Active Combat\nEnemies:\n${world.activeCombat.enemies.map(e => `- ${e.name}: ${e.hp}/${e.maxHp} HP (${e.tier})`).join("\n")}\nRound: ${world.activeCombat.round}\n\nOn successful combat roll, use propose_combat_damage with the damageRolled value.`
     : "";
 
+  // Build affordances text for prompt backup
+  const affordancesStr = affordances ? formatAffordancesForPrompt(affordances) : "";
+
   // Build constraint explanation if action type is provided
   let constraintStr = "";
   if (actionType && allowedToolNames) {
@@ -136,7 +141,7 @@ You may ONLY use the tools listed above. Any other proposals will be rejected.`;
   }
 
   return `You are the Orchestrator for Waypoint RPG. Your job is to propose state changes based on the player's action.
-${constraintStr}
+${constraintStr}${affordancesStr}
 ## Current Character
 ${characterStr}
 
@@ -352,13 +357,14 @@ export async function runOrchestrator(
   questContext?: QuestContext,
   allowedProposalTools?: FunctionDeclaration[],
   actionType?: ActionType,
-  knownNpcNames?: Set<string>
+  knownNpcNames?: Set<string>,
+  affordances?: Affordances
 ): Promise<OrchestratorOutput> {
   // Get allowed tool names for prompt context
   const allowedToolNames = allowedProposalTools?.map(t => t.name).filter((n): n is string => !!n);
   
   const systemPrompt = buildOrchestratorPrompt(
-    character, world, recentTurns, questContext, actionType, allowedToolNames, knownNpcNames
+    character, world, recentTurns, questContext, actionType, allowedToolNames, knownNpcNames, affordances
   );
   
   // Build user message with intent and optional roll outcome

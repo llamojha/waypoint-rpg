@@ -14,6 +14,8 @@ import { getEquipmentBonusForSkill } from "@/lib/mechanics/equipment";
 import { filterInput } from "@/lib/safety/sentinel";
 import { runTurnPipeline, type RollOutcome } from "@/lib/turn/pipeline";
 import { getAllowedProposalTools, getAllowedToolNames } from "@/lib/rules/proposal-constraints";
+import { buildAffordances, constrainTools } from "@/lib/rules/affordances";
+import { FEATURE_FLAGS } from "@/lib/feature-flags";
 import type { Turn, AgentTrace, Character, WorldContext } from "@/types";
 import type { QuestContext } from "@/lib/agents/orchestrator";
 import type { TestTurnResult } from "./types";
@@ -44,6 +46,20 @@ async function gatherQuestContext(
   playerAction: string,
   world: WorldContext
 ): Promise<{ context: QuestContext; trace: AgentTrace }> {
+  // Skip quest agent when quests are disabled
+  if (!FEATURE_FLAGS.quests) {
+    return {
+      context: { activeQuests: [], npcQuests: [] },
+      trace: {
+        agent: "quest_agent",
+        status: "skipped",
+        durationMs: 0,
+        description: "Quests disabled",
+        details: [],
+      },
+    };
+  }
+
   const actionLower = playerAction.toLowerCase();
   const mentionedNpc = world.entities?.find(npc =>
     actionLower.includes(npc.toLowerCase()) ||
@@ -194,8 +210,12 @@ export async function executeTurn(
   const questContext = await gatherQuestContext(characterId, playerAction, world);
   traces.push(questContext.trace);
 
-  // Get constrained tools
+  // Build affordances from current state
+  const affordances = await buildAffordances(character, world, intent.action_type);
+
+  // Get constrained tools, then constrain with affordances
   const allowedTools = getAllowedProposalTools(intent.action_type);
+  const constrainedTools = constrainTools(allowedTools, affordances);
   const allowedToolNames = getAllowedToolNames(intent.action_type);
 
   traces.push({
@@ -205,6 +225,8 @@ export async function executeTurn(
     description: `Action type: ${intent.action_type}`,
     details: [
       `Allowed tools: ${allowedToolNames.length > 0 ? allowedToolNames.join(", ") : "none (passive action)"}`,
+      ...(affordances.locationIds.length > 0 ? [`Valid locations: ${affordances.locationIds.join(", ")}`] : []),
+      ...(affordances.enemyIds.length > 0 ? [`Valid targets: ${affordances.enemyIds.join(", ")}`] : []),
     ],
   });
 
@@ -266,7 +288,8 @@ export async function executeTurn(
     mechanics,
     existingTraces: traces,
     actionType: intent.action_type,
-    allowedProposalTools: allowedTools,
+    allowedProposalTools: constrainedTools,
+    affordances,
     // Pass skill XP context for XP awarding
     skillXPContext: (intent.power_words?.length || rollOutcome) ? {
       skill: intent.primary_skill,

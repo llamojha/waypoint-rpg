@@ -10,6 +10,7 @@ import {
   isProposalAllowed,
   getConstraintDescription,
 } from "../proposal-constraints";
+import { FEATURE_FLAGS } from "@/lib/feature-flags";
 import type { ActionType } from "@/lib/agents/rune-marshal";
 
 describe("Proposal Constraints", () => {
@@ -25,13 +26,23 @@ describe("Proposal Constraints", () => {
       expect(names).toHaveLength(2);
     });
 
-    it("returns social tools", () => {
+    it("returns social tools (base)", () => {
       const names = getAllowedToolNames("social");
       expect(names).toContain("propose_relationship_change");
-      expect(names).toContain("propose_quest_start");
-      expect(names).toContain("propose_quest_progress");
       expect(names).toContain("propose_npc_discovered");
-      expect(names).toHaveLength(4);
+    });
+
+    it("includes quest tools in social when quests enabled", () => {
+      const names = getAllowedToolNames("social");
+      if (FEATURE_FLAGS.quests) {
+        expect(names).toContain("propose_quest_start");
+        expect(names).toContain("propose_quest_progress");
+        expect(names).toHaveLength(4);
+      } else {
+        expect(names).not.toContain("propose_quest_start");
+        expect(names).not.toContain("propose_quest_progress");
+        expect(names).toHaveLength(2);
+      }
     });
 
     it("returns combat tools", () => {

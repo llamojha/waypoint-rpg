@@ -21,6 +21,7 @@ import { getWeaponDamage } from "@/lib/mechanics/equipment";
 import { rollDiceNotation } from "@/lib/agents/mechanics";
 import { awardSkillXP } from "@/lib/mechanics/skill-xp";
 import { compressLocationTurns } from "@/lib/compression/queue";
+import { validateSkillForActionType } from "@/lib/rules/affordances";
 import { FEATURE_FLAGS } from "@/lib/feature-flags";
 import type { ActionType } from "@/lib/agents/rune-marshal";
 import type { FunctionDeclaration } from "@google/genai";
@@ -78,6 +79,8 @@ export interface PipelineInput {
   actionType?: ActionType;
   /** Allowed proposal tools (if constrained) */
   allowedProposalTools?: FunctionDeclaration[];
+  /** Affordances for prompt text backup */
+  affordances?: import("@/lib/rules/affordances").Affordances;
   /** Skill XP context for awarding XP */
   skillXPContext?: SkillXPContext;
   /** Location summaries for compressed history */
@@ -150,6 +153,7 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     existingTraces = [],
     actionType,
     allowedProposalTools,
+    affordances,
     skillXPContext,
     locationSummaries = [],
   } = input;
@@ -266,7 +270,8 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
       questContext,
       allowedProposalTools,
       actionType,
-      knownNpcNames
+      knownNpcNames,
+      affordances
     );
     proposals = orchestratorResult.proposals;
 
@@ -391,6 +396,18 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
   let skillXPResult: { updatedSkills: Record<string, import("@/types").SkillProgression>; diffs: TurnDiff[]; xpGained: number; leveledUp: boolean } | null = null;
   
   if (skillXPContext?.skill) {
+    // Validate skill matches action type (warning only, still award XP)
+    const skillValidation = validateSkillForActionType(skillXPContext.skill, actionType || "passive");
+    if (!skillValidation.valid) {
+      traces.push({
+        agent: "skill_validator",
+        status: "success",
+        durationMs: 0,
+        description: `Skill mismatch warning: ${skillValidation.reason}`,
+        details: [`Expected pillars: ${skillValidation.suggestedPillars?.join(", ")}`],
+      });
+    }
+
     const success = rollOutcome?.success ?? true; // Power word use without roll counts as success
     skillXPResult = awardSkillXP(
       characterId,

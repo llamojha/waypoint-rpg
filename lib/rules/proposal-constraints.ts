@@ -8,6 +8,7 @@
 
 import type { ActionType } from "@/lib/agents/rune-marshal";
 import { PROPOSAL_TOOLS } from "@/lib/agents/tools/proposal-tools";
+import { FEATURE_FLAGS } from "@/lib/feature-flags";
 import type { FunctionDeclaration } from "@google/genai";
 
 /**
@@ -17,17 +18,26 @@ import type { FunctionDeclaration } from "@google/genai";
  * |---------|------------------------------------------------------|
  * | passive | [] (none - observation/conversation)                 |
  * | travel  | [location_change, npc_discovered]                    |
- * | social  | [relationship_change, quest_start, quest_progress, npc_discovered] |
+ * | social  | [relationship_change, quest_start*, quest_progress*, npc_discovered] |
  * | combat  | [stat_change, inventory_add, relationship_change, combat_damage, combat_start] |
  * | object  | [inventory_add, inventory_remove, stat_change]       |
+ * 
+ * * Quest tools only available when FEATURE_FLAGS.quests is enabled
  */
-const ACTION_TYPE_CONSTRAINTS: Record<ActionType, string[]> = {
-  passive: [],
-  travel: ["propose_location_change", "propose_npc_discovered"],
-  social: ["propose_relationship_change", "propose_quest_start", "propose_quest_progress", "propose_npc_discovered"],
-  combat: ["propose_stat_change", "propose_inventory_add", "propose_relationship_change", "propose_combat_damage", "propose_combat_start"],
-  object: ["propose_inventory_add", "propose_inventory_remove", "propose_stat_change"],
-};
+function getActionTypeConstraints(): Record<ActionType, string[]> {
+  const socialTools = ["propose_relationship_change", "propose_npc_discovered"];
+  if (FEATURE_FLAGS.quests) {
+    socialTools.push("propose_quest_start", "propose_quest_progress");
+  }
+  
+  return {
+    passive: [],
+    travel: ["propose_location_change", "propose_npc_discovered"],
+    social: socialTools,
+    combat: ["propose_stat_change", "propose_inventory_add", "propose_relationship_change", "propose_combat_damage", "propose_combat_start"],
+    object: ["propose_inventory_add", "propose_inventory_remove", "propose_stat_change"],
+  };
+}
 
 /**
  * Get allowed proposal tools for an action type
@@ -36,7 +46,8 @@ const ACTION_TYPE_CONSTRAINTS: Record<ActionType, string[]> = {
  * @returns Array of FunctionDeclaration for allowed proposal tools
  */
 export function getAllowedProposalTools(actionType: ActionType): FunctionDeclaration[] {
-  const allowedNames = ACTION_TYPE_CONSTRAINTS[actionType] || [];
+  const constraints = getActionTypeConstraints();
+  const allowedNames = constraints[actionType] || [];
   
   // Filter PROPOSAL_TOOLS to only include allowed ones
   // Note: detect_intent is always excluded as it's handled by Rune Marshal
@@ -49,7 +60,8 @@ export function getAllowedProposalTools(actionType: ActionType): FunctionDeclara
  * Get allowed tool names for an action type (for display/debugging)
  */
 export function getAllowedToolNames(actionType: ActionType): string[] {
-  return ACTION_TYPE_CONSTRAINTS[actionType] || [];
+  const constraints = getActionTypeConstraints();
+  return constraints[actionType] || [];
 }
 
 /**
@@ -57,10 +69,11 @@ export function getAllowedToolNames(actionType: ActionType): string[] {
  * Used when player action spans multiple types (e.g., "I thank Lucie and head to the market")
  */
 export function getUnionOfAllowedTools(actionTypes: ActionType[]): FunctionDeclaration[] {
+  const constraints = getActionTypeConstraints();
   const allAllowedNames = new Set<string>();
   
   for (const actionType of actionTypes) {
-    const names = ACTION_TYPE_CONSTRAINTS[actionType] || [];
+    const names = constraints[actionType] || [];
     names.forEach(name => allAllowedNames.add(name));
   }
   
@@ -73,7 +86,8 @@ export function getUnionOfAllowedTools(actionTypes: ActionType[]): FunctionDecla
  * Check if a proposal type is allowed for an action type
  */
 export function isProposalAllowed(actionType: ActionType, proposalType: string): boolean {
-  const allowedNames = ACTION_TYPE_CONSTRAINTS[actionType] || [];
+  const constraints = getActionTypeConstraints();
+  const allowedNames = constraints[actionType] || [];
   return allowedNames.includes(proposalType);
 }
 

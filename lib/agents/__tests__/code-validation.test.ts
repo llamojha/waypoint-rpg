@@ -141,7 +141,7 @@ describe('code-validation', () => {
       };
       const result = await runCodeValidation(proposal, ctx);
       expect(result.valid).toBe(false);
-      expect(result.reason).toContain('not a known location');
+      expect(result.reason).toContain('not reachable');
     });
   });
 
