@@ -348,6 +348,9 @@ export default function App() {
         world: data.world || prev.world,
       }));
       setView("game");
+
+      // Load the opening turn that was created with the character
+      await loadTurns(data.character.id);
     } catch (err) {
       console.error("Failed to create character:", err);
       setError(

@@ -400,7 +400,7 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     const skillValidation = validateSkillForActionType(skillXPContext.skill, actionType || "passive");
     if (!skillValidation.valid) {
       traces.push({
-        agent: "skill_validator",
+        agent: "arbiter",
         status: "success",
         durationMs: 0,
         description: `Skill mismatch warning: ${skillValidation.reason}`,
