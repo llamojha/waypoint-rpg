@@ -117,6 +117,7 @@ const ACTION_TYPE_SKILL_PILLARS: Record<ActionType, string[]> = {
   social: ["Charisma", "Wisdom"],
   object: ["Sleight", "Wisdom", "Lore"],
   passive: ["Wisdom", "Lore"], // observation/perception
+  transaction: ["Charisma", "Wisdom", "Sleight"], // buying/selling/trading
 };
 
 /**

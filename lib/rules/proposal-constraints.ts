@@ -14,15 +14,19 @@ import type { FunctionDeclaration } from "@google/genai";
 /**
  * Mapping of action types to allowed proposal tool names
  * 
- * | Type    | Allowed Proposals                                    |
- * |---------|------------------------------------------------------|
- * | passive | [] (none - observation/conversation)                 |
- * | travel  | [location_change, npc_discovered]                    |
- * | social  | [relationship_change, quest_start*, quest_progress*, npc_discovered] |
- * | combat  | [stat_change, inventory_add, relationship_change, combat_damage, combat_start] |
- * | object  | [inventory_add, inventory_remove, stat_change]       |
+ * | Type        | Allowed Proposals                                                    |
+ * |-------------|----------------------------------------------------------------------|
+ * | passive     | [] (none - observation/conversation)                                 |
+ * | travel      | [location_change, npc_discovered]                                    |
+ * | social      | [relationship_change, quest_start*, quest_progress*, npc_discovered] |
+ * | combat      | [stat_change, inventory_add, relationship_change, combat_damage, combat_start] |
+ * | object      | [inventory_add, inventory_remove, stat_change]                       |
+ * | transaction | [inventory_add, inventory_remove, stat_change, relationship_change]  |
  * 
  * * Quest tools only available when FEATURE_FLAGS.quests is enabled
+ * 
+ * Multiple action types can be combined (e.g., ["social", "transaction"] for accepting a gift)
+ * Use getUnionOfAllowedTools() to merge tools from multiple action types.
  */
 function getActionTypeConstraints(): Record<ActionType, string[]> {
   const socialTools = ["propose_relationship_change", "propose_npc_discovered"];
@@ -36,6 +40,7 @@ function getActionTypeConstraints(): Record<ActionType, string[]> {
     social: socialTools,
     combat: ["propose_stat_change", "propose_inventory_add", "propose_relationship_change", "propose_combat_damage", "propose_combat_start"],
     object: ["propose_inventory_add", "propose_inventory_remove", "propose_stat_change"],
+    transaction: ["propose_inventory_add", "propose_inventory_remove", "propose_stat_change", "propose_relationship_change"],
   };
 }
 
@@ -107,7 +112,19 @@ export function getConstraintDescription(actionType: ActionType): string {
       return "This is a combat action. You may propose combat damage to enemies, stat changes (HP damage to player), and inventory additions (loot).";
     case "object":
       return "This is an object manipulation action. You may propose inventory changes and stat changes (gold for purchases).";
+    case "transaction":
+      return "This is a transaction action (buying, selling, accepting/giving items). You may propose inventory changes, stat changes (gold), and relationship changes.";
     default:
       return "Unknown action type. No proposals allowed.";
   }
+}
+
+/**
+ * Get a combined description for multiple action types
+ */
+export function getUnionConstraintDescription(actionTypes: ActionType[]): string {
+  if (actionTypes.length === 0) return "No action types specified. No proposals allowed.";
+  if (actionTypes.length === 1) return getConstraintDescription(actionTypes[0]);
+  
+  return `This action combines multiple types (${actionTypes.join(", ")}). You may use tools from any of these categories.`;
 }

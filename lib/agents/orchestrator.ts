@@ -6,7 +6,7 @@ import { handleReadToolCall } from "./tools/read-handlers";
 import type { Character, WorldContext, Turn } from "@/types";
 import type { ActiveQuest, NpcQuest } from "./quest-agent";
 import type { ActionType } from "./rune-marshal";
-import { getConstraintDescription } from "@/lib/rules/proposal-constraints";
+import { getConstraintDescription, getUnionConstraintDescription } from "@/lib/rules/proposal-constraints";
 import { formatAffordancesForPrompt, type Affordances } from "@/lib/rules/affordances";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
@@ -47,7 +47,7 @@ function buildOrchestratorPrompt(
   world: WorldContext,
   recentTurns: Turn[],
   questContext?: QuestContext,
-  actionType?: ActionType,
+  actionTypes?: ActionType[],
   allowedToolNames?: string[],
   knownNpcNames?: Set<string>,
   affordances?: Affordances
@@ -124,16 +124,19 @@ CRITICAL:
   // Build affordances text for prompt backup
   const affordancesStr = affordances ? formatAffordancesForPrompt(affordances) : "";
 
-  // Build constraint explanation if action type is provided
+  // Build constraint explanation if action types are provided
   let constraintStr = "";
-  if (actionType && allowedToolNames) {
-    const constraintDesc = getConstraintDescription(actionType);
+  if (actionTypes && actionTypes.length > 0 && allowedToolNames) {
+    const constraintDesc = actionTypes.length === 1 
+      ? getConstraintDescription(actionTypes[0])
+      : getUnionConstraintDescription(actionTypes);
+    const actionTypeLabel = actionTypes.join(" + ").toUpperCase();
     if (allowedToolNames.length === 0) {
-      constraintStr = `\n## ACTION CONSTRAINT: ${actionType.toUpperCase()}
+      constraintStr = `\n## ACTION CONSTRAINT: ${actionTypeLabel}
 ${constraintDesc}
 You have NO proposal tools available for this action. Do not attempt to propose any state changes.`;
     } else {
-      constraintStr = `\n## ACTION CONSTRAINT: ${actionType.toUpperCase()}
+      constraintStr = `\n## ACTION CONSTRAINT: ${actionTypeLabel}
 ${constraintDesc}
 Available tools: ${allowedToolNames.join(", ")}
 You may ONLY use the tools listed above. Any other proposals will be rejected.`;
@@ -345,7 +348,7 @@ Good output:
  * @param allowedProposalTools - If provided, only these proposal tools are available.
  *                               If empty array, no proposals can be made.
  *                               If undefined, all proposal tools are available (legacy behavior).
- * @param actionType - The classified action type for prompt context
+ * @param actionTypes - The classified action types for prompt context (can be multiple)
  */
 export async function runOrchestrator(
   playerAction: string,
@@ -356,7 +359,7 @@ export async function runOrchestrator(
   detectedIntent?: string,
   questContext?: QuestContext,
   allowedProposalTools?: FunctionDeclaration[],
-  actionType?: ActionType,
+  actionTypes?: ActionType[],
   knownNpcNames?: Set<string>,
   affordances?: Affordances
 ): Promise<OrchestratorOutput> {
@@ -364,7 +367,7 @@ export async function runOrchestrator(
   const allowedToolNames = allowedProposalTools?.map(t => t.name).filter((n): n is string => !!n);
   
   const systemPrompt = buildOrchestratorPrompt(
-    character, world, recentTurns, questContext, actionType, allowedToolNames, knownNpcNames, affordances
+    character, world, recentTurns, questContext, actionTypes, allowedToolNames, knownNpcNames, affordances
   );
   
   // Build user message with intent and optional roll outcome

@@ -9,11 +9,11 @@ const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 const MAGIC_SKILLS = ["Spellcasting", "Rituals", "Wards", "Summoning"];
 
 /** Action types for proposal constraints */
-export type ActionType = "passive" | "travel" | "social" | "combat" | "object";
+export type ActionType = "passive" | "travel" | "social" | "combat" | "object" | "transaction";
 
 export interface RuneMarshalOutput {
   intent: string;  // What the player is trying to do
-  action_type: ActionType;  // Classification for proposal constraints
+  action_types: ActionType[];  // Classification(s) for proposal constraints - can be multiple
   primary_skill: string;
   power_words: string[];
   tier: number;
@@ -25,7 +25,7 @@ export interface RuneMarshalOutput {
 
 const DETECT_INTENT_TOOL = {
   name: "detect_intent",
-  description: "Analyze player action to determine intent, skill, action type, and if roll is needed",
+  description: "Analyze player action to determine intent, skill, action type(s), and if roll is needed",
   parameters: {
     type: Type.OBJECT,
     properties: {
@@ -33,10 +33,13 @@ const DETECT_INTENT_TOOL = {
         type: Type.STRING,
         description: "Brief description of what the player is trying to do (e.g., 'travel to captain hall', 'sneak past guards', 'attack the bandit')",
       },
-      action_type: {
-        type: Type.STRING,
-        enum: ["passive", "travel", "social", "combat", "object"],
-        description: "Classification of action: passive (observation/conversation), travel (moving locations), social (NPC interaction), combat (fighting), object (using/manipulating items)",
+      action_types: {
+        type: Type.ARRAY,
+        items: { 
+          type: Type.STRING, 
+          enum: ["passive", "travel", "social", "combat", "object", "transaction"] 
+        },
+        description: "Classification(s) of action. Can include multiple types for complex actions (e.g., ['social', 'transaction'] for accepting a gift from an NPC)",
       },
       primary_skill: {
         type: Type.STRING,
@@ -69,12 +72,12 @@ const DETECT_INTENT_TOOL = {
         description: "If action should be denied, explain why",
       },
     },
-    required: ["intent", "action_type", "primary_skill", "requires_roll"],
+    required: ["intent", "action_types", "primary_skill", "requires_roll"],
   },
 };
 
 function buildPrompt(character: Character, world: WorldContext): string {
-  return `You are the Rune Marshal for Waypoint RPG. Analyze player actions to detect intent and classify action type.
+  return `You are the Rune Marshal for Waypoint RPG. Analyze player actions to detect intent and classify action type(s).
 
 ## SKILL_TREE (for power word detection)
 ${JSON.stringify(SKILL_TREE, null, 2)}
@@ -89,7 +92,7 @@ ${JSON.stringify(SKILL_TREE, null, 2)}
 
 ## Action Type Classification (REQUIRED)
 
-Classify every action into ONE of these types:
+Classify every action into ONE OR MORE of these types. Use multiple types when an action spans categories.
 
 | Type | Description | Examples |
 |------|-------------|----------|
@@ -97,9 +100,14 @@ Classify every action into ONE of these types:
 | travel | Moving to a different location | "I go to X", "Travel to X", "Head to the market" |
 | social | Meaningful NPC interaction (helping, thanking, insulting) | "I thank Lucie", "I help the merchant", "I insult him" |
 | combat | Fighting, attacking, defending | "I attack", "I strike the bandit", "I defend myself" |
-| object | Searching, looting, using/manipulating items or environment, buying, selling | "I search the area", "I open the chest", "I buy the sword", "I rummage through", "I loot the body" |
+| object | Searching, looting, using/manipulating items or environment | "I search the area", "I open the chest", "I rummage through", "I loot the body" |
+| transaction | Buying, selling, trading, accepting/giving items | "I buy the sword", "I accept the armor", "I give him 5 gold", "I sell the gem" |
 
-IMPORTANT: "search", "rummage", "loot", "forage", "scavenge" = object (not passive)
+IMPORTANT: 
+- "search", "rummage", "loot", "forage", "scavenge" = object (not passive)
+- Accepting items from NPCs = ["social", "transaction"]
+- Buying from a merchant = ["social", "transaction"] 
+- Thanking someone AND leaving = ["social", "travel"]
 
 ## Rules for requires_roll
 
@@ -149,7 +157,7 @@ Call detect_intent with your analysis.
 Player: "I strike at the bandit with my sword"
 Good output:
 - intent: "attack bandit with sword"
-- action_type: "combat"
+- action_types: ["combat"]
 - primary_skill: "Melee"
 - requires_roll: true
 - dc: 12
@@ -158,7 +166,7 @@ Good output:
 Player: "I walk to the market square"
 Good output:
 - intent: "travel to market square"
-- action_type: "travel"
+- action_types: ["travel"]
 - primary_skill: "Navigation"
 - requires_roll: false
 
@@ -166,7 +174,7 @@ Good output:
 Player: "I thank Lucie for her help"
 Good output:
 - intent: "thank Lucie"
-- action_type: "social"
+- action_types: ["social"]
 - primary_skill: "Persuasion"
 - requires_roll: false
 
@@ -174,23 +182,39 @@ Good output:
 Player: "I look around the tavern"
 Good output:
 - intent: "observe tavern"
-- action_type: "passive"
+- action_types: ["passive"]
 - primary_skill: "Perception"
 - requires_roll: false
 
-### Example 5: Passive conversation
-Player: "What should we do next?"
+### Example 5: Transaction (accepting items from NPC)
+Player: "I accept the leather armor and sword from Aran"
 Good output:
-- intent: "ask for suggestions"
-- action_type: "passive"
-- primary_skill: "Persuasion"
+- intent: "accept armor and sword from Aran"
+- action_types: ["social", "transaction"]
+- primary_skill: "Barter"
 - requires_roll: false
 
-### Example 6: Object manipulation
+### Example 6: Transaction (buying)
+Player: "I buy a healing potion from the merchant"
+Good output:
+- intent: "buy healing potion"
+- action_types: ["social", "transaction"]
+- primary_skill: "Barter"
+- requires_roll: false
+
+### Example 7: Mixed travel and social
+Player: "I thank the innkeeper and head to the market"
+Good output:
+- intent: "thank innkeeper and travel to market"
+- action_types: ["social", "travel"]
+- primary_skill: "Navigation"
+- requires_roll: false
+
+### Example 8: Object manipulation
 Player: "I open the chest"
 Good output:
 - intent: "open chest"
-- action_type: "object"
+- action_types: ["object"]
 - primary_skill: "Perception"
 - requires_roll: false`;
 }
@@ -223,12 +247,24 @@ export async function runRuneMarshal(
         // Check for magic denial
         const skill = args.primary_skill as string;
         const intent = (args.intent as string) || playerAction;
-        const actionType = (args.action_type as ActionType) || "passive";
+        
+        // Handle action_types - can be array or single value (for backwards compat)
+        let actionTypes: ActionType[];
+        if (Array.isArray(args.action_types)) {
+          actionTypes = args.action_types as ActionType[];
+        } else if (args.action_types) {
+          actionTypes = [args.action_types as ActionType];
+        } else if (args.action_type) {
+          // Backwards compatibility with old single action_type
+          actionTypes = [args.action_type as ActionType];
+        } else {
+          actionTypes = ["passive"];
+        }
         
         if (!character.isMagicUnlocked && MAGIC_SKILLS.includes(skill)) {
           return {
             intent,
-            action_type: actionType,
+            action_types: actionTypes,
             primary_skill: skill,
             power_words: [],
             tier: 0,
@@ -240,7 +276,7 @@ export async function runRuneMarshal(
 
         return {
           intent: (args.intent as string) || playerAction,
-          action_type: actionType,
+          action_types: actionTypes,
           primary_skill: skill,
           power_words: (args.power_words as string[]) || [],
           tier: (args.tier as number) || 0,
@@ -258,7 +294,7 @@ export async function runRuneMarshal(
   // Fallback - default to passive (safest, no proposals allowed)
   return {
     intent: playerAction,
-    action_type: "passive",
+    action_types: ["passive"],
     primary_skill: "Perception",
     power_words: [],
     tier: 0,

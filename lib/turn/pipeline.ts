@@ -75,8 +75,8 @@ export interface PipelineInput {
   mechanics?: Turn["mechanics"];
   /** Existing traces to append to */
   existingTraces?: AgentTrace[];
-  /** Action type for proposal constraints */
-  actionType?: ActionType;
+  /** Action types for proposal constraints (can be multiple) */
+  actionTypes?: ActionType[];
   /** Allowed proposal tools (if constrained) */
   allowedProposalTools?: FunctionDeclaration[];
   /** Affordances for prompt text backup */
@@ -151,7 +151,7 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     rollOutcome,
     mechanics,
     existingTraces = [],
-    actionType,
+    actionTypes,
     allowedProposalTools,
     affordances,
     skillXPContext,
@@ -180,13 +180,14 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
     ],
   });
 
-  // Build arbiter context
+  // Build arbiter context - use first action type for blocking logic
+  const primaryActionType = actionTypes?.[0];
   const arbiterContext = {
     character,
     world,
     playerAction,
     rollOutcome,
-    actionType,  // Pass action type for failed roll blocking
+    actionTypes,  // Pass action types for failed roll blocking
     activeQuestIds: FEATURE_FLAGS.quests ? questContext.activeQuests.map(q => q.id) : [],
     activeQuestTitles: FEATURE_FLAGS.quests ? questContext.activeQuests.map(q => q.title) : [],
     activeQuestGoals: FEATURE_FLAGS.quests ? questContext.activeQuests.map(q => ({
@@ -211,7 +212,7 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
   let retryCount = 0;
 
   // Skip Orchestrator entirely for passive actions with no tools
-  const skipOrchestrator = actionType === "passive" && allowedProposalTools?.length === 0;
+  const skipOrchestrator = actionTypes?.length === 1 && actionTypes[0] === "passive" && allowedProposalTools?.length === 0;
 
   if (skipOrchestrator) {
     // No proposals needed - run Arbiter/Lorekeeper with empty proposals
@@ -219,7 +220,7 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
       agent: "orchestrator",
       status: "success",
       durationMs: 0,
-      description: `Skipped - passive action with no tools [${actionType}]`,
+      description: `Skipped - passive action with no tools [${actionTypes?.join(", ") || "passive"}]`,
       details: ["No state changes proposed"],
     });
 
@@ -269,15 +270,16 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
       rejectionContext,
       questContext,
       allowedProposalTools,
-      actionType,
+      actionTypes,
       knownNpcNames,
       affordances
     );
     proposals = orchestratorResult.proposals;
 
     // Add orchestrator trace
+    const actionTypesLabel = actionTypes?.join(", ") || "unknown";
     const toolsDesc = allowedProposalTools 
-      ? `[${actionType || "unknown"}] tools: ${allowedProposalTools.length > 0 ? allowedProposalTools.map(t => t.name).join(", ") : "none"}`
+      ? `[${actionTypesLabel}] tools: ${allowedProposalTools.length > 0 ? allowedProposalTools.map(t => t.name).join(", ") : "none"}`
       : "all tools";
     const orchestratorDesc = retryCount === 0
       ? `Generated ${proposals.length} proposal(s)${rollOutcome ? ` after ${rollOutcome.success ? "SUCCESS" : "FAILURE"} roll` : ""} (${toolsDesc})`
@@ -397,7 +399,7 @@ export async function runTurnPipeline(input: PipelineInput): Promise<PipelineOut
   
   if (skillXPContext?.skill) {
     // Validate skill matches action type (warning only, still award XP)
-    const skillValidation = validateSkillForActionType(skillXPContext.skill, actionType || "passive");
+    const skillValidation = validateSkillForActionType(skillXPContext.skill, primaryActionType || "passive");
     if (!skillValidation.valid) {
       traces.push({
         agent: "arbiter",

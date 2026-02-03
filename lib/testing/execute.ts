@@ -13,7 +13,7 @@ import { resolveSkillCheck, calculateTotalModifier } from "@/lib/agents/mechanic
 import { getEquipmentBonusForSkill } from "@/lib/mechanics/equipment";
 import { filterInput } from "@/lib/safety/sentinel";
 import { runTurnPipeline, type RollOutcome } from "@/lib/turn/pipeline";
-import { getAllowedProposalTools, getAllowedToolNames } from "@/lib/rules/proposal-constraints";
+import { getAllowedProposalTools, getAllowedToolNames, getUnionOfAllowedTools } from "@/lib/rules/proposal-constraints";
 import { buildAffordances, constrainTools } from "@/lib/rules/affordances";
 import { FEATURE_FLAGS } from "@/lib/feature-flags";
 import type { Turn, AgentTrace, Character, WorldContext } from "@/types";
@@ -187,7 +187,7 @@ export async function executeTurn(
     details: [
       `Intent: ${intent.intent}`,
       `Primary skill: ${intent.primary_skill}`,
-      `Action type: ${intent.action_type}`,
+      `Action types: ${intent.action_types.join(", ")}`,
       intent.requires_roll ? `Difficulty: DC ${intent.dc}` : "Routine action",
       intent.power_words?.length ? `Power words: ${intent.power_words.join(", ")}` : null,
     ].filter(Boolean) as string[],
@@ -210,19 +210,20 @@ export async function executeTurn(
   const questContext = await gatherQuestContext(characterId, playerAction, world);
   traces.push(questContext.trace);
 
-  // Build affordances from current state
-  const affordances = await buildAffordances(character, world, intent.action_type);
+  // Build affordances from current state (use first action type - travel is what matters)
+  const primaryActionType = intent.action_types[0] || "passive";
+  const affordances = await buildAffordances(character, world, primaryActionType);
 
-  // Get constrained tools, then constrain with affordances
-  const allowedTools = getAllowedProposalTools(intent.action_type);
+  // Get constrained tools (union of all action types), then constrain with affordances
+  const allowedTools = getUnionOfAllowedTools(intent.action_types);
   const constrainedTools = constrainTools(allowedTools, affordances);
-  const allowedToolNames = getAllowedToolNames(intent.action_type);
+  const allowedToolNames = [...new Set(intent.action_types.flatMap(t => getAllowedToolNames(t)))];
 
   traces.push({
     agent: "rune_marshal",
     status: "success",
     durationMs: 0,
-    description: `Action type: ${intent.action_type}`,
+    description: `Action type: ${intent.action_types.join(", ")}`,
     details: [
       `Allowed tools: ${allowedToolNames.length > 0 ? allowedToolNames.join(", ") : "none (passive action)"}`,
       ...(affordances.locationIds.length > 0 ? [`Valid locations: ${affordances.locationIds.join(", ")}`] : []),
@@ -287,7 +288,7 @@ export async function executeTurn(
     rollOutcome,
     mechanics,
     existingTraces: traces,
-    actionType: intent.action_type,
+    actionTypes: intent.action_types,
     allowedProposalTools: constrainedTools,
     affordances,
     // Pass skill XP context for XP awarding
@@ -305,7 +306,7 @@ export async function executeTurn(
   type GameTime = { day: number; phase: "Dawn" | "Morning" | "Afternoon" | "Dusk" | "Night" };
   const turnCount = recentTurns.length + 1; // Include this turn
   const currentTime: GameTime = { day: world.time.day, phase: world.time.phase as GameTime["phase"] };
-  const newTime = calculateTimeAdvancement(currentTime, turnCount, intent.action_type, playerAction);
+  const newTime = calculateTimeAdvancement(currentTime, turnCount, primaryActionType, playerAction);
   
   if (newTime) {
     // Update world state with new time

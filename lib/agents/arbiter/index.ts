@@ -28,7 +28,7 @@ export interface ArbiterContext {
     total: number;
     dc: number;
   };
-  actionType?: ActionType;
+  actionTypes?: ActionType[];
   activeQuestIds?: string[];
   activeQuestTitles?: string[];
   activeQuestGoals?: Array<{ id: string; title: string; goalType: QuestGoalType; currentGoal: string }>;
@@ -43,12 +43,14 @@ export interface ArbiterContext {
 function isBlockedByFailedRoll(
   proposal: ProposalResult,
   rollOutcome: ArbiterContext["rollOutcome"],
-  actionType?: ActionType
+  actionTypes?: ActionType[]
 ): string | null {
   // No roll or roll succeeded - don't block
   if (!rollOutcome || rollOutcome.success) return null;
 
   // Roll failed - check if this proposal type should be blocked
+  // Use first action type for blocking logic
+  const actionType = actionTypes?.[0];
   switch (proposal.type) {
     case "propose_inventory_add":
       // Block finding items on failed search/object manipulation
@@ -165,7 +167,7 @@ export async function runArbiter(
     }
 
     // Check if blocked by failed roll FIRST
-    const failedRollReason = isBlockedByFailedRoll(proposal, ctx.rollOutcome, ctx.actionType);
+    const failedRollReason = isBlockedByFailedRoll(proposal, ctx.rollOutcome, ctx.actionTypes);
     if (failedRollReason) {
       results.push({ proposal, approved: false, reason: failedRollReason });
       rejected.push({ proposal, reason: failedRollReason });

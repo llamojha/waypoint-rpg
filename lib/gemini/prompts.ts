@@ -331,10 +331,14 @@ function formatRejectedProposals(rejected: RejectedProposal[]): string {
   const formatted = rejected.map(r => `- ${r.type}: ${r.reason}`).join("\n");
 
   return `
-REJECTED PROPOSALS (DO NOT NARRATE THESE):
+REJECTED PROPOSALS - CRITICAL:
 ${formatted}
 
-The player attempted to gain these but they were DENIED. Do NOT narrate the player receiving, finding, or obtaining these items/gold. Instead, narrate that they searched but found nothing, or that their attempt failed.
+IMPORTANT: The player's action was DENIED or INVALID. You MUST narrate the FAILURE, not success:
+- If player tried to use/examine an item they don't have → narrate confusion ("You reach for... but find nothing")
+- If player tried to gain items without valid source → narrate finding nothing
+- If player claimed to have something → check the INVENTORY list above - if it's not there, they DON'T have it
+- NEVER narrate the player successfully using, holding, examining, or possessing items not in their inventory
 `;
 }
 

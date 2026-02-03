@@ -5,6 +5,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { buildAffordances, constrainTools, formatAffordancesForPrompt, validateSkillForActionType } from "../affordances";
 import type { Character, WorldContext } from "@/types";
+import { Type } from "@google/genai";
+import type { FunctionDeclaration } from "@google/genai";
 
 // Mock the cache module
 vi.mock("../cache", () => ({
@@ -22,32 +24,44 @@ const mockCharacter: Character = {
   maxHp: 20,
   gold: 100,
   skills: {},
-  equipment: {},
+  equipment: {
+    mainHand: null,
+    offHand: null,
+    head: null,
+    chest: null,
+    arms: null,
+    legs: null,
+    cloak: null,
+    trinket: null,
+  },
   inventory: [
-    { id: "sword-1", name: "Iron Sword", type: "weapon", rarity: "common" },
-    { id: "potion-1", name: "Health Potion", type: "consumable", rarity: "common" },
+    { id: "sword-1", name: "Iron Sword", type: "weapon", description: "A sturdy iron sword", tags: [] },
+    { id: "potion-1", name: "Health Potion", type: "consumable", description: "Restores health", tags: [] },
   ],
   conditions: [],
   isMagicUnlocked: false,
 };
 
 const mockWorld: WorldContext = {
+  name: "Waystone Plaza",
   region: "Ash Coast",
   poi: "Waystone Plaza",
   time: { day: 1, phase: "Morning" },
   weather: "Clear",
   description: "A bustling plaza",
+  tags: [],
   nearbyPoi: ["Temple Quarter"],
   entities: ["Lucie", "Merchant Gorm"],
-  memories: [],
+  memory: [],
+  activeCombat: null,
 };
 
 const mockWorldWithCombat: WorldContext = {
   ...mockWorld,
   activeCombat: {
     enemies: [
-      { id: "goblin-1", name: "Goblin Scout", hp: 8, maxHp: 8, tier: "minion" },
-      { id: "goblin-2", name: "Goblin Warrior", hp: 12, maxHp: 12, tier: "standard" },
+      { id: "bandit-1", templateName: "bandit_scout", name: "Bandit Scout", hp: 8, maxHp: 8, tier: "easy", defense: 10, damage: "1d4" },
+      { id: "bandit-2", templateName: "bandit_warrior", name: "Bandit Warrior", hp: 12, maxHp: 12, tier: "medium", defense: 12, damage: "1d6" },
     ],
     round: 1,
   },
@@ -79,8 +93,8 @@ describe("Affordances", () => {
     it("returns enemy IDs from active combat", async () => {
       const affordances = await buildAffordances(mockCharacter, mockWorldWithCombat, "combat");
       
-      expect(affordances.enemyIds).toContain("Goblin Scout");
-      expect(affordances.enemyIds).toContain("Goblin Warrior");
+      expect(affordances.enemyIds).toContain("Bandit Scout");
+      expect(affordances.enemyIds).toContain("Bandit Warrior");
     });
 
     it("returns empty enemy IDs when no combat", async () => {
@@ -97,27 +111,27 @@ describe("Affordances", () => {
   });
 
   describe("constrainTools", () => {
-    const mockLocationTool = {
+    const mockLocationTool: FunctionDeclaration = {
       name: "propose_location_change",
       description: "Change location",
       parameters: {
-        type: "OBJECT" as const,
+        type: Type.OBJECT,
         properties: {
-          location: { type: "STRING" as const, description: "Destination" },
-          reason: { type: "STRING" as const, description: "Why" },
+          location: { type: Type.STRING, description: "Destination" },
+          reason: { type: Type.STRING, description: "Why" },
         },
         required: ["location", "reason"],
       },
     };
 
-    const mockCombatTool = {
+    const mockCombatTool: FunctionDeclaration = {
       name: "propose_combat_damage",
       description: "Deal damage",
       parameters: {
-        type: "OBJECT" as const,
+        type: Type.OBJECT,
         properties: {
-          enemy_name: { type: "STRING" as const, description: "Target" },
-          damage: { type: "NUMBER" as const, description: "Amount" },
+          enemy_name: { type: Type.STRING, description: "Target" },
+          damage: { type: Type.NUMBER, description: "Amount" },
         },
         required: ["enemy_name", "damage"],
       },
@@ -141,14 +155,14 @@ describe("Affordances", () => {
       const affordances = {
         locationIds: [],
         npcIds: [],
-        enemyIds: ["Goblin Scout", "Goblin Warrior"],
+        enemyIds: ["Bandit Scout", "Bandit Warrior"],
         itemIds: [],
       };
 
       const constrained = constrainTools([mockCombatTool], affordances);
       
       expect(constrained[0].parameters?.properties?.enemy_name).toHaveProperty("enum");
-      expect((constrained[0].parameters?.properties?.enemy_name as { enum?: string[] }).enum).toEqual(["Goblin Scout", "Goblin Warrior"]);
+      expect((constrained[0].parameters?.properties?.enemy_name as { enum?: string[] }).enum).toEqual(["Bandit Scout", "Bandit Warrior"]);
     });
 
     it("does not modify tools when affordances are empty", () => {
@@ -166,14 +180,14 @@ describe("Affordances", () => {
     });
 
     it("does not modify unrelated tools", () => {
-      const unrelatedTool = {
+      const unrelatedTool: FunctionDeclaration = {
         name: "propose_stat_change",
         description: "Change stats",
         parameters: {
-          type: "OBJECT" as const,
+          type: Type.OBJECT,
           properties: {
-            stat: { type: "STRING" as const, enum: ["hp", "gold"] },
-            delta: { type: "NUMBER" as const },
+            stat: { type: Type.STRING, enum: ["hp", "gold"] },
+            delta: { type: Type.NUMBER },
           },
           required: ["stat", "delta"],
         },

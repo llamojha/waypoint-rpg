@@ -8,7 +8,7 @@ import { resolveSkillCheck, calculateTotalModifier } from "@/lib/agents/mechanic
 import { getEquipmentBonusForSkill } from "@/lib/mechanics/equipment";
 import { filterInput } from "@/lib/safety/sentinel";
 import { runTurnPipeline, type RollOutcome } from "@/lib/turn/pipeline";
-import { getAllowedProposalTools, getAllowedToolNames } from "@/lib/rules/proposal-constraints";
+import { getAllowedProposalTools, getAllowedToolNames, getUnionOfAllowedTools } from "@/lib/rules/proposal-constraints";
 import { buildAffordances, constrainTools } from "@/lib/rules/affordances";
 import { getWeatherForToday } from "@/lib/world/weather";
 import { calculateTimeAdvancement, getTimeTransitionDescription, type GameTime } from "@/lib/world/time";
@@ -250,13 +250,13 @@ export async function POST(request: NextRequest) {
       const equipmentBonus = getEquipmentBonusForSkill(character.equipment, intent.primary_skill);
       const modifier = calculateTotalModifier(skillLevel, intent.bonus || 0, equipmentBonus);
 
-      const mechanics: Turn["mechanics"] & { detectedIntent?: string; actionType?: ActionType } = {
+      const mechanics: Turn["mechanics"] & { detectedIntent?: string; actionTypes?: ActionType[] } = {
         type: "check",
         skill: intent.primary_skill,
         dc: intent.dc,
         modifier,
         detectedIntent: intent.intent,
-        actionType: intent.action_type,  // Store for narration phase
+        actionTypes: intent.action_types,  // Store for narration phase
       };
 
       const { data: turnRow, error: turnInsertError } = await supabase
@@ -293,20 +293,21 @@ export async function POST(request: NextRequest) {
     const questContext = await gatherQuestContext(characterId, playerAction, world);
     traces.push(questContext.trace);
 
-    // Build affordances from current state
-    const affordances = await buildAffordances(character, world, intent.action_type);
+    // Build affordances from current state (use first action type for affordances - travel is what matters)
+    const primaryActionType = intent.action_types[0] || "passive";
+    const affordances = await buildAffordances(character, world, primaryActionType);
 
-    // Get constrained tools based on action type, then constrain with affordances
-    const allowedTools = getAllowedProposalTools(intent.action_type);
+    // Get constrained tools based on action types (union of all), then constrain with affordances
+    const allowedTools = getUnionOfAllowedTools(intent.action_types);
     const constrainedTools = constrainTools(allowedTools, affordances);
-    const allowedToolNames = getAllowedToolNames(intent.action_type);
+    const allowedToolNames = [...new Set(intent.action_types.flatMap(t => getAllowedToolNames(t)))];
 
     // Add action type trace with affordances info
     traces.push({
       agent: "rune_marshal",
       status: "success",
       durationMs: 0,
-      description: `Action type: ${intent.action_type}`,
+      description: `Action type: ${intent.action_types.join(", ")}`,
       details: [
         `Allowed tools: ${allowedToolNames.length > 0 ? allowedToolNames.join(", ") : "none (passive action)"}`,
         ...(affordances.locationIds.length > 0 ? [`Valid locations: ${affordances.locationIds.join(", ")}`] : []),
@@ -325,7 +326,7 @@ export async function POST(request: NextRequest) {
       questContext: questContext.context,
       knownNpcNames,
       existingTraces: traces,
-      actionType: intent.action_type,
+      actionTypes: intent.action_types,
       allowedProposalTools: constrainedTools,
       affordances,
       locationSummaries,
@@ -349,7 +350,7 @@ export async function POST(request: NextRequest) {
     );
     const travelTimeOverride = locationChangeEvent?.totalTravelTime;
     
-    const newTime = calculateTimeAdvancement(currentTime, turnCount, intent.action_type, playerAction, travelTimeOverride);
+    const newTime = calculateTimeAdvancement(currentTime, turnCount, primaryActionType, playerAction, travelTimeOverride);
     
     if (newTime) {
       // Update world state with new time
@@ -505,7 +506,7 @@ async function handleNarration(
     return NextResponse.json({ error: "Turn not found" }, { status: 404 });
   }
 
-  const mechanics = turnRow.mechanics as Turn["mechanics"] & { detectedIntent?: string; actionType?: ActionType };
+  const mechanics = turnRow.mechanics as Turn["mechanics"] & { detectedIntent?: string; actionTypes?: ActionType[] };
   if (!mechanics || !mechanics.outcome) {
     return NextResponse.json({ error: "Roll not complete" }, { status: 400 });
   }
@@ -513,9 +514,9 @@ async function handleNarration(
   const playerAction = turnRow.player_action;
   const questContext = await gatherQuestContext(characterId, playerAction, world);
 
-  // Get constrained tools based on stored action type (default to object for search/manipulation)
-  const actionType = mechanics.actionType || "object";
-  const allowedTools = getAllowedProposalTools(actionType);
+  // Get constrained tools based on stored action types (default to object for search/manipulation)
+  const actionTypes = mechanics.actionTypes || ["object"];
+  const allowedTools = getUnionOfAllowedTools(actionTypes);
 
   const rollOutcome: RollOutcome = {
     skill: mechanics.skill,
@@ -539,7 +540,7 @@ async function handleNarration(
     rollOutcome,
     mechanics,
     existingTraces: [questContext.trace],
-    actionType,
+    actionTypes,
     allowedProposalTools: allowedTools,
     locationSummaries,
     // Pass skill XP context for rolled skill checks
@@ -553,7 +554,8 @@ async function handleNarration(
   // Check if time should advance based on turn count and action type
   const turnCount = recentTurns.length + 1; // Include this turn
   const currentTime: GameTime = { day: world.time.day, phase: world.time.phase as GameTime["phase"] };
-  const newTime = calculateTimeAdvancement(currentTime, turnCount, actionType, playerAction);
+  const primaryActionType = actionTypes[0] || "object";
+  const newTime = calculateTimeAdvancement(currentTime, turnCount, primaryActionType, playerAction);
   
   if (newTime) {
     // Update world state with new time
