@@ -1,167 +1,78 @@
 ---
-description: Comprehensive hackathon submission review based on official judging criteria
+description: Review hackathon-writeup.md against Gemini 3 Hackathon judging criteria
 ---
 
-Perform comprehensive review of hackathon submission based on the official Kiro Hackathon judging criteria.
+Review `docs/hackathon-writeup.md` against the official Google DeepMind Gemini 3 Hackathon judging criteria.
 
-## Judging Criteria (100 Points Total)
+## Judging Criteria (Weighted Scoring)
 
-1. **Application Quality (40 points)**
-   - Functionality & Completeness (15 points)
-   - Real-World Value (15 points) 
-   - Code Quality (10 points)
+1. **Technical Execution (40%)**
+   - Does the project demonstrate quality application development?
+   - Does the project leverage Gemini 3?
+   - Is the code of good quality and is it functional?
 
-2. **Kiro CLI Usage (20 points)**
-   - Effective Use of Features (10 points)
-   - Custom Commands Quality (7 points)
-   - Workflow Innovation (3 points)
+2. **Innovation / Wow Factor (30%)**
+   - How novel and original is the idea?
+   - Does it address a significant problem or create a unique solution?
 
-3. **Documentation (20 points)**
-   - Completeness (9 points)
-   - Clarity (7 points)
-   - Process Transparency (4 points)
+3. **Potential Impact (20%)**
+   - How big of an impact could the project have in the real world?
+   - How useful is the project to a broad market of users?
+   - How significant is the problem the project addresses, and does it efficiently solve it?
 
-4. **Innovation (15 points)**
-   - Uniqueness (8 points)
-   - Creative Problem-Solving (7 points)
+4. **Presentation / Demo (10%)**
+   - Is the problem clearly defined, and is the solution effectively presented through a demo and documentation?
+   - Have they explained how they used Gemini 3 and any relevant tools?
+   - Have they included documentation or an architectural diagram?
 
-5. **Presentation (5 points)**
-   - Demo Video (3 points)
-   - README (2 points)
+## Submission Requirements
+
+- **Gemini 3 Integration Write-up** (~200 words) - Which Gemini 3 features were used and how they are central
+- **Public Project Link** - URL to working demo
+- **Demo Video** (~3 minutes max)
+- **English language** - All materials in English
 
 ## Review Process
 
-### 1. Project Discovery
-```bash
-find . -name "README*" -o -name "*.md" | head -10
-ls -la
-tree -L 2 -I 'node_modules|__pycache__|.git|dist|build' || ls -la
-```
-
-### 2. Required Documentation Check
-Look for:
-- `.kiro/steering/` - Global rules, coding standards, architecture principles
-- `.kiro/prompts/` - Custom Kiro commands, reusable prompts, workflows  
-- `DEVLOG.md` - Timeline, decisions, challenges, time spent
-- `README.md` - Setup instructions and project overview
-
-**Evaluate README.md and DEVLOG.md quality:**
-- README: Clear setup instructions, project description, usage examples
-- DEVLOG: Development timeline, decision rationale, challenges faced, time tracking
-
-### 3. Kiro CLI Integration Analysis
-Examine:
-- `.kiro/` directory structure and contents
-- Custom prompts and their quality
-- Steering documents and their comprehensiveness
-- Evidence of Kiro CLI usage throughout development
-
-### 4. Application Assessment
-Analyze:
-- Core functionality and completeness
-- Real-world applicability and value proposition
-- Code architecture and quality
-- Error handling and edge cases
-
-### 5. Innovation Evaluation
-Consider:
-- Uniqueness of approach or solution
-- Creative use of Kiro CLI features
-- Novel problem-solving methods
-- Technical creativity
-
-## Scoring Framework
-
-For each criterion, provide:
-- **Score**: X/Y points
-- **Justification**: Specific evidence and reasoning
-- **Strengths**: What was done well
-- **Areas for Improvement**: Specific suggestions
+1. Read `docs/hackathon-writeup.md`
+2. Score each criterion 1-5
+3. Identify gaps and improvements
+4. Provide specific recommendations
 
 ## Output Format
 
-# Hackathon Submission Review
+# Hackathon Writeup Review
 
-## Overall Score: X/100
+## Requirements Checklist
+- [ ] Gemini 3 Integration section (~200 words)
+- [ ] Demo link placeholder
+- [ ] Video link placeholder
+- [ ] Architecture diagram
+- [ ] English language
 
-## Detailed Scoring
+## Scores
 
-### Application Quality (X/40)
+### Technical Execution (40%) — X/5
+- Gemini 3 features explained?
+- Implementation quality shown?
+- Code examples included?
 
-**Functionality & Completeness (X/15)**
-- Score justification
-- Key strengths
-- Missing functionality or issues
+### Innovation / Wow Factor (30%) — X/5
+- Novel approach highlighted?
+- Unique solution explained?
+- "Wow" moments identified?
 
-**Real-World Value (X/15)**  
-- Problem being solved
-- Target audience and use case
-- Practical applicability
+### Potential Impact (20%) — X/5
+- Problem significance clear?
+- Target audience defined?
+- Real-world value shown?
 
-**Code Quality (X/10)**
-- Architecture and organization
-- Error handling
-- Code clarity and maintainability
+### Presentation / Demo (10%) — X/5
+- Problem clearly defined?
+- Architecture diagram included?
+- Gemini 3 usage explained?
 
-### Kiro CLI Usage (X/20)
+## Final Score: X/100
 
-**Effective Use of Features (X/10)**
-- Kiro CLI integration depth
-- Feature utilization assessment
-- Workflow effectiveness
-
-**Custom Commands Quality (X/7)**
-- Prompt quality and usefulness
-- Command organization
-- Reusability and clarity
-
-**Workflow Innovation (X/3)**
-- Creative Kiro CLI usage
-- Novel workflow approaches
-
-### Documentation (X/20)
-
-**Completeness (X/9)**
-- Required documentation presence
-- Coverage of all aspects
-
-**Clarity (X/7)**
-- Writing quality and organization
-- Ease of understanding
-
-**Process Transparency (X/4)**
-- Development process visibility
-- Decision documentation
-
-### Innovation (X/15)
-
-**Uniqueness (X/8)**
-- Originality of concept
-- Differentiation from common solutions
-
-**Creative Problem-Solving (X/7)**
-- Novel approaches
-- Technical creativity
-
-### Presentation (X/5)
-
-**Demo Video (X/3)**
-- Video quality and clarity
-- Effective demonstration
-
-**README (X/2)**
-- Setup instructions clarity
-- Project overview quality
-
-## Summary
-
-**Top Strengths:**
-- [Key strengths]
-
-**Critical Issues:**
-- [Major problems that impact scoring]
-
-**Recommendations:**
-- [Specific improvement suggestions]
-
-**Hackathon Readiness:** [Ready/Needs Work/Major Issues]
+## Recommendations
+- [Specific improvements to increase competitiveness]
