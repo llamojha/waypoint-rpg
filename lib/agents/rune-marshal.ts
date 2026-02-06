@@ -3,7 +3,7 @@ import { SKILL_TREE, SKILL_NAMES } from "@/constants";
 import type { Character, WorldContext } from "@/types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 
 /** Magic skill names for denial detection */
 const MAGIC_SKILLS = ["Spellcasting", "Rituals", "Wards", "Summoning"];

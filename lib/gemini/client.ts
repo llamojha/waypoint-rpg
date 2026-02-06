@@ -25,7 +25,7 @@ const FALLBACK_RESPONSE: GeminiTurnResponse = {
 };
 
 // Default model if not specified in environment
-const DEFAULT_MODEL = "gemini-2.5-flash-lite";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 
 /**
  * Generate a turn response from Gemini

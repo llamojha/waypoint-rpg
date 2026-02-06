@@ -7,7 +7,7 @@ import type { ProposedEvent } from "@/lib/turn/validate";
  */
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-const DEFAULT_MODEL = "gemini-2.5-flash-lite";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 
 export interface StreamMetadata {
   proposed_events: ProposedEvent[];

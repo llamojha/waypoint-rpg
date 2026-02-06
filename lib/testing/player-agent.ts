@@ -38,7 +38,7 @@ export async function getNextPlayerAction(
     .replace("{suggestedActions}", suggestedActions.join("\n") || "None");
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash-lite",
+    model: process.env.GEMINI_MODEL || "gemini-3-flash-preview",
     contents: prompt,
     config: {
       temperature: 0.3,

@@ -16,7 +16,7 @@ import { getNpcsAtLocation, getLocationDetails, getNpcVoice, getAtmosphere, load
 import { searchByKeywords } from "./cache";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 
 // Tool for LLM to search codex
 const SEARCH_CODEX_TOOL = createTool(

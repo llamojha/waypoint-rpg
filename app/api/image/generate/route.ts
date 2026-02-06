@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey });
     const imageModel =
-      process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+      process.env.GEMINI_IMAGE_MODEL || "gemini-3-pro-image-preview";
 
     const response = await ai.models.generateContent({
       model: imageModel,

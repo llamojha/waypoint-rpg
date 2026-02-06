@@ -9,7 +9,7 @@ import { GoogleGenAI } from "@google/genai";
 import type { TestTurnResult, TestScenario, GeminiQAResult } from "./types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 
 /**
  * Build the QA prompt for Gemini

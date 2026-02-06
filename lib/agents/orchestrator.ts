@@ -10,7 +10,7 @@ import { getConstraintDescription, getUnionConstraintDescription } from "@/lib/r
 import { formatAffordancesForPrompt, type Affordances } from "@/lib/rules/affordances";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 
 /** Magic skill names for denial detection */
 const MAGIC_SKILLS = ["Spellcasting", "Rituals", "Wards", "Summoning"];
