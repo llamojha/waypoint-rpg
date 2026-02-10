@@ -163,15 +163,6 @@ const Hero = ({ onStart, isWaitlist }: { onStart: () => void; isWaitlist: boolea
         >
           See how the Codex works
         </button>
-
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-parchment-400 bg-parchment-100 shadow-sm text-sm font-bold text-ink-light font-small-caps uppercase tracking-wide">
-          <span className="flex -space-x-2">
-            <div className="w-5 h-5 rounded-full bg-burgundy border border-parchment-100"></div>
-            <div className="w-5 h-5 rounded-full bg-gold border border-parchment-100"></div>
-            <div className="w-5 h-5 rounded-full bg-forest border border-parchment-100"></div>
-          </span>
-          <span>123,360 Adventurers Playing</span>
-        </div>
       </div>
     </div>
   </section>
@@ -732,9 +723,6 @@ const FinalCTA = ({ onStart, isWaitlist }: { onStart: () => void; isWaitlist: bo
           {isWaitlist ? "Join the Waiting List" : "Start Playing Now"}
         </button>
         <div className="flex flex-col items-center gap-1">
-          <div className="text-xs font-bold font-small-caps text-ink-light uppercase tracking-widest opacity-80">
-            Join 123,360 Adventurers
-          </div>
           <div className="text-[10px] font-bold text-ink-faint uppercase tracking-widest opacity-60">
             Play anytime. Your choices become lore.
           </div>
@@ -757,39 +745,9 @@ const Footer = ({
   <footer className="bg-parchment-900 text-parchment-400 dark:text-ink-light py-12 px-4 border-t-4 border-parchment-800 relative overflow-hidden">
     <div className="absolute inset-0 opacity-20 bg-[url('/footer_oak_texture.png')] bg-cover bg-center pointer-events-none"></div>
 
-    <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 relative z-10">
-      {/* Language Switcher */}
-      <div className="flex gap-4">
-        <LanguageButton
-          label="EN"
-          active={lang === "EN"}
-          onClick={() => setLang("EN")}
-        />
-        <LanguageButton
-          label="ES"
-          active={lang === "ES"}
-          onClick={() => setLang("ES")}
-        />
-      </div>
-
-      {/* Links */}
-      <div className="flex gap-6 text-sm font-bold font-small-caps uppercase tracking-wide">
-        <a href="#" className="hover:text-gold transition-colors">
-          Contact
-        </a>
-        <a href="#" className="hover:text-gold transition-colors">
-          Privacy
-        </a>
-        <a href="#" className="hover:text-gold transition-colors">
-          Terms
-        </a>
-        <a href="#" className="hover:text-gold transition-colors">
-          Twitter
-        </a>
-      </div>
-
+    <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-center items-center gap-8 relative z-10">
       {/* Signature */}
-      <div className="text-xs text-center md:text-right opacity-60 font-mono">
+      <div className="text-xs text-center opacity-60 font-mono">
         <div>Made with ☕ in Madrid, Spain</div>
         <div className="mt-1">© 2026 Waypoint RPG</div>
       </div>
